@@ -112,10 +112,10 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 
 ### Phase 3: Infrastructure（PR: マスタ JSON I/O＋アイコンマニフェスト＋検証テスト）
 
-- [ ] `master.json` 読み込み: スキーマ・値域・参照整合性・ペア一意性の検証を `MasterValidator` と同一規則で行い、違反は例外ではなくエラー一覧として集約して返す
-- [ ] JSON エクスポート: 全置換形式で `SchemaVersion`/`DataVersion` 付きに書き出す（管理ツールのエクスポート物。仕様決定 D/R）
-- [ ] `Icons` マニフェスト解決: `Key/File/Sha256/Bytes` の照合検証と、`IconKey → ファイル` の解決（未設定・欠落時はフォールバック）
-- [ ] 検証テスト: 不正 JSON・参照不整合・未知 `SchemaVersion`・範囲外数値・ペア重複・マニフェスト不一致が明示的に拒否されることを確認する
+- [x] `master.json` 読み込み: スキーマ・値域・参照整合性・ペア一意性の検証を `MasterValidator` と同一規則で行い、違反は例外ではなくエラー一覧として集約して返す
+- [x] JSON エクスポート: 全置換形式で `SchemaVersion`/`DataVersion` 付きに書き出す（管理ツールのエクスポート物。仕様決定 D/R）
+- [x] `Icons` マニフェスト解決: `Key/File/Sha256/Bytes` の照合検証と、`IconKey → ファイル` の解決（未設定・欠落時はフォールバック）
+- [x] 検証テスト: 不正 JSON・参照不整合・未知 `SchemaVersion`・範囲外数値・ペア重複・マニフェスト不一致が明示的に拒否されることを確認する
 - **受け入れ条件**: `dotnet test` 全緑。往復（読み込み→エクスポート）で内容が保存される。
 
 ### Phase 4: 計算アプリ UI（PR: 公開 Blazor WASM）
