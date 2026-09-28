@@ -344,7 +344,6 @@ public static class MasterValidator
     {
         CheckGameEventRef("Recipe", recipe.Id, recipe.GameEventId, gameEventIds, errors);
 
-        bool inputsComplete = true;
         foreach (RecipeInput input in recipe.Inputs ?? [])
         {
             if (!string.IsNullOrEmpty(input.ItemId) && !itemsById.ContainsKey(input.ItemId))
@@ -352,7 +351,6 @@ public static class MasterValidator
                 errors.Add(new MasterValidationError(
                     "Recipe", recipe.Id, "Inputs",
                     $"Inputs が参照するアイテムが存在しません: {input.ItemId}"));
-                inputsComplete = false;
             }
         }
 
@@ -393,19 +391,16 @@ public static class MasterValidator
         }
 
         // 仮想アイテム規則（継承分のみ）: レシピ入力に TransportKind.None を含めない。
-        // 参照先が欠けている場合は判定不能なため飛ばす。
-        if (inputsComplete)
+        // 参照先が欠けている入力は判定不能なためその入力のみ飛ばす。
+        foreach (RecipeInput input in recipe.Inputs ?? [])
         {
-            foreach (RecipeInput input in recipe.Inputs ?? [])
+            if (!string.IsNullOrEmpty(input.ItemId)
+                && itemsById.TryGetValue(input.ItemId, out Item? inputItem)
+                && inputItem.TransportKind == TransportKind.None)
             {
-                if (!string.IsNullOrEmpty(input.ItemId)
-                    && itemsById.TryGetValue(input.ItemId, out Item? inputItem)
-                    && inputItem.TransportKind == TransportKind.None)
-                {
-                    errors.Add(new MasterValidationError(
-                        "Recipe", recipe.Id, "Inputs",
-                        $"Inputs に仮想アイテム（TransportKind.None）を含めることはできません: {input.ItemId}"));
-                }
+                errors.Add(new MasterValidationError(
+                    "Recipe", recipe.Id, "Inputs",
+                    $"Inputs に仮想アイテム（TransportKind.None）を含めることはできません: {input.ItemId}"));
             }
         }
     }
@@ -423,28 +418,32 @@ public static class MasterValidator
         RequireNonEmpty(entity.Name, entityKind, entity.Id, "Name", errors);
         CheckIconKey(entityKind, entity.Id, entity.IconKey, errors);
 
-        Version? added = null;
+        SemVersion? added = null;
         if (string.IsNullOrWhiteSpace(entity.VersionAdded))
         {
             errors.Add(new MasterValidationError(
                 entityKind, entity.Id, "VersionAdded", "VersionAdded は必須です。"));
         }
-        else if (!Version.TryParse(entity.VersionAdded, out added))
+        else if (!SemVersion.TryParse(entity.VersionAdded, out SemVersion parsed))
         {
             errors.Add(new MasterValidationError(
                 entityKind, entity.Id, "VersionAdded",
-                $"VersionAdded は System.Version でパース可能である必要があります: {entity.VersionAdded}"));
+                $"VersionAdded は semver としてパース可能である必要があります: {entity.VersionAdded}"));
+        }
+        else
+        {
+            added = parsed;
         }
 
         if (entity.VersionRemoved is string removed)
         {
-            if (!Version.TryParse(removed, out Version? removedVersion))
+            if (!SemVersion.TryParse(removed, out SemVersion removedVersion))
             {
                 errors.Add(new MasterValidationError(
                     entityKind, entity.Id, "VersionRemoved",
-                    $"VersionRemoved は System.Version でパース可能である必要があります: {removed}"));
+                    $"VersionRemoved は semver としてパース可能である必要があります: {removed}"));
             }
-            else if (added is not null && added >= removedVersion)
+            else if (added is { } addedVersion && addedVersion.CompareTo(removedVersion) >= 0)
             {
                 errors.Add(new MasterValidationError(
                     entityKind, entity.Id, "VersionRemoved",

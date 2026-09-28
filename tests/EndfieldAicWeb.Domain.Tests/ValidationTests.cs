@@ -286,4 +286,38 @@ public class ValidationTests
         Assert.Contains(errors, e => e.EntityId == "r-empty" && e.Field == "Inputs[1]");
         Assert.Contains(errors, e => e.EntityId == "r-empty" && e.Field == "Inputs[1].Quantity");
     }
+
+    [Fact(DisplayName = "VAL-15: VersionAdded は semver 形式（prerelease/build 可・2 要素不可）")]
+    public void SemverFormatIsEnforced()
+    {
+        var errors = new List<MasterValidationError>();
+        MasterValidator.ValidateItem(
+            new Item { Id = "i-pre", Name = "n", Category = "c", VersionAdded = "1.2.0-beta.1+build.7" }, errors);
+        MasterValidator.ValidateItem(
+            new Item { Id = "i-two", Name = "n", Category = "c", VersionAdded = "1.0" }, errors);
+        MasterValidator.ValidateItem(
+            new Item { Id = "i-lead", Name = "n", Category = "c", VersionAdded = "01.0.0" }, errors);
+
+        Assert.DoesNotContain(errors, e => e.EntityId == "i-pre" && e.Field == "VersionAdded");
+        Assert.Contains(errors, e => e.EntityId == "i-two" && e.Field == "VersionAdded");
+        Assert.Contains(errors, e => e.EntityId == "i-lead" && e.Field == "VersionAdded");
+    }
+
+    [Fact(DisplayName = "VAL-16: 参照欠落の入力があっても仮想アイテム入力は検出される")]
+    public void VirtualInputIsReportedAlongsideMissingReference()
+    {
+        (List<Item> items, List<Facility> facilities, List<Environment> environments,
+            List<GameEvent> gameEvents, List<Recipe> recipes) = ValidBaseline();
+
+        items.Add(F.Item("i-power", "仮想", TransportKind.None));
+        recipes.Add(F.Recipe("r-mixed", "f-a", 4.0,
+            [("i-ghost", 1.0), ("i-power", 1.0)], [("i-p", 1.0)]));
+
+        List<MasterValidationError> errors = Errs(items, facilities, environments, gameEvents, recipes);
+
+        Assert.Contains(errors,
+            e => e.EntityId == "r-mixed" && e.Field == "Inputs" && e.Message.Contains("i-ghost"));
+        Assert.Contains(errors,
+            e => e.EntityId == "r-mixed" && e.Field == "Inputs" && e.Message.Contains("i-power"));
+    }
 }

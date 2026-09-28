@@ -203,6 +203,7 @@
 | SEL-09 | 最新レシピの全ペアが環境不適格なら次点レシピへ | F-03、`i-v` 60/分（`ev-off` 無効） | `r-v-old` が選ばれる（実装計画 §3 の暫定解釈） |
 | SEL-10 | 同一レシピの別ペア衝突は先勝ち＋警告（旧 BN） | 同一レシピが `i-m`・`i-n` を出力し、各需要が別ペアを指す上書き | 先に確定したペアで稼働、`PairConflict` 警告 |
 | SEL-11 | 引き戻しで休眠したペアの再稼働も稼働中ペアへ正規化 | F-14、`i-y` 10 + `i-m` 100 + `i-w` 10/分、`i-z` → ペア B 上書き | `PairConflict`、r-yz は f-b ペアのみ稼働、収束済み |
+| SEL-12 | prerelease 版も semver で順序付ける | `1.2.0-beta` vs `1.1.0`／`1.2.0` vs `1.2.0-beta` のレシピ対 | `1.2.0-beta` が `1.1.0` に勝ち（コア要素優先）、`1.2.0` が `1.2.0-beta` に勝つ（リリース優先） |
 
 ### CYC: 循環依存
 
@@ -308,6 +309,8 @@
 | VAL-12 | 数値域 | `CycleTime`/`Quantity`/`ConsumeRatePerSecond`/`RatePerSecond` が 0 以下・`Width`/`Height` 0 以下・`PowerConsumption` 負 → エラー |
 | VAL-13 | ペア 0 件のレシピはエラー | `Facilities` が空のレシピ → エラー（スキーマ `minItems: 1` と同規則） |
 | VAL-14 | 空 ItemId の入力でも検証は例外にならない | `Inputs` に空 `ItemId` の行を含むレシピ → エラー一覧として返る（例外を投げない）。行の数量エラーも ItemId 欠落と独立に集計される |
+| VAL-15 | VersionAdded は semver 形式 | `1.2.0-beta.1+build.7`（prerelease/build 付き）・`1.0`（2 要素）・`01.0.0`（先頭ゼロ） | prerelease/build 付きは有効。2 要素・先頭ゼロは `VersionAdded` エラー |
+| VAL-16 | 参照欠落の入力があっても仮想アイテム入力は検出される | 同一レシピの Inputs に未登録 `i-ghost` と `TransportKind.None` の `i-power` | 参照欠落・仮想アイテム規則の両方がエラー一覧に載る |
 
 ## 4. 受け入れ条件との対応
 

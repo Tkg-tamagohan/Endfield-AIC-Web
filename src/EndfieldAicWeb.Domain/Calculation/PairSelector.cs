@@ -101,12 +101,12 @@ public static class PairSelector
             .ToList();
     }
 
-    private static Version ParseVersionOrOldest(
+    private static SemVersion ParseVersionOrOldest(
         string recipeId,
         string? versionText,
         ICollection<CalculationWarning> warnings)
     {
-        if (Version.TryParse(versionText, out Version? parsed))
+        if (SemVersion.TryParse(versionText, out SemVersion parsed))
         {
             return parsed;
         }
@@ -114,7 +114,7 @@ public static class PairSelector
         warnings.Add(new CalculationWarning(
             WarningCode.InvalidVersionString,
             $"レシピ {recipeId} の VersionAdded {versionText} は semver としてパースできないため、最古として扱います。"));
-        return new Version(0, 0, 0, 0);
+        return default;
     }
 
     /// <summary>

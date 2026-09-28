@@ -178,4 +178,40 @@ public class SelectionTests
         Assert.Equal("f-b", run.FacilityId);
         Assert.False(HasWarning(plan, WarningCode.ConvergenceNotReached));
     }
+
+    [Fact(DisplayName = "SEL-12: prerelease 版も semver で順序付ける")]
+    public void PrereleaseVersionsAreOrderedBySemver()
+    {
+        MasterDataSnapshot betaOnly = CalculationFixtures.Snapshot(
+            [
+                CalculationFixtures.Item("i-x"),
+                CalculationFixtures.Item("i-ore", "基礎素材", TransportKind.Belt, null, true),
+            ],
+            [CalculationFixtures.Facility("f-a")],
+            [
+                CalculationFixtures.Recipe("r-old", "f-a", 6.0,
+                    [("i-ore", 1.0)], [("i-x", 1.0)], "1.1.0"),
+                CalculationFixtures.Recipe("r-beta", "f-a", 6.0,
+                    [("i-ore", 1.0)], [("i-x", 1.0)], "1.2.0-beta"),
+            ]);
+
+        ProductionPlan beta = CalculationFixtures.Run(betaOnly, [("i-x", 60.0)]);
+        Assert.Equal("r-beta", Assert.Single(beta.RecipeRuns).RecipeId);
+
+        MasterDataSnapshot withRelease = CalculationFixtures.Snapshot(
+            [
+                CalculationFixtures.Item("i-x"),
+                CalculationFixtures.Item("i-ore", "基礎素材", TransportKind.Belt, null, true),
+            ],
+            [CalculationFixtures.Facility("f-a")],
+            [
+                CalculationFixtures.Recipe("r-beta", "f-a", 6.0,
+                    [("i-ore", 1.0)], [("i-x", 1.0)], "1.2.0-beta"),
+                CalculationFixtures.Recipe("r-rel", "f-a", 6.0,
+                    [("i-ore", 1.0)], [("i-x", 1.0)], "1.2.0"),
+            ]);
+
+        ProductionPlan rel = CalculationFixtures.Run(withRelease, [("i-x", 60.0)]);
+        Assert.Equal("r-rel", Assert.Single(rel.RecipeRuns).RecipeId);
+    }
 }
