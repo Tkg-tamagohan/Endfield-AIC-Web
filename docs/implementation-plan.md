@@ -56,7 +56,7 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 | エンティティ | フィールド | 備考 |
 |---|---|---|
 | 共通属性 | Id, Name, Description, IconKey(null 可), VersionAdded, VersionRemoved(null 可) | 全マスタエンティティに付与（仕様決定 N）。 |
-| Item | 共通属性, Category, TransportKind, GameEventId(null=常設) | `Category="基礎素材"` は需要展開の終端（外部調達扱い）。`TransportKind=None` は仮想アイテム（輸送容量対象外）。非有効イベント配下は生産・外部調達とも不可（仕様決定 X）。 |
+| Item | 共通属性, Category, IsBaseMaterial, TransportKind, GameEventId(null=常設) | Category は表示用タグ、`IsBaseMaterial=true` が需要展開の終端（外部調達扱い）。`TransportKind=None` は仮想アイテム（輸送容量対象外）。非有効イベント配下は生産・外部調達とも不可（仕様決定 X）。 |
 | Environment | 共通属性, ProviderFacilityId, ConsumeItemId, ConsumeRatePerSecond, GameEventId(null=常設) | 環境を供給する設備（散布機）・継続消費アイテム・消費速度を持つ（仕様決定 H）。カバー範囲は持たない（W）。 |
 | Recipe | 共通属性, Inputs, Outputs, Facilities(RecipeFacility[]), GameEventId(null=常設) | `CycleTime`・`FacilityId` はレシピ本体からペアへ移動。Outputs は `ItemId＋Quantity＋SortOrder`（SortOrder=0 が主産物）。 |
 | Facility | 共通属性, Width, Height, PowerConsumption | 縦横は「設備面積最小」最適化（F）のために保持。発電識別・保持枠・ポート・衝突クラスは持たない（G/W/Y）。 |

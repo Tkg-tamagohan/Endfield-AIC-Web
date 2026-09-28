@@ -1,4 +1,5 @@
 using EndfieldAicWeb.Domain.Calculation;
+using EndfieldAicWeb.Domain.Models;
 using static EndfieldAicWeb.Domain.Tests.PlanAssert;
 
 namespace EndfieldAicWeb.Domain.Tests;
@@ -132,7 +133,7 @@ public class SelectionTests
             [
                 CalculationFixtures.Item("i-m"),
                 CalculationFixtures.Item("i-n"),
-                CalculationFixtures.Item("i-ore", "基礎素材"),
+                CalculationFixtures.Item("i-ore", "基礎素材", TransportKind.Belt, null, true),
             ],
             [
                 CalculationFixtures.Facility("f-a"),

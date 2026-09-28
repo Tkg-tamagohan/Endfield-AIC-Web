@@ -419,7 +419,7 @@ public sealed class ProductionCalculator
         }
 
         private bool IsRawMaterial(string itemId) =>
-            _master.ItemsById.TryGetValue(itemId, out Item? item) && item.Category == "基礎素材";
+            _master.ItemsById.TryGetValue(itemId, out Item? item) && item.IsBaseMaterial;
 
         /// <summary>アイテムの所属イベントがコンテキスト上で非有効か（仕様決定 X）。</summary>
         internal bool IsItemInactive(string itemId) =>

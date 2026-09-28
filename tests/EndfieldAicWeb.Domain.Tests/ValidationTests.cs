@@ -15,7 +15,7 @@ public class ValidationTests
         List<Environment> Environments,
         List<GameEvent> GameEvents,
         List<Recipe> Recipes) ValidBaseline() => (
-        [F.Item("i-ore", "基礎素材"), F.Item("i-p")],
+        [F.Item("i-ore", "基礎素材", TransportKind.Belt, null, true), F.Item("i-p")],
         [F.Facility("f-a"), F.Facility("f-disp")],
         [F.Env("env-g", "f-disp", "i-ore", 1.0)],
         [F.GameEvent("ev-1")],
@@ -216,7 +216,7 @@ public class ValidationTests
     {
         (List<Item> items, List<Facility> facilities, List<Environment> environments,
             List<GameEvent> gameEvents, List<Recipe> recipes) = ValidBaseline();
-        items.Add(F.Item("i-ore", "基礎素材"));
+        items.Add(F.Item("i-ore", "基礎素材", TransportKind.Belt, null, true));
 
         List<MasterValidationError> errors = Errs(items, facilities, environments, gameEvents, recipes);
 

@@ -29,7 +29,7 @@
 | 新モデル | 旧モデルからの変更 |
 |---|---|
 | `MasterEntity`（抽象基底） | 共通属性 `Id`・`Name`・`Description`・`IconKey`・`VersionAdded`・`VersionRemoved`（N）を集約。旧版はエンティティごとに散在していた |
-| `Item` | 旧 Item に共通属性・`GameEventId` を追加。`Origin` 廃止（S） |
+| `Item` | 旧 Item に共通属性・`GameEventId`・`IsBaseMaterial` を追加。`Origin` 廃止（S） |
 | `Environment` | 新設（H）。`ProviderFacilityId`・`ConsumeItemId`・`ConsumeRatePerSecond`・`GameEventId`。カバー範囲は持たない（W） |
 | `Recipe` | `CycleTime`・`FacilityId` をペアへ移動し `Facilities: RecipeFacility[]` を持つ。共通属性・`GameEventId` |
 | `RecipeFacility` | 新設。`RecipeId`・`FacilityId`・`CycleTime`・`EnvironmentId`・`FixedConsumption`。JSON ではレシピ内にネストし、`RecipeId` は所属レシピから与える |
@@ -37,6 +37,8 @@
 | `Facility` | `Width`・`Height`・`PowerConsumption` のみ（G/W）。`Category`・`CollisionClass`・`PowerSupplyRange`・`InternalSlots`・ポート・`Origin` は廃止 |
 | `GameEvent` | 共通属性を追加し `ActiveFrom`/`ActiveTo`（両 null=常設、T）。旧の `Recipes` ナビは持たない |
 | `MasterDocument` | `SchemaVersion`・`DataVersion`・5 エンティティ・`Icons`（マニフェスト `Key/File/Sha256/Bytes`）。旧 `MasterMeta`（DB 管理用）は廃止 |
+
+基礎素材の判定は `IsBaseMaterial`（bool）とし、`Category` は表示用タグとして残す（計算の判定には使わない）。`Category` の enum 化は実データが揃ってから検討する保留事項とする。
 
 ## 3. 計算の適合方針
 

@@ -1,4 +1,5 @@
 using EndfieldAicWeb.Domain.Calculation;
+using EndfieldAicWeb.Domain.Models;
 using static EndfieldAicWeb.Domain.Tests.PlanAssert;
 using F = EndfieldAicWeb.Domain.Tests.CalculationFixtures;
 
@@ -23,7 +24,7 @@ public class WarningTests
     public void MissingRecipeRawMaterialIsProcured()
     {
         MasterDataSnapshot master = F.Snapshot(
-            [F.Item("i-ore", "基礎素材")], [], []);
+            [F.Item("i-ore", "基礎素材", TransportKind.Belt, null, true)], [], []);
 
         ProductionPlan plan = F.Run(master, [("i-ore", 10.0)]);
 
@@ -82,5 +83,18 @@ public class WarningTests
             environmentOverrides: [new EnvironmentCountOverride("env-none", 2)]);
 
         Assert.True(HasWarning(plan, WarningCode.InvalidEnvironmentOverride));
+    }
+
+    [Fact(DisplayName = "WRN-06: Category タグだけでは外部調達扱いにならない")]
+    public void CategoryTagDoesNotImplyBaseMaterial()
+    {
+        MasterDataSnapshot master = F.Snapshot(
+            [F.Item("i-tag-only", "基礎素材")], [], []);
+
+        ProductionPlan plan = F.Run(master, [("i-tag-only", 10.0)]);
+
+        Assert.True(HasWarning(plan, WarningCode.NoRecipeAvailable));
+        Assert.Equal(10.0, Req(plan, "i-tag-only").UnmetPerMinute, Precision);
+        Assert.Equal(0.0, Supplied(plan, "i-tag-only", SupplyKind.RawMaterial), Precision);
     }
 }

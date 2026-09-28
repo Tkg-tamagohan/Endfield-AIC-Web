@@ -34,9 +34,10 @@
         { "$ref": "#/$defs/commonAttributes" },
         {
           "type": "object",
-          "required": ["Category", "TransportKind", "GameEventId"],
+          "required": ["Category", "IsBaseMaterial", "TransportKind", "GameEventId"],
           "properties": {
-            "Category": { "type": "string", "minLength": 1, "description": "「基礎素材」は需要展開の終端（外部調達扱い）" },
+            "Category": { "type": "string", "minLength": 1, "description": "表示用の分類タグ（計算の判定には使わない）" },
+            "IsBaseMaterial": { "type": "boolean", "description": "需要展開の終端となる基礎素材か（true なら外部調達扱い）" },
             "TransportKind": { "enum": ["None", "Belt", "Pipe"], "description": "None は仮想アイテム（輸送容量対象外）" },
             "GameEventId": { "type": ["string", "null"], "description": "null=常設" }
           }

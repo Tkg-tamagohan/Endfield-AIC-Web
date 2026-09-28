@@ -30,7 +30,7 @@
 
 | 種別 | Id | パラメータ |
 |---|---|---|
-| Item | `i-ore` | Category=基礎素材、TransportKind=Belt |
+| Item | `i-ore` | IsBaseMaterial=true、TransportKind=Belt |
 | Item | `i-part` | Category=部品、TransportKind=Belt |
 | Facility | `f-asm` | Width=3、Height=3、PowerConsumption=0 |
 | Recipe | `r-part` | ペア (f-asm, CycleTime=4秒)、入力 `i-ore`×2、出力 `i-part`×1 |
@@ -42,7 +42,7 @@
 | 種別 | Id | パラメータ |
 |---|---|---|
 | Item | `i-a` `i-b` `i-c` | Category=部品、TransportKind=Belt |
-| Item | `i-d` | Category=基礎素材、TransportKind=Belt |
+| Item | `i-d` | IsBaseMaterial=true、TransportKind=Belt |
 | Facility | `f-a` `f-b` `f-c` | PowerConsumption=0 |
 | Recipe | `r-a` | ペア (f-a, 5秒)、入力 `i-b`×2、出力 `i-a`×1 |
 | Recipe | `r-b` | ペア (f-b, 10秒)、入力 `i-c`×3、出力 `i-b`×1 |
@@ -55,8 +55,8 @@
 | 種別 | Id | パラメータ |
 |---|---|---|
 | Item | `i-x` `i-y` `i-z` `i-w` `i-v` | Category=部品、TransportKind=Belt |
-| Item | `i-ore-x` `i-gas-w` | Category=基礎素材、TransportKind=Belt（`i-gas-w` のみ Pipe） |
-| Item | `i-fuel-w` | Category=基礎素材、TransportKind=Belt |
+| Item | `i-ore-x` `i-gas-w` | IsBaseMaterial=true、TransportKind=Belt（`i-gas-w` のみ Pipe） |
+| Item | `i-fuel-w` | IsBaseMaterial=true、TransportKind=Belt |
 | Facility | `f-a` `f-b` `f-c` `f-disp` | PowerConsumption=0 |
 | Environment | `env-w` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-gas-w`、ConsumeRatePerSecond=1 |
 | Environment | `env-ltd` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-gas-w`、ConsumeRatePerSecond=1、GameEventId=`ev-off` |
@@ -88,7 +88,7 @@
 | 種別 | Id | パラメータ |
 |---|---|---|
 | Item | `i-p` `i-q` | Category=部品、TransportKind=Belt |
-| Item | `i-orem` `i-oreq` | Category=基礎素材、TransportKind=Belt |
+| Item | `i-orem` `i-oreq` | IsBaseMaterial=true、TransportKind=Belt |
 | Facility | `f-m` `f-q` | PowerConsumption=0 |
 | Recipe | `r-m` | ペア (f-m, 4秒)、`i-orem`×1 → `i-p`×1+`i-q`×2、VersionAdded=`"0.9.0"` |
 | Recipe | `r-q` | ペア (f-q, 6秒)、`i-oreq`×3 → `i-q`×1 |
@@ -100,7 +100,7 @@
 | 種別 | Id | パラメータ |
 |---|---|---|
 | Item | `i-t` | Category=部品、TransportKind=Belt |
-| Item | `i-u` | Category=基礎素材、TransportKind=Belt |
+| Item | `i-u` | IsBaseMaterial=true、TransportKind=Belt |
 | Facility | `f-t` | PowerConsumption=0 |
 | Recipe | `r-t` | ペア (f-t, 2秒)、`i-u`×4 → `i-t`×1 |
 
@@ -109,7 +109,7 @@
 | 種別 | Id | パラメータ |
 |---|---|---|
 | Item | `i-belt-item` `i-pipe-item` `i-none-item` | Category=部品、TransportKind=Belt/Pipe/None |
-| Item | `i-belt-src` `i-pipe-src` | Category=基礎素材、TransportKind=Belt/Pipe |
+| Item | `i-belt-src` `i-pipe-src` | IsBaseMaterial=true、TransportKind=Belt/Pipe |
 | Facility | `f-tr` | PowerConsumption=0 |
 | Recipe | `r-belt` `r-pipe` | 各ペア (f-tr, 6秒)、src×1 → item×1 |
 | Recipe | `r-none` | ペア (f-tr, 6秒)、`i-belt-src`×0.01 → `i-none-item`×1（仮想アイテムは入力に使えないため微量の通常素材を入力） |
@@ -118,7 +118,7 @@
 
 | 種別 | Id | パラメータ |
 |---|---|---|
-| Item | `i-ore` `i-gas` | Category=基礎素材、TransportKind=Belt/Pipe |
+| Item | `i-ore` `i-gas` | IsBaseMaterial=true、TransportKind=Belt/Pipe |
 | Item | `i-hp` `i-std` | Category=部品、TransportKind=Belt |
 | Facility | `f-asm` | PowerConsumption=50 |
 | Facility | `f-disp` | PowerConsumption=20 |
@@ -130,7 +130,7 @@
 
 | 種別 | Id | パラメータ |
 |---|---|---|
-| Item | `i-ore` `i-fuel` | Category=基礎素材、TransportKind=Belt |
+| Item | `i-ore` `i-fuel` | IsBaseMaterial=true、TransportKind=Belt |
 | Item | `i-fc` | Category=部品、TransportKind=Belt |
 | Facility | `f-fc` `f-fuel` | PowerConsumption=0 |
 | Recipe | `r-fc` | ペア (f-fc, 30秒, FixedConsumption=`i-fuel`×0.1/s)、`i-ore`×1 → `i-fc`×1 |
@@ -141,8 +141,9 @@
 | 種別 | Id | パラメータ |
 |---|---|---|
 | Item | `i-ltd` | Category=部品、TransportKind=Belt、GameEventId=`ev-ltd` |
-| Item | `i-ltd-raw` | Category=基礎素材、TransportKind=Belt、GameEventId=`ev-ltd`（レシピなし） |
-| Item | `i-ore` `i-fin` | Category=基礎素材/部品、TransportKind=Belt |
+| Item | `i-ltd-raw` | IsBaseMaterial=true、TransportKind=Belt、GameEventId=`ev-ltd`（レシピなし） |
+| Item | `i-ore` | IsBaseMaterial=true、TransportKind=Belt |
+| Item | `i-fin` | Category=部品、TransportKind=Belt |
 | Facility | `f-asm` | PowerConsumption=0 |
 | GameEvent | `ev-ltd` | ActiveFrom/ActiveTo=null |
 | Recipe | `r-ltd` | ペア (f-asm, 6秒)、`i-ore`×1 → `i-ltd`×1（レシピ自体は常設） |
@@ -152,7 +153,7 @@
 
 | 種別 | Id | パラメータ |
 |---|---|---|
-| Item | `i-ore` `i-gasp` | Category=基礎素材、TransportKind=Belt/Pipe |
+| Item | `i-ore` `i-gasp` | IsBaseMaterial=true、TransportKind=Belt/Pipe |
 | Item | `i-xp` `i-fuelself` | Category=部品、TransportKind=Belt |
 | Facility | `f-xp` `f-mix` `f-disp` `f-self` | PowerConsumption=0 |
 | Environment | `env-gasp` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-gasp`、ConsumeRatePerSecond=6 |
@@ -164,7 +165,7 @@
 
 | 種別 | Id | パラメータ |
 |---|---|---|
-| Item | `i-ore` | Category=基礎素材、TransportKind=Belt |
+| Item | `i-ore` | IsBaseMaterial=true、TransportKind=Belt |
 | Item | `i-y` `i-z` `i-m` `i-w` | Category=部品、TransportKind=Belt |
 | Facility | `f-a` `f-b` `f-m` `f-disp` `f-w` | PowerConsumption=0 |
 | Environment | `env-x` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-z`、ConsumeRatePerSecond=2 |
@@ -287,6 +288,7 @@
 | WRN-03 | 複数警告が同時に返る | F-04 + レシピなしアイテム、`i-a` 10 + `i-miss` 5 → `CycleDetected` と `NoRecipeAvailable` |
 | WRN-04 | 不正な目標は ArgumentException | レート 0/負/非有限、アイテム未登録 → 例外 |
 | WRN-05 | 未知環境への台数上書きは警告 | `EnvironmentCountOverride(env-none, 2)` → `InvalidEnvironmentOverride` |
+| WRN-06 | Category タグだけでは外部調達扱いにならない | `Category="基礎素材"` かつ `IsBaseMaterial=false`・レシピなし → `NoRecipeAvailable`＋未充足。RawMaterial 供給にならない |
 
 ### VAL: マスタ検証
 

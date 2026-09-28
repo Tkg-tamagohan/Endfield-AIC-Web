@@ -6,9 +6,12 @@ namespace EndfieldAicWeb.Domain.Models;
 public class Item : MasterEntity
 {
     /// <summary>
-    /// 分類。「基礎素材」は需要展開の終端（外部調達扱い）。
+    /// 分類。表示用タグであり、計算の判定には使わない。
     /// </summary>
     public required string Category { get; set; }
+
+    /// <summary>需要展開の終端となる基礎素材か。true なら外部調達扱い。</summary>
+    public bool IsBaseMaterial { get; set; }
 
     /// <summary>輸送種別。None は輸送容量対象外の仮想アイテム。</summary>
     public TransportKind TransportKind { get; set; }
