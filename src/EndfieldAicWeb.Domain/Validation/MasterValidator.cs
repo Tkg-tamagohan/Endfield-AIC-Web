@@ -105,6 +105,19 @@ public static class MasterValidator
                 "Recipe", recipe.Id, "Facilities", "Facilities は 1 件以上必要です。"));
         }
 
+        if (recipe.Outputs is not null)
+        {
+            for (int i = 0; i < recipe.Outputs.Count; i++)
+            {
+                if (recipe.Outputs[i].SortOrder < 0)
+                {
+                    errors.Add(new MasterValidationError(
+                        "Recipe", recipe.Id, $"Outputs[{i}].SortOrder",
+                        $"Outputs[{i}].SortOrder は 0 以上である必要があります: {recipe.Outputs[i].SortOrder}"));
+                }
+            }
+        }
+
         ValidateRecipeItems(recipe.Inputs, i => i.ItemId, i => i.Quantity, recipe.Id, "Inputs", errors);
         ValidateRecipeItems(recipe.Outputs, o => o.ItemId, o => o.Quantity, recipe.Id, "Outputs", errors);
         ValidatePairs(recipe, errors);

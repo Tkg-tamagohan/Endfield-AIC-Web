@@ -11,8 +11,8 @@ public static partial class IconKeyRules
     /// <summary>未設定・未解決時にプレースホルダ表示へ落とすための予約キー。</summary>
     public const string PlaceholderKey = "icon-placeholder";
 
-    /// <summary>許容されるキーの形（英数字・ハイフン・アンダースコアの 1〜64 文字）。</summary>
-    public const string Pattern = "^[A-Za-z0-9_-]{1,64}$";
+    /// <summary>許容されるキーの形（英数字・ハイフン・アンダースコアの 1〜64 文字）。末尾改行を許さない \A\z アンカー。</summary>
+    public const string Pattern = "\\A[A-Za-z0-9_-]{1,64}\\z";
 
     [GeneratedRegex(Pattern)]
     private static partial Regex KeyRegex();
