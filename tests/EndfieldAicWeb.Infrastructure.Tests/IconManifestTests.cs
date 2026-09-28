@@ -147,4 +147,30 @@ public class IconManifestTests
             Directory.Delete(root, recursive: true);
         }
     }
+
+    [Theory(DisplayName = "ICO-10: ルート外へ出る相対パスは拒否される")]
+    [InlineData("../secret.txt")]
+    [InlineData("icons/../../secret.txt")]
+    [InlineData("..\\secret.txt")]
+    public void FileSystemProvider_Traversal_ReturnsNull(string path)
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"aic-icons-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "icons"));
+            // ルートの親に秘密ファイルを配置して、到達できることを試行する。
+            string parentSecret = Path.Combine(root, "icons", "..", "..", "secret.txt");
+            Directory.CreateDirectory(Path.GetDirectoryName(parentSecret)!);
+            File.WriteAllText(parentSecret, "secret");
+
+            var provider = new FileSystemIconProvider(root);
+
+            Assert.Null(provider.ReadAllBytes(path));
+        }
+        finally
+        {
+            File.Delete(Path.Combine(root, "icons", "..", "..", "secret.txt"));
+            Directory.Delete(root, recursive: true);
+        }
+    }
 }

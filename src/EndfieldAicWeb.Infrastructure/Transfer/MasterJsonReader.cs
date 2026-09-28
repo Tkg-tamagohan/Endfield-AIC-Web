@@ -16,9 +16,13 @@ internal static class MasterJsonReader
     /// <summary>対応するスキーマ版。新系統の v1 = 1（仕様決定 C）。</summary>
     public const int SupportedSchemaVersion = 1;
 
-    private static readonly Regex Sha256Pattern = new("^[0-9a-f]{64}$", RegexOptions.Compiled);
+    // 末尾改行を許さないよう ^$ ではなく \A\z で固定する。
+    private static readonly Regex Sha256Pattern = new("\\A[0-9a-f]{64}\\z", RegexOptions.Compiled);
 
-    /// <summary>JSON を DTO へデシリアライズする。構文エラー・型不一致は error に返す。</summary>
+    /// <summary>
+    /// JSON を DTO へデシリアライズする。
+    /// 構文エラー・型不一致・必須キー欠落（required メンバー違反）は error に返す。
+    /// </summary>
     public static MasterJsonDocument? Parse(string json, out string? syntaxError)
     {
         try
@@ -35,7 +39,7 @@ internal static class MasterJsonReader
         }
         catch (JsonException ex)
         {
-            syntaxError = $"JSON の構文が不正です: {ex.Message}";
+            syntaxError = $"JSON の解析に失敗しました: {ex.Message}";
             return null;
         }
     }
@@ -66,6 +70,9 @@ internal static class MasterJsonReader
             errors.Add(new MasterValidationError(
                 "Document", "", "DataVersion", "DataVersion は必須です。"));
         }
+
+        // スキーマ未定義プロパティ（additionalProperties:false 準拠）は拒否する。
+        RejectUnknownProperties(document.ExtensionData, "ルート", "Document", "", errors);
 
         RequireArray(document.Items, nameof(document.Items), errors);
         RequireArray(document.Facilities, nameof(document.Facilities), errors);
@@ -99,7 +106,7 @@ internal static class MasterJsonReader
             {
                 Id = e!.Id!,
                 Name = e.Name!,
-                Description = e.Description ?? "",
+                Description = e.Description!,
                 IconKey = e.IconKey,
                 VersionAdded = e.VersionAdded!,
                 VersionRemoved = e.VersionRemoved,
@@ -112,7 +119,7 @@ internal static class MasterJsonReader
             {
                 Id = e!.Id!,
                 Name = e.Name!,
-                Description = e.Description ?? "",
+                Description = e.Description!,
                 IconKey = e.IconKey,
                 VersionAdded = e.VersionAdded!,
                 VersionRemoved = e.VersionRemoved,
@@ -124,7 +131,7 @@ internal static class MasterJsonReader
             {
                 Id = e!.Id!,
                 Name = e.Name!,
-                Description = e.Description ?? "",
+                Description = e.Description!,
                 IconKey = e.IconKey,
                 VersionAdded = e.VersionAdded!,
                 VersionRemoved = e.VersionRemoved,
@@ -137,7 +144,7 @@ internal static class MasterJsonReader
             {
                 Id = e!.Id!,
                 Name = e.Name!,
-                Description = e.Description ?? "",
+                Description = e.Description!,
                 IconKey = e.IconKey,
                 VersionAdded = e.VersionAdded!,
                 VersionRemoved = e.VersionRemoved,
@@ -148,7 +155,7 @@ internal static class MasterJsonReader
             {
                 Id = e!.Id!,
                 Name = e.Name!,
-                Description = e.Description ?? "",
+                Description = e.Description!,
                 IconKey = e.IconKey,
                 VersionAdded = e.VersionAdded!,
                 VersionRemoved = e.VersionRemoved,
@@ -279,6 +286,8 @@ internal static class MasterJsonReader
         }
 
         RequireEnum<TransportKind>(item.TransportKind, $"{location}.TransportKind", "Item", item.Id ?? "", errors);
+        RequirePresent(item.Description, $"{location}.Description", "Item", item.Id ?? "", errors);
+        RejectUnknownProperties(item.ExtensionData, location, "Item", item.Id ?? "", errors);
     }
 
     private static void ValidateFacilityElement(FacilityJson? facility, string location, ICollection<MasterValidationError> errors)
@@ -288,6 +297,8 @@ internal static class MasterJsonReader
         RequireNumber(facility.Width, $"{location}.Width", "Facility", facility.Id ?? "", errors);
         RequireNumber(facility.Height, $"{location}.Height", "Facility", facility.Id ?? "", errors);
         RequireNumber(facility.PowerConsumption, $"{location}.PowerConsumption", "Facility", facility.Id ?? "", errors);
+        RequirePresent(facility.Description, $"{location}.Description", "Facility", facility.Id ?? "", errors);
+        RejectUnknownProperties(facility.ExtensionData, location, "Facility", facility.Id ?? "", errors);
     }
 
     private static void ValidateEnvironmentElement(EnvironmentJson? environment, string location, ICollection<MasterValidationError> errors)
@@ -297,12 +308,16 @@ internal static class MasterJsonReader
         RequireField(environment.ProviderFacilityId, $"{location}.ProviderFacilityId", "Environment", environment.Id ?? "", errors);
         RequireField(environment.ConsumeItemId, $"{location}.ConsumeItemId", "Environment", environment.Id ?? "", errors);
         RequireNumber(environment.ConsumeRatePerSecond, $"{location}.ConsumeRatePerSecond", "Environment", environment.Id ?? "", errors);
+        RequirePresent(environment.Description, $"{location}.Description", "Environment", environment.Id ?? "", errors);
+        RejectUnknownProperties(environment.ExtensionData, location, "Environment", environment.Id ?? "", errors);
     }
 
     private static void ValidateGameEventElement(GameEventJson? gameEvent, string location, ICollection<MasterValidationError> errors)
     {
         RequireField(gameEvent!.Id, $"{location}.Id", "GameEvent", gameEvent.Id ?? "", errors);
         RequireField(gameEvent.Name, $"{location}.Name", "GameEvent", gameEvent.Id ?? "", errors);
+        RequirePresent(gameEvent.Description, $"{location}.Description", "GameEvent", gameEvent.Id ?? "", errors);
+        RejectUnknownProperties(gameEvent.ExtensionData, location, "GameEvent", gameEvent.Id ?? "", errors);
     }
 
     private static void ValidateRecipeElement(RecipeJson? recipe, string location, ICollection<MasterValidationError> errors)
@@ -310,6 +325,8 @@ internal static class MasterJsonReader
         string id = recipe!.Id ?? "";
         RequireField(recipe.Id, $"{location}.Id", "Recipe", id, errors);
         RequireField(recipe.Name, $"{location}.Name", "Recipe", id, errors);
+        RequirePresent(recipe.Description, $"{location}.Description", "Recipe", id, errors);
+        RejectUnknownProperties(recipe.ExtensionData, location, "Recipe", id, errors);
 
         if (recipe.Inputs is null)
         {
@@ -329,6 +346,7 @@ internal static class MasterJsonReader
 
                 RequireField(input.ItemId, $"{ioLocation}.ItemId", "Recipe", id, errors);
                 RequireNumber(input.Quantity, $"{ioLocation}.Quantity", "Recipe", id, errors);
+                RejectUnknownProperties(input.ExtensionData, ioLocation, "Recipe", id, errors);
             }
         }
 
@@ -350,6 +368,7 @@ internal static class MasterJsonReader
 
                 RequireField(output.ItemId, $"{ioLocation}.ItemId", "Recipe", id, errors);
                 RequireNumber(output.Quantity, $"{ioLocation}.Quantity", "Recipe", id, errors);
+                RejectUnknownProperties(output.ExtensionData, ioLocation, "Recipe", id, errors);
                 if (output.SortOrder is null)
                 {
                     errors.Add(new MasterValidationError("Recipe", id, "Outputs", $"{ioLocation}.SortOrder は必須です。"));
@@ -381,6 +400,7 @@ internal static class MasterJsonReader
 
                 RequireField(pair.FacilityId, $"{pairLocation}.FacilityId", "Recipe", id, errors);
                 RequireNumber(pair.CycleTime, $"{pairLocation}.CycleTime", "Recipe", id, errors);
+                RejectUnknownProperties(pair.ExtensionData, pairLocation, "Recipe", id, errors);
 
                 if (pair.FixedConsumption is FixedConsumptionJson fixedConsumption)
                 {
@@ -392,6 +412,8 @@ internal static class MasterJsonReader
                         "Recipe",
                         id,
                         errors);
+                    RejectUnknownProperties(
+                        fixedConsumption.ExtensionData, $"{pairLocation}.FixedConsumption", "Recipe", id, errors);
                 }
             }
         }
@@ -409,7 +431,10 @@ internal static class MasterJsonReader
             if (icons[i] is null)
             {
                 errors.Add(new MasterValidationError("Icons", "", "", $"配列 Icons の {i} 番目の要素が null です。"));
+                continue;
             }
+
+            RejectUnknownProperties(icons[i]!.ExtensionData, $"Icons[{i}]", "Icons", icons[i]!.Key ?? "", errors);
         }
 
         ValidateIconManifestValues(
@@ -443,6 +468,25 @@ internal static class MasterJsonReader
             }
 
             validateElement(entity, location, errors);
+        }
+    }
+
+    private static void RejectUnknownProperties(
+        IDictionary<string, JsonElement>? extensionData,
+        string location,
+        string entityKind,
+        string entityId,
+        ICollection<MasterValidationError> errors)
+    {
+        if (extensionData is null)
+        {
+            return;
+        }
+
+        foreach (string key in extensionData.Keys)
+        {
+            errors.Add(new MasterValidationError(
+                entityKind, entityId, key, $"{location} にスキーマ未定義のプロパティ {key} があります。"));
         }
     }
 
@@ -484,6 +528,21 @@ internal static class MasterJsonReader
         }
     }
 
+    // スキーマ type=string の必須フィールド。空文字は許容し、null のみ拒否する。
+    private static void RequirePresent(
+        string? value,
+        string location,
+        string entityKind,
+        string entityId,
+        ICollection<MasterValidationError> errors)
+    {
+        if (value is null)
+        {
+            string field = location[(location.IndexOf('.') + 1)..];
+            errors.Add(new MasterValidationError(entityKind, entityId, field, $"{location} は必須です。"));
+        }
+    }
+
     private static void RequireEnum<TEnum>(
         string? value,
         string location,
@@ -492,7 +551,11 @@ internal static class MasterJsonReader
         ICollection<MasterValidationError> errors)
         where TEnum : struct, Enum
     {
-        if (!Enum.TryParse<TEnum>(value, out TEnum parsed) || !Enum.IsDefined(parsed))
+        // TryParse は数値文字列・前後空白も受け付けるため、定義名との完全一致を要求する。
+        bool valid = Enum.TryParse<TEnum>(value, out TEnum parsed)
+            && Enum.IsDefined(parsed)
+            && string.Equals(parsed.ToString(), value, StringComparison.Ordinal);
+        if (!valid)
         {
             string field = location[(location.IndexOf('.') + 1)..];
             errors.Add(new MasterValidationError(

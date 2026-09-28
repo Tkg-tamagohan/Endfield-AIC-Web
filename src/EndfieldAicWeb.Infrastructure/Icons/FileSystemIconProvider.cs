@@ -19,14 +19,19 @@ public sealed class FileSystemIconProvider : IIconFileProvider
     {
         ArgumentNullException.ThrowIfNull(path);
 
-        // マニフェスト相対パスのみを許容し、ルート外へは出さない。
+        // マニフェスト相対パスのみを許容し、ルート外へは出さない（先頭以外の ".." も拒否）。
         string normalized = path.Replace('\\', '/').TrimStart('/');
-        if (normalized.StartsWith("../", StringComparison.Ordinal) || normalized == "..")
+        if (normalized.Split('/').Any(segment => segment == ".."))
         {
             return null;
         }
 
-        string fullPath = Path.Combine(_rootDirectory, normalized);
+        string rootFull = Path.GetFullPath(_rootDirectory);
+        string fullPath = Path.GetFullPath(Path.Combine(rootFull, normalized));
+        if (!fullPath.StartsWith(rootFull + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+        {
+            return null;
+        }
         try
         {
             return File.Exists(fullPath) ? File.ReadAllBytes(fullPath) : null;

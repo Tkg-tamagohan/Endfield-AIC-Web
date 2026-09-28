@@ -75,7 +75,7 @@ public class MasterJsonLoaderTests
         MasterJsonLoadResult result = MasterJsonLoader.Load(json);
 
         Assert.False(result.Success);
-        Assert.Contains(result.Errors, e => e.Field == "SchemaVersion");
+        Assert.Contains(result.Errors, e => e.Message.Contains("SchemaVersion"));
     }
 
     [Theory(DisplayName = "STR-02: 未知 SchemaVersion (2, 0, 999) はそれぞれ拒否される")]
@@ -112,7 +112,7 @@ public class MasterJsonLoaderTests
         MasterJsonLoadResult result = MasterJsonLoader.Load(json);
 
         Assert.False(result.Success);
-        Assert.Contains(result.Errors, e => e.Field == "DataVersion");
+        Assert.Contains(result.Errors, e => e.Message.Contains("DataVersion"));
     }
 
     [Theory(DisplayName = "STR-04: 必須配列の欠落（Items・Icons）はそれぞれエラー")]
@@ -151,14 +151,15 @@ public class MasterJsonLoaderTests
         MasterJsonLoadResult emptyNameResult = MasterJsonLoader.Load(emptyName);
 
         Assert.False(missingIdResult.Success);
-        Assert.Contains(missingIdResult.Errors, e => e.Field is not null && e.Field.Contains("Id"));
+        Assert.Contains(missingIdResult.Errors, e => e.Message.Contains("Id"));
         Assert.False(emptyNameResult.Success);
-        Assert.Contains(emptyNameResult.Errors, e => e.Field is not null && e.Field.Contains("Name"));
+        Assert.Contains(emptyNameResult.Errors, e => e.Message.Contains("Name"));
     }
 
-    [Theory(DisplayName = "STR-07: enum 定義値外（Rocket・小文字 belt）はそれぞれエラー")]
+    [Theory(DisplayName = "STR-07: enum 定義値外（Rocket・小文字 belt・数値 1）はそれぞれエラー")]
     [InlineData("Rocket")]
     [InlineData("belt")]
+    [InlineData("1")]
     public void InvalidEnum_ReturnsError(string value)
     {
         string json = TestJson.Mutate(root =>
@@ -253,6 +254,8 @@ public class MasterJsonLoaderTests
             root["Icons"]!.AsArray()[0]!.AsObject()["Bytes"] = 0)];
         yield return ["Key欠落", (Action<JsonObject>)(root =>
             root["Icons"]!.AsArray()[0]!.AsObject().Remove("Key"))];
+        yield return ["Sha256末尾改行", (Action<JsonObject>)(root =>
+            root["Icons"]!.AsArray()[0]!.AsObject()["Sha256"] = TestJson.IconOreSha256 + "\n")];
     }
 
     [Theory(DisplayName = "STR-11: Icons 節の構造違反はそれぞれエラー")]
@@ -283,6 +286,71 @@ public class MasterJsonLoaderTests
         Assert.Single(result.Document.Icons);
         Assert.Equal(2, result.Document.Recipes[0].Facilities.Count);
         Assert.Equal("r-part", result.Document.Recipes[0].Facilities[0].RecipeId);
+    }
+
+    [Theory(DisplayName = "STR-13: スキーマ必須の nullable キー欠落（VersionRemoved・IconKey・GameEventId・EnvironmentId）は拒否される")]
+    [InlineData("VersionRemoved")]
+    [InlineData("IconKey")]
+    [InlineData("GameEventId")]
+    [InlineData("EnvironmentId")]
+    public void MissingRequiredNullableKey_ReturnsError(string field)
+    {
+        string json = TestJson.Mutate(root =>
+        {
+            switch (field)
+            {
+                case "EnvironmentId":
+                    root["Recipes"]!.AsArray()[0]!.AsObject()["Facilities"]!
+                        .AsArray()[0]!.AsObject().Remove("EnvironmentId");
+                    break;
+                case "GameEventId":
+                    root["Recipes"]!.AsArray()[0]!.AsObject().Remove("GameEventId");
+                    break;
+                default:
+                    root["Items"]!.AsArray()[0]!.AsObject().Remove(field);
+                    break;
+            }
+        });
+
+        MasterJsonLoadResult result = MasterJsonLoader.Load(json);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, e => e.Message.Contains(field));
+    }
+
+    [Fact(DisplayName = "STR-14: Description が null（スキーマ type=string 違反）ならエラー")]
+    public void NullDescription_ReturnsError()
+    {
+        string json = TestJson.Mutate(root =>
+            root["Items"]!.AsArray()[0]!.AsObject()["Description"] = null);
+
+        MasterJsonLoadResult result = MasterJsonLoader.Load(json);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, e => e.Message.Contains("Description"));
+    }
+
+    [Theory(DisplayName = "STR-15: スキーマ外プロパティ（ルート・エンティティ内）は拒否される")]
+    [InlineData("root")]
+    [InlineData("item")]
+    public void UnknownProperty_ReturnsError(string where)
+    {
+        string json = TestJson.Mutate(root =>
+        {
+            if (where == "root")
+            {
+                root["Notes"] = "unknown";
+            }
+            else
+            {
+                root["Items"]!.AsArray()[0]!.AsObject()["Notes"] = "unknown";
+            }
+        });
+
+        MasterJsonLoadResult result = MasterJsonLoader.Load(json);
+
+        Assert.False(result.Success);
+        Assert.NotEmpty(result.Errors);
     }
 
     // ---------- SEM: 意味検証（MasterValidator 同一規則） ----------

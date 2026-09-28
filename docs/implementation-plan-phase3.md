@@ -36,8 +36,8 @@
 
 旧 `MasterJsonReader`/`MasterJsonLoader` の「構文 → 構造 → 意味」の流れを継承するが、旧版と異なり DB 置換・例外型は持たない。
 
-1. **構文解析**：`System.Text.Json` で DTO へデシリアライズする。構文エラー・型不一致はエラー一覧に集約する（例外で呼び出し側を止めない）。
-2. **構造検証**：`SchemaVersion == 1`・`DataVersion` 非空・必須配列の存在・null 要素・必須フィールド・enum 値・Icons 節の構造を検査する。ここを通過したドキュメントのみ安全に実体化できる。エラーは `MasterValidationError` に統一して返す。
+1. **構文解析**：`System.Text.Json` で DTO へデシリアライズする。構文エラー・型不一致はエラー一覧に集約する（例外で呼び出し側を止めない）。スキーマ `required` に対応する全プロパティを DTO の `required` メンバーとし、キー欠落（null 可キーの欠落を含む）はここで拒否する。
+2. **構造検証**：`SchemaVersion == 1`・`DataVersion` 非空・必須配列の存在・null 要素・必須フィールド・enum 値・Icons 節の構造を検査する。スキーマ未定義プロパティは DTO の `[JsonExtensionData]` で捕捉しここで拒否する（スキーマ `additionalProperties:false`/`unevaluatedProperties:false` 準拠）。ここを通過したドキュメントのみ安全に実体化できる。エラーは `MasterValidationError` に統一して返す。
 3. **意味検証**：実体化したエンティティへ `MasterValidator.ValidateAll` を適用する（値域・参照整合性・ペア一意性・仮想アイテム規則など、Phase 2 と同一規則）。
 
 `MasterJsonLoadResult` の規約：
@@ -54,7 +54,7 @@
 | ルート | `SchemaVersion` が 1 であること（未知版は拒否）、`DataVersion` が非空文字列であること |
 | 各配列 | `Items`・`Facilities`・`Environments`・`GameEvents`・`Recipes`・`Icons` が存在すること（スキーマ `required` 準拠） |
 | 配列要素 | null 要素を許さない |
-| 共通属性 | `Id`・`Name` は非空必須。`Description` の欠落は空文字として許容する |
+| 共通属性 | `Id`・`Name` は非空必須。`Description` は必須（空文字可、null は拒否。スキーマ type=string 準拠） |
 | Item | `Category`・`TransportKind`（enum として解析可能）・`IsBaseMaterial` 必須 |
 | Facility | `Width`・`Height`・`PowerConsumption` 必須（実体化で `null` を剥がすため） |
 | Environment | `ProviderFacilityId`・`ConsumeItemId`・`ConsumeRatePerSecond` 必須 |
@@ -68,7 +68,7 @@
 
 ## 3. エクスポートの方針
 
-- 入力は `MasterDocument`。`SchemaVersion` が 1 であることと `DataVersion` 非空を確認したうえで、`MasterValidator.ValidateAll` と Icons 節の構造規則を同一適用し、違反時は `MasterValidationException` で拒否する。
+- 入力は `MasterDocument`。`SchemaVersion` が 1 であることと `DataVersion` 非空を確認したうえで、`MasterValidator.ValidateAll` と Icons 節の構造規則を同一適用し、違反時は `MasterValidationException` で拒否する。null コレクション・null 要素・`Description` null・レシピ内配列の null も構造違反として同様に拒否する（`MasterValidator` が参照不可能なためエクスポート側で先に検出する）。
 - 出力はインデント付き・`UnsafeRelaxedJsonEscaping`（日本語をエスケープしない）の全置換 JSON。全フィールドを null 含めて出力する（スキーマ `required` 準拠）。
 - `Icons` 節は `MasterDocument.Icons` をそのまま書き出す。実ファイルからの Sha256/Bytes 再計算はアイコンパイプライン（Phase 7）の責務とする。
 - レシピのペアは `RecipeId` を出力しない（JSON 構造上は持たない）。

@@ -63,12 +63,15 @@
 | STR-04 | 必須配列の欠落 | `Items` 削除・`Icons` 削除 | それぞれエラー |
 | STR-05 | 配列に null 要素 | `Items: [null]` | エラー |
 | STR-06 | Id・Name の欠落・空 | Item の `Id` 削除・`Name=""` | それぞれエラー |
-| STR-07 | enum 定義値外 | `TransportKind: "Rocket"`・`"belt"` | それぞれエラー |
+| STR-07 | enum 定義値外 | `TransportKind: "Rocket"`・`"belt"`・`"1"` | それぞれエラー |
 | STR-08 | 必須フィールド欠落 | `Width` なし・`CycleTime` なし・`IsBaseMaterial` なし・`ConsumeRatePerSecond` なし・`SortOrder` なし | それぞれエラー |
 | STR-09 | SortOrder が負 | `SortOrder: -1` | エラー |
 | STR-10 | FixedConsumption 要素欠落 | `ItemId` なし・`RatePerSecond` なし | それぞれエラー |
-| STR-11 | Icons 節の構造違反 | Key 重複・Key 文字種違反・`File` が `icons/<Key>.png` 以外・`Sha256` が 64 桁でない・大文字 hex・`Bytes` が 0・欠落 | それぞれエラー |
+| STR-11 | Icons 節の構造違反 | Key 重複・Key 文字種違反・`File` が `icons/<Key>.png` 以外・`Sha256` が 64 桁でない・大文字 hex・末尾改行・`Bytes` が 0・Key 欠落 | それぞれエラー |
 | STR-12 | 正当な最小 JSON | J-01 | `Success`=true、`Document` 非 null、`Errors` 0 件 |
+| STR-13 | スキーマ必須の nullable キー欠落 | `VersionRemoved`・`IconKey`・`GameEventId`・`EnvironmentId` 削除 | それぞれエラー |
+| STR-14 | Description が null | Item の `Description=null` | エラー |
+| STR-15 | スキーマ外プロパティ | ルート・Item に `Notes` 追加 | それぞれエラー |
 
 ### SEM: 意味検証（MasterValidator 同一規則）
 
@@ -93,6 +96,8 @@
 | XPT-06 | DataVersion が空 | `DataVersion=""` のドキュメント | 例外で拒否 |
 | XPT-07 | 日本語の書き出し | 日本語名を含むドキュメント | `\uXXXX` エスケープではなく日本語文字のまま出力される |
 | XPT-08 | 不正 Icons エントリの拒否 | `Sha256` が 64 桁でないエントリを含むドキュメント | 例外で拒否 |
+| XPT-09 | レシピ内の null 要素 | `Inputs`/`Outputs`/`Facilities` に null 要素または null 配列 | `MasterValidationException`（NRE で落ちない） |
+| XPT-10 | Description=null | `Items[0].Description=null` のドキュメント | 例外で拒否 |
 
 ### RND: 往復（読み込み → エクスポート）
 
@@ -115,6 +120,7 @@
 | ICO-07 | 収録外キーの解決 | マニフェストなし・`icons/<Key>.png` が存在 | `icons/<Key>.png` を返す |
 | ICO-08 | 解決不可のフォールバック | null・空・予約キー `icon-placeholder`・文字種違反キー・ファイルなし | すべて null |
 | ICO-09 | ファイルシステム経由の解決 | 実ディレクトリに `icons/<Key>.png` を配置 | `FileSystemIconProvider` 経由で解決・欠落時 null |
+| ICO-10 | ルート外パスの拒否 | `../secret.txt`・`icons/../../secret.txt`・`..\secret.txt` | `ReadAllBytes` は null |
 
 ## 4. 受け入れ条件との対応
 

@@ -107,6 +107,31 @@ public class MasterExporterTests
         Assert.Throws<MasterValidationException>(() => MasterExporter.Export(document));
     }
 
+    [Fact(DisplayName = "XPT-09: レシピ内の null 要素（Inputs/Outputs/Facilities）は MasterValidationException で拒否される")]
+    public void Export_NullNestedElement_Throws()
+    {
+        MasterDocument nullInput = TestJson.LoadValidDocument();
+        nullInput.Recipes[0].Inputs.Add(null!);
+        Assert.Throws<MasterValidationException>(() => MasterExporter.Export(nullInput));
+
+        MasterDocument nullPair = TestJson.LoadValidDocument();
+        nullPair.Recipes[0].Facilities.Add(null!);
+        Assert.Throws<MasterValidationException>(() => MasterExporter.Export(nullPair));
+
+        MasterDocument nullOutputs = TestJson.LoadValidDocument();
+        nullOutputs.Recipes[0].Outputs = null!;
+        Assert.Throws<MasterValidationException>(() => MasterExporter.Export(nullOutputs));
+    }
+
+    [Fact(DisplayName = "XPT-10: Description=null のドキュメントは例外で拒否される")]
+    public void Export_NullDescription_Throws()
+    {
+        MasterDocument document = TestJson.LoadValidDocument();
+        document.Items[0].Description = null!;
+
+        Assert.Throws<MasterValidationException>(() => MasterExporter.Export(document));
+    }
+
     // ---------- RND: 往復（data/master.json を正本として使う） ----------
 
     [Fact(DisplayName = "RND-01: master.json を読み込み→エクスポート→読み込み→エクスポートで 2 出力が文字列一致")]

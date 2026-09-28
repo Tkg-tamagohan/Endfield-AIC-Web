@@ -56,19 +56,48 @@ public static class MasterExporter
         RejectNullElements(environments, "Environments", errors);
         RejectNullElements(gameEvents, "GameEvents", errors);
         RejectNullElements(recipes, "Recipes", errors);
+        RejectNullElements(icons, "Icons", errors);
+
+        // Description はスキーマ type=string の必須。null（空文字化しない呼び出し側の違反）は拒否する。
+        RejectNullDescription(items, "Item", errors);
+        RejectNullDescription(facilities, "Facility", errors);
+        RejectNullDescription(environments, "Environment", errors);
+        RejectNullDescription(gameEvents, "GameEvent", errors);
+        RejectNullDescription(recipes, "Recipe", errors);
+
+        // レシピ内配列・要素の null は MasterValidator が参照できないため、ここで検出して対象から外す。
+        var safeRecipes = new List<Recipe>();
+        for (int i = 0; i < recipes.Count; i++)
+        {
+            Recipe? recipe = recipes[i];
+            if (recipe is null)
+            {
+                continue;
+            }
+
+            bool unsafe_ = false;
+            unsafe_ |= RejectNullList(recipe.Inputs, nameof(recipe.Inputs), recipe, errors);
+            unsafe_ |= RejectNullList(recipe.Outputs, nameof(recipe.Outputs), recipe, errors);
+            unsafe_ |= RejectNullList(recipe.Facilities, nameof(recipe.Facilities), recipe, errors);
+            if (!unsafe_)
+            {
+                safeRecipes.Add(recipe);
+            }
+        }
 
         MasterValidator.ValidateAll(
             items.Where(e => e is not null).ToList(),
             facilities.Where(e => e is not null).ToList(),
             environments.Where(e => e is not null).ToList(),
             gameEvents.Where(e => e is not null).ToList(),
-            recipes.Where(e => e is not null).ToList(),
+            safeRecipes,
             errors);
 
         MasterJsonReader.ValidateIconManifestValues(
-            icons.Select((e, i) => e is null
-                ? (i, (string?)null, (string?)null, (string?)null, (long?)null)
-                : (i, (string?)e.Key, (string?)e.File, (string?)e.Sha256, (long?)e.Bytes)),
+            icons.Select((e, i) => (Element: e, Index: i))
+                .Where(x => x.Element is not null)
+                .Select(x => (x.Index, (string?)x.Element!.Key, (string?)x.Element.File,
+                    (string?)x.Element.Sha256, (long?)x.Element.Bytes)),
             errors);
 
         if (errors.Count > 0)
@@ -126,6 +155,50 @@ public static class MasterExporter
                     collectionName, "", "", $"配列 {collectionName} の {i} 番目の要素が null です。"));
             }
         }
+    }
+
+    private static void RejectNullDescription(
+        IEnumerable<MasterEntity> entities,
+        string entityKind,
+        ICollection<MasterValidationError> errors)
+    {
+        foreach (MasterEntity entity in entities)
+        {
+            if (entity is not null && entity.Description is null)
+            {
+                errors.Add(new MasterValidationError(
+                    entityKind, entity.Id ?? "", "Description", $"{entityKind} の Description が null です。"));
+            }
+        }
+    }
+
+    /// <summary>レシピ内配列が null・null 要素を含む場合にエラーを記録し、対象外とする。</summary>
+    private static bool RejectNullList<T>(
+        List<T>? list,
+        string name,
+        Recipe recipe,
+        ICollection<MasterValidationError> errors)
+        where T : class
+    {
+        if (list is null)
+        {
+            errors.Add(new MasterValidationError(
+                "Recipe", recipe.Id ?? "", name, $"レシピ {recipe.Id} の {name} が null です。"));
+            return true;
+        }
+
+        bool found = false;
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (list[i] is null)
+            {
+                errors.Add(new MasterValidationError(
+                    "Recipe", recipe.Id ?? "", name, $"レシピ {recipe.Id} の {name}[{i}] が null です。"));
+                found = true;
+            }
+        }
+
+        return found;
     }
 
     private static ItemJson ToItemJson(Item e) => new()
