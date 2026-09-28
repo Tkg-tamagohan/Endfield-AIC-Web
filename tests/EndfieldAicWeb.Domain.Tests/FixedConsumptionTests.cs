@@ -40,4 +40,14 @@ public class FixedConsumptionTests
         Assert.False(HasWarning(plan, WarningCode.ConvergenceNotReached));
         Assert.Equal(0.0, Req(plan, "i-fuel").UnmetPerMinute, Precision);
     }
+
+    [Fact(DisplayName = "FIX-04: 提供設備とレシピ設備が兼用なら散布機込みの切上台数が乗数")]
+    public void SharedProviderFacilityCountsDispensers()
+    {
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F11WithSharedProvider(), [("i-fcx", 10.0)]);
+
+        Assert.Equal(6, Fac(plan, "f-fc").CeilCount);
+        Assert.Equal(180.0, Req(plan, "i-fuel").RequiredPerMinute, Precision);
+    }
 }

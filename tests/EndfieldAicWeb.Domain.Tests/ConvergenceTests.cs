@@ -27,5 +27,14 @@ public class ConvergenceTests
             CalculationFixtures.F13(), [("i-fuelself", 1.0)]);
 
         Assert.True(HasWarning(plan, WarningCode.ConvergenceNotReached));
+
+        // 未収束でも最後に適用した需要が帳簿へ反映され、要求量は供給＋未充足と一致する。
+        foreach (ItemRequirement req in plan.ItemRequirements)
+        {
+            double supplied = req.Supplies.Sum(s => s.AmountPerMinute) + req.UnmetPerMinute;
+            Assert.True(
+                supplied >= req.RequiredPerMinute - 1e-6,
+                $"{req.ItemId}: 要求 {req.RequiredPerMinute} に対し供給＋未充足が {supplied}");
+        }
     }
 }

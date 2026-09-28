@@ -143,6 +143,10 @@ public sealed class ProductionCalculator
 
             if (!converged)
             {
+                // 最終反復で追加した需要も帳簿へ反映し、未収束でも要求・供給・未充足が
+                // 同じスナップショットを指すようにする。
+                BalanceToFixpoint();
+
                 Warnings.Add(new CalculationWarning(
                     WarningCode.ConvergenceNotReached,
                     $"環境消費・固定消費の追加需要が {MaxConvergenceIterations} 回の反復内に収束しませんでした。結果は途中経過のものです。"));
@@ -254,7 +258,10 @@ public sealed class ProductionCalculator
         /// </summary>
         private bool TrimTerminal(string itemId)
         {
-            double residual = Math.Max(0, Get(Demand, itemId) - Get(Produced, itemId));
+            // イベント不可アイテムは生産量を供給として認めないため、残差は需要全量（仕様決定 X）。
+            double residual = IsItemInactive(itemId)
+                ? Get(Demand, itemId)
+                : Math.Max(0, Get(Demand, itemId) - Get(Produced, itemId));
             double excess = Get(Raw, itemId) + Get(Unmet, itemId) - residual;
             if (excess <= Epsilon)
             {
@@ -293,6 +300,22 @@ public sealed class ProductionCalculator
 
         private void Expand(string itemId)
         {
+            // アイテム自体の所属イベントが非有効なら生産・外部調達・副産物充当とも不可（仕様決定 X）。
+            // 副産物で生産されても需要は未充足のままとするため、需要全量を未充足へ計上する。
+            if (IsItemInactive(itemId))
+            {
+                double need = Get(Demand, itemId) - Get(Unmet, itemId);
+                if (need > Epsilon)
+                {
+                    Unmet[itemId] = Get(Unmet, itemId) + need;
+                    Warnings.Add(new CalculationWarning(
+                        WarningCode.EventItemUnavailable,
+                        $"アイテム {itemId} はイベント {_master.ItemsById[itemId].GameEventId} が有効でないため生産・調達できません。"));
+                }
+
+                return;
+            }
+
             double net = Get(Demand, itemId) - Get(Produced, itemId) - Get(Raw, itemId) - Get(Unmet, itemId);
             if (net <= Epsilon)
             {
@@ -307,18 +330,6 @@ public sealed class ProductionCalculator
                     WarningCode.CycleDetected,
                     $"循環依存を検出したため展開を打ち切りました: {path}"));
                 Unmet[itemId] = Get(Unmet, itemId) + net;
-                return;
-            }
-
-            // アイテム自体の所属イベントが非有効なら生産・外部調達とも不可（仕様決定 X）。
-            if (_master.ItemsById.TryGetValue(itemId, out Item? item)
-                && item.GameEventId is not null
-                && !_context.ActiveGameEventIds.Contains(item.GameEventId))
-            {
-                Unmet[itemId] = Get(Unmet, itemId) + net;
-                Warnings.Add(new CalculationWarning(
-                    WarningCode.EventItemUnavailable,
-                    $"アイテム {itemId} はイベント {item.GameEventId} が有効でないため生産・調達できません。"));
                 return;
             }
 
@@ -409,6 +420,12 @@ public sealed class ProductionCalculator
         private bool IsRawMaterial(string itemId) =>
             _master.ItemsById.TryGetValue(itemId, out Item? item) && item.Category == "基礎素材";
 
+        /// <summary>アイテムの所属イベントがコンテキスト上で非有効か（仕様決定 X）。</summary>
+        internal bool IsItemInactive(string itemId) =>
+            _master.ItemsById.TryGetValue(itemId, out Item? item)
+                && item.GameEventId is not null
+                && !_context.ActiveGameEventIds.Contains(item.GameEventId);
+
         /// <summary>
         /// 確定ペアから設備ごとの実数台数と、必要となった環境の一覧を求める。
         /// 収束反復と最終集計の双方で同じ定義を使う。
@@ -436,7 +453,16 @@ public sealed class ProductionCalculator
             {
                 EnvironmentCountOverride? envOverride =
                     _environmentOverrides.FirstOrDefault(o => o.EnvironmentId == envId);
-                dispenserCountByEnv[envId] = envOverride?.Count ?? needed;
+                if (envOverride is { Count: < 0 })
+                {
+                    Warnings.Add(new CalculationWarning(
+                        WarningCode.InvalidEnvironmentOverride,
+                        $"環境 {envId} の散布機台数の上書きが負のため既定値を使います: {envOverride.Count}"));
+                }
+
+                dispenserCountByEnv[envId] = envOverride is { Count: >= 0 }
+                    ? envOverride.Count
+                    : needed;
             }
 
             foreach (EnvironmentCountOverride envOverride in _environmentOverrides)
@@ -470,6 +496,20 @@ public sealed class ProductionCalculator
                     + env.ConsumeRatePerSecond * 60.0 * count;
             }
 
+            // 固定消費の乗数は Aggregate の FacilityRequirement と同じ「最終切上台数」。
+            // 提供設備がレシピ設備と兼用の場合は散布機分も同じ台数に含める。
+            var dispenserCountByFacility = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach ((string envId, int count) in counts.DispenserCountByEnv)
+            {
+                if (count <= 0 || !_master.EnvironmentsById.TryGetValue(envId, out Environment? env))
+                {
+                    continue;
+                }
+
+                dispenserCountByFacility[env.ProviderFacilityId] =
+                    dispenserCountByFacility.GetValueOrDefault(env.ProviderFacilityId) + count;
+            }
+
             foreach (PairSelector.Selection run in RunOrder)
             {
                 FixedConsumption? fixedConsumption = run.Pair.FixedConsumption;
@@ -478,7 +518,8 @@ public sealed class ProductionCalculator
                     continue;
                 }
 
-                int ceilCount = Ceil(counts.ExactByFacility.GetValueOrDefault(run.Pair.FacilityId));
+                int ceilCount = Ceil(counts.ExactByFacility.GetValueOrDefault(run.Pair.FacilityId)
+                    + dispenserCountByFacility.GetValueOrDefault(run.Pair.FacilityId));
                 extra[fixedConsumption.ItemId] = extra.GetValueOrDefault(fixedConsumption.ItemId)
                     + fixedConsumption.RatePerSecond * 60.0 * ceilCount;
             }
@@ -505,8 +546,15 @@ public sealed class ProductionCalculator
 
             var supplies = new List<SupplyPortion>();
             PairSelector.Selection? selected = session.Selection.GetValueOrDefault(itemId);
+            // イベント不可アイテムは生産量を供給として表示しない（仕様決定 X）。
+            bool itemInactive = session.IsItemInactive(itemId);
             foreach (PairSelector.Selection run in session.RunOrder)
             {
+                if (itemInactive)
+                {
+                    break;
+                }
+
                 double outputQty = run.Recipe.Outputs
                     .Where(o => o.ItemId == itemId)
                     .Sum(o => o.Quantity);
@@ -525,7 +573,7 @@ public sealed class ProductionCalculator
                 supplies.Add(new SupplyPortion(kind, run.Recipe.Id, portion));
             }
 
-            double raw = GetFrom(session.Raw, itemId);
+            double raw = itemInactive ? 0 : GetFrom(session.Raw, itemId);
             if (raw > Epsilon)
             {
                 supplies.Add(new SupplyPortion(SupplyKind.RawMaterial, null, raw));
@@ -577,7 +625,10 @@ public sealed class ProductionCalculator
         var surpluses = new List<SurplusProduction>();
         foreach ((string itemId, double produced) in session.Produced)
         {
-            double excess = produced - GetFrom(session.Demand, itemId);
+            // イベント不可アイテムの生産量は需要へ充当できないため、全量が余剰（仕様決定 X）。
+            double excess = session.IsItemInactive(itemId)
+                ? produced
+                : produced - GetFrom(session.Demand, itemId);
             if (excess > Epsilon)
             {
                 surpluses.Add(new SurplusProduction(itemId, excess));

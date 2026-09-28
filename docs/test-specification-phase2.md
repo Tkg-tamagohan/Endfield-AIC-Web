@@ -233,6 +233,7 @@
 | ENV-03 | 散布機台数の上書き | F-10、`i-hp` 30/分、`EnvironmentCountOverride(env-gas, 3)` → f-disp 3台、`i-gas` 1080/分、電力 160 |
 | ENV-04 | ペア上書きで環境なし運用へ切替 | F-10、`i-hp` 30/分、ペア (f-asm,8秒) 上書き → f-disp 0（出力なし）、`i-gas` 需要なし、f-asm 実数 4 |
 | ENV-05 | 環境が非有効イベントならペアは候補外 | F-10 変形（`env-gas` に `GameEventId`=`ev-off`）、`i-hp` 30/分 → ペア (f-asm,8秒) 採用、f-disp 出力なし |
+| ENV-06 | 負の散布機台数上書きは警告＋既定台数 | F-10、`EnvironmentCountOverride(env-gas, -2)` → `InvalidEnvironmentOverride`、f-disp 1 台、`i-gas` 360/分 |
 
 ### FIX: 固定消費（J/V）
 
@@ -241,6 +242,7 @@
 | FIX-01 | 固定消費が切上台数比例で需要へ | F-11、`i-fc` 10/分 → f-fc 実数 5・切上 5、`i-fuel` 需要 30/分（0.1/s×5台） |
 | FIX-02 | 基準は実数でなく切上台数（V） | F-11、`i-fc` 5.1/分 → f-fc 実数 2.55・切上 3、`i-fuel` 需要 18/分（0.1/s×3台） |
 | FIX-03 | 固定消費素材の生産が展開され収束する | F-11 に r-fuel を加えた変形、`i-fc` 10/分 → `i-fuel` 供給は Recipe `r-fuel`、収束して全充足 |
+| FIX-04 | 提供設備とレシピ設備が兼用なら散布機込みの切上台数が乗数 | F-11 変形（`env-fcx` の ProviderFacilityId=`f-fc`、r-fcx ペア (f-fc, 30秒, env, FixedConsumption=`i-fuel`×0.5/s)）、`i-fcx` 10/分 → f-fc 切上 6、`i-fuel` 需要 180/分 |
 
 ### EVT: イベント限定アイテム（T/X）
 
@@ -250,13 +252,14 @@
 | EVT-02 | 中間素材としても不可（生産も調達も不可） | F-12、`i-fin` 10/分（無効） → `i-ltd` 未充足 20、`i-fin` は帳簿上生産 10・未充足 0（需要の未充足はイベント不可アイテム側へ計上）、`EventItemUnavailable` |
 | EVT-03 | イベント有効なら通常どおり生産 | F-12、`i-ltd` 10/分（`ev-ltd` 有効） → 全充足 |
 | EVT-04 | 基礎素材でもイベント非有効なら外部調達不可 | F-12、`i-ltd-raw` 10/分（無効） → 未充足 10、`EventItemUnavailable` |
+| EVT-05 | 副産物でイベント不可アイテムが生産されても需要は未充足 | F-12 変形（常設レシピ `r-side` が `i-side`×1+`i-ltd`×1 を生産）、`i-side` 10+`i-ltd` 10/分（無効） → `i-ltd` 未充足 10・供給内訳なし・余剰 10、`EventItemUnavailable` |
 
 ### CNV: 収束反復
 
 | ID | 内容 | 期待 |
 |---|---|---|
 | CNV-01 | 環境消費が生産レシピへ展開して収束 | F-13、`i-xp` 30/分 → `i-gasp` 需要 360/分が `r-gasp` で生産（供給 Recipe）、f-mix 稼働、f-disp 1台 |
-| CNV-02 | 収束しない場合は警告して結果を返す | F-13、`i-fuelself` 1/分 → `ConvergenceNotReached` 警告（例外ではない） |
+| CNV-02 | 収束しない場合は警告して結果を返す | F-13、`i-fuelself` 1/分 → `ConvergenceNotReached` 警告（例外ではない）。未収束でも最後に適用した需要が帳簿へ反映され、要求量は供給＋未充足と一致する |
 
 ### WRN: 警告と入力検証
 
@@ -284,6 +287,8 @@
 | VAL-10 | IconKey 文字種 | 英数字・ハイフン・アンダースコア 1〜64 文字以外 → エラー。null/空/予約キーは許容 |
 | VAL-11 | ID の一意性 | 同一コレクション内で Id 重複 → エラー |
 | VAL-12 | 数値域 | `CycleTime`/`Quantity`/`ConsumeRatePerSecond`/`RatePerSecond` が 0 以下・`Width`/`Height` 0 以下・`PowerConsumption` 負 → エラー |
+| VAL-13 | ペア 0 件のレシピはエラー | `Facilities` が空のレシピ → エラー（スキーマ `minItems: 1` と同規則） |
+| VAL-14 | 空 ItemId の入力でも検証は例外にならない | `Inputs` に空 `ItemId` の行を含むレシピ → エラー一覧として返る（例外を投げない） |
 
 ## 4. 受け入れ条件との対応
 

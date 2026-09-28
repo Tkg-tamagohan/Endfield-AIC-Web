@@ -346,6 +346,25 @@ internal static class CalculationFixtures
             ]);
     }
 
+    /// <summary>F-12 派生: イベント不可アイテムを副産する常設レシピ（EVT-05 用）。</summary>
+    public static MasterDataSnapshot F12WithInactiveByproduct() => Snapshot(
+        [
+            Item("i-ltd", "部品", TransportKind.Belt, "ev-ltd"),
+            Item("i-ore", "基礎素材"),
+            Item("i-side"),
+        ],
+        [Facility("f-asm")],
+        [Recipe("r-side", "f-asm", 6.0, [("i-ore", 1.0)], [("i-side", 1.0), ("i-ltd", 1.0)])],
+        gameEvents: [GameEvent("ev-ltd")]);
+
+    /// <summary>F-11 派生: 提供設備とレシピ設備が兼用（FIX-04 用）。</summary>
+    public static MasterDataSnapshot F11WithSharedProvider() => Snapshot(
+        [Item("i-ore", "基礎素材"), Item("i-fuel", "基礎素材"), Item("i-fcx")],
+        [Facility("f-fc")],
+        [Recipe("r-fcx", [Pair("r-fcx", "f-fc", 30.0, "env-fcx", ("i-fuel", 0.5))],
+            [("i-ore", 1.0)], [("i-fcx", 1.0)])],
+        [Env("env-fcx", "f-fc", "i-ore", 1.0)]);
+
     /// <summary>F-12: イベント限定アイテム（i-ltd・i-ltd-raw が ev-ltd 所属）。</summary>
     public static MasterDataSnapshot F12() => Snapshot(
         [

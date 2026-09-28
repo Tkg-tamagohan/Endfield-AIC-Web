@@ -79,4 +79,16 @@ public class EnvironmentTests
         Assert.False(HasFac(plan, "f-disp"));
         Assert.Equal(4.0, Fac(plan, "f-asm").ExactCount, Precision);
     }
+
+    [Fact(DisplayName = "ENV-06: 負の散布機台数上書きは警告＋既定台数")]
+    public void NegativeDispenserOverrideWarnsAndUsesDefault()
+    {
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F10(), [("i-hp", 30.0)],
+            environmentOverrides: [new EnvironmentCountOverride("env-gas", -2)]);
+
+        Assert.True(HasWarning(plan, WarningCode.InvalidEnvironmentOverride));
+        Assert.Equal(1, Fac(plan, "f-disp").CeilCount);
+        Assert.Equal(360.0, Req(plan, "i-gas").RequiredPerMinute, Precision);
+    }
 }

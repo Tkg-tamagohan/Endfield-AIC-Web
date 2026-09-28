@@ -37,6 +37,8 @@ public sealed class ContextFilter
 /// <summary>
 /// 計算に使うマスタデータのメモリ内スナップショット。
 /// 保存形式や UI に依存しない純粋ロジックの入力となる。
+/// 索引は構築時の内容から遅延生成するため、構築後にエンティティやコレクションを
+/// 変更してはならない。変更がある場合は新しいスナップショットを作ること。
 /// </summary>
 public sealed class MasterDataSnapshot
 {

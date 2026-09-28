@@ -257,4 +257,32 @@ public class ValidationTests
         Assert.Contains(errors, e => e.Field == "Inputs[0].Quantity");
         Assert.Contains(errors, e => e.Field == "Facilities[0].FixedConsumption.RatePerSecond");
     }
+
+    [Fact(DisplayName = "VAL-13: ペア 0 件のレシピはエラー")]
+    public void PairlessRecipeIsRejected()
+    {
+        Recipe pairless = F.Recipe("r-nop", [], [("i-ore", 1.0)], [("i-p", 1.0)]);
+
+        var errors = new List<MasterValidationError>();
+        MasterValidator.ValidateRecipe(pairless, errors);
+
+        Assert.Contains(errors, e => e.Field == "Facilities");
+    }
+
+    [Fact(DisplayName = "VAL-14: 空 ItemId の入力でも検証は例外にならない")]
+    public void EmptyInputIdDoesNotAbortValidation()
+    {
+        (List<Item> items, List<Facility> facilities, List<Environment> environments,
+            List<GameEvent> gameEvents, List<Recipe> recipes) = ValidBaseline();
+
+        Recipe recipe = F.Recipe("r-empty", "f-a", 4.0,
+            [("i-ore", 1.0)], [("i-p", 1.0)]);
+        recipe.Inputs.Add(new RecipeInput { ItemId = "", Quantity = 1.0 });
+        recipes.Add(recipe);
+
+        List<MasterValidationError> errors =
+            Errs(items, facilities, environments, gameEvents, recipes);
+
+        Assert.Contains(errors, e => e.EntityId == "r-empty" && e.Field == "Inputs[1]");
+    }
 }

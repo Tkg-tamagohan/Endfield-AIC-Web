@@ -50,4 +50,19 @@ public class EventItemTests
         Assert.Equal(10.0, Req(plan, "i-ltd-raw").UnmetPerMinute, Precision);
         Assert.Equal(0.0, Supplied(plan, "i-ltd-raw", SupplyKind.RawMaterial), Precision);
     }
+
+    [Fact(DisplayName = "EVT-05: 副産物でイベント不可アイテムが生産されても需要は未充足")]
+    public void InactiveByproductDoesNotSatisfyDemand()
+    {
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F12WithInactiveByproduct(), [("i-side", 10.0), ("i-ltd", 10.0)]);
+
+        Assert.True(HasWarning(plan, WarningCode.EventItemUnavailable));
+
+        ItemRequirement ltd = Req(plan, "i-ltd");
+        Assert.Equal(10.0, ltd.RequiredPerMinute, Precision);
+        Assert.Equal(10.0, ltd.UnmetPerMinute, Precision);
+        Assert.Empty(ltd.Supplies);
+        Assert.Equal(10.0, plan.Surpluses.Single(s => s.ItemId == "i-ltd").ExcessPerMinute, Precision);
+    }
 }

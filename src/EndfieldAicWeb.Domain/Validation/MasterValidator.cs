@@ -99,6 +99,12 @@ public static class MasterValidator
                 "Recipe", recipe.Id, "Outputs", "Outputs は 1 件以上必要です。"));
         }
 
+        if (recipe.Facilities is null || recipe.Facilities.Count == 0)
+        {
+            errors.Add(new MasterValidationError(
+                "Recipe", recipe.Id, "Facilities", "Facilities は 1 件以上必要です。"));
+        }
+
         ValidateRecipeItems(recipe.Inputs, i => i.ItemId, i => i.Quantity, recipe.Id, "Inputs", errors);
         ValidateRecipeItems(recipe.Outputs, o => o.ItemId, o => o.Quantity, recipe.Id, "Outputs", errors);
         ValidatePairs(recipe, errors);
@@ -394,7 +400,9 @@ public static class MasterValidator
         {
             foreach (RecipeInput input in recipe.Inputs ?? [])
             {
-                if (itemsById[input.ItemId].TransportKind == TransportKind.None)
+                if (!string.IsNullOrEmpty(input.ItemId)
+                    && itemsById.TryGetValue(input.ItemId, out Item? inputItem)
+                    && inputItem.TransportKind == TransportKind.None)
                 {
                     errors.Add(new MasterValidationError(
                         "Recipe", recipe.Id, "Inputs",
