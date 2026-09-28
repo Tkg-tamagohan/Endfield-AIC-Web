@@ -5,6 +5,8 @@ description: Endfield-AIC-Web の Blazor WASM アプリ（App/Admin）をロー�
 
 # Blazor WASM アプリの起動・ブラウザ確認手順
 
+前提: Phase 1 で導入する `src/EndfieldAicWeb.App`・`src/EndfieldAicWeb.Admin`（Blazor WASM スタンドアロン）が存在すること。これらのプロジェクトがない段階では起動コマンドは実行できない。
+
 ## 起動
 
 .NET 8 SDK は `~/dotnet` にある。各シェルで `export PATH="$HOME/dotnet:$PATH"` してから、App と Admin を別ポートで起動する。
