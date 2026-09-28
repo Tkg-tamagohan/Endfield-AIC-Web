@@ -56,7 +56,7 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 | エンティティ | フィールド | 備考 |
 |---|---|---|
 | 共通属性 | Id, Name, Description, IconKey(null 可), VersionAdded, VersionRemoved(null 可) | 全マスタエンティティに付与（仕様決定 N）。 |
-| Item | 共通属性, Category, TransportKind, GameEventId(null=常設) | `Category="基礎素材"` は需要展開の終端（外部調達扱い）。`TransportKind=None` は仮想アイテム（輸送容量対象外）。非有効イベント配下は生産・外部調達とも不可（仕様決定 X）。 |
+| Item | 共通属性, Category, IsBaseMaterial, TransportKind, GameEventId(null=常設) | Category は表示用タグ、`IsBaseMaterial=true` が需要展開の終端（外部調達扱い）。`TransportKind=None` は仮想アイテム（輸送容量対象外）。非有効イベント配下は生産・外部調達とも不可（仕様決定 X）。 |
 | Environment | 共通属性, ProviderFacilityId, ConsumeItemId, ConsumeRatePerSecond, GameEventId(null=常設) | 環境を供給する設備（散布機）・継続消費アイテム・消費速度を持つ（仕様決定 H）。カバー範囲は持たない（W）。 |
 | Recipe | 共通属性, Inputs, Outputs, Facilities(RecipeFacility[]), GameEventId(null=常設) | `CycleTime`・`FacilityId` はレシピ本体からペアへ移動。Outputs は `ItemId＋Quantity＋SortOrder`（SortOrder=0 が主産物）。 |
 | Facility | 共通属性, Width, Height, PowerConsumption | 縦横は「設備面積最小」最適化（F）のために保持。発電識別・保持枠・ポート・衝突クラスは持たない（G/W/Y）。 |
@@ -104,10 +104,10 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 
 ### Phase 2: Domain（PR: モデル＋計算＋検証の移植適合＋単体テスト）
 
-- [ ] モデル移植・適合: §2 のエンティティ定義どおりに実装。削除対象（Origin・Layout 系・発電・保持枠/ポート・衝突クラス）は持ち込まない
-- [ ] 計算移植・適合: §3 の仕様どおり。旧 `ProductionCalculator` の展開・引き戻し・循環検出・副産物充当・輸送容量警告を骨格として移植し、ペア選択（F/U）・環境計上（I）・固定消費（J/V）・イベント不可扱い（T/X）・収束反復を新規実装する。`RecipeSelector` → ペア選択、`PowerCalculator` → 消費合計のみ、`ReactorUnitPacker` → 廃止
-- [ ] 検証移植・適合: `MasterValidator` を新モデルへ適合（必須項目・値域・参照整合性・ペア一意性（P）・enum 定義値）。仮想アイテム規則は「レシピ入力に仮想アイテムを含めない」を継承し、発電設備由来の規則は廃止する
-- [ ] 単体テスト: 旧 `Core.Tests` のゴールデンケース（直線チェーン / 多段依存 / 代替レシピ / 循環 / 副産物 / 切上げ流量調整 / 輸送容量）を移植し、ペア選択・環境（散布機台数の既定と上書き・ガス需要追加）・固定消費・イベント非有効アイテムの新規ケースを追加する。テストケースには ID を振り、文書を根拠に作成する（実装から期待値を逆引きしない）
+- [x] モデル移植・適合: §2 のエンティティ定義どおりに実装。削除対象（Origin・Layout 系・発電・保持枠/ポート・衝突クラス）は持ち込まない
+- [x] 計算移植・適合: §3 の仕様どおり。旧 `ProductionCalculator` の展開・引き戻し・循環検出・副産物充当・輸送容量警告を骨格として移植し、ペア選択（F/U）・環境計上（I）・固定消費（J/V）・イベント不可扱い（T/X）・収束反復を新規実装する。`RecipeSelector` → ペア選択、`PowerCalculator` → 消費合計のみ、`ReactorUnitPacker` → 廃止
+- [x] 検証移植・適合: `MasterValidator` を新モデルへ適合（必須項目・値域・参照整合性・ペア一意性（P）・enum 定義値）。仮想アイテム規則は「レシピ入力に仮想アイテムを含めない」を継承し、発電設備由来の規則は廃止する
+- [x] 単体テスト: 旧 `Core.Tests` のゴールデンケース（直線チェーン / 多段依存 / 代替レシピ / 循環 / 副産物 / 切上げ流量調整 / 輸送容量）を移植し、ペア選択・環境（散布機台数の既定と上書き・ガス需要追加）・固定消費・イベント非有効アイテムの新規ケースを追加する。テストケースには ID を振り、文書を根拠に作成する（実装から期待値を逆引きしない）
 - **受け入れ条件**: 全テスト緑。循環・レシピ未登録・イベント不可・収束失敗が例外ではなく Warning として返る。
 
 ### Phase 3: Infrastructure（PR: マスタ JSON I/O＋アイコンマニフェスト＋検証テスト）

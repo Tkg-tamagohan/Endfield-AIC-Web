@@ -10,6 +10,7 @@
       "VersionAdded": "0.1.0",
       "VersionRemoved": null,
       "Category": "基礎素材",
+      "IsBaseMaterial": true,
       "TransportKind": "Belt",
       "GameEventId": null
     },
@@ -21,6 +22,7 @@
       "VersionAdded": "0.1.0",
       "VersionRemoved": null,
       "Category": "基礎素材",
+      "IsBaseMaterial": true,
       "TransportKind": "Belt",
       "GameEventId": null
     },
@@ -32,6 +34,7 @@
       "VersionAdded": "0.1.0",
       "VersionRemoved": null,
       "Category": "基礎素材",
+      "IsBaseMaterial": true,
       "TransportKind": "Pipe",
       "GameEventId": null
     },
@@ -43,6 +46,7 @@
       "VersionAdded": "0.1.0",
       "VersionRemoved": null,
       "Category": "エネルギー",
+      "IsBaseMaterial": false,
       "TransportKind": "None",
       "GameEventId": null
     },
@@ -54,6 +58,7 @@
       "VersionAdded": "0.1.0",
       "VersionRemoved": null,
       "Category": "部品",
+      "IsBaseMaterial": false,
       "TransportKind": "Belt",
       "GameEventId": null
     },
@@ -65,6 +70,7 @@
       "VersionAdded": "0.1.0",
       "VersionRemoved": null,
       "Category": "部品",
+      "IsBaseMaterial": false,
       "TransportKind": "Belt",
       "GameEventId": null
     },
@@ -76,6 +82,7 @@
       "VersionAdded": "0.1.0",
       "VersionRemoved": null,
       "Category": "イベント",
+      "IsBaseMaterial": false,
       "TransportKind": "Belt",
       "GameEventId": "ev-first"
     }
@@ -140,10 +147,17 @@
       "VersionRemoved": null,
       "GameEventId": null,
       "Inputs": [
-        { "ItemId": "item-ore", "Quantity": 2.0 }
+        {
+          "ItemId": "item-ore",
+          "Quantity": 2.0
+        }
       ],
       "Outputs": [
-        { "ItemId": "item-part", "Quantity": 1.0, "SortOrder": 0 }
+        {
+          "ItemId": "item-part",
+          "Quantity": 1.0,
+          "SortOrder": 0
+        }
       ],
       "Facilities": [
         {
@@ -156,7 +170,10 @@
           "FacilityId": "fac-assembler",
           "CycleTime": 3.0,
           "EnvironmentId": "env-gas",
-          "FixedConsumption": { "ItemId": "item-fuel", "RatePerSecond": 0.5 }
+          "FixedConsumption": {
+            "ItemId": "item-fuel",
+            "RatePerSecond": 0.5
+          }
         }
       ]
     },
@@ -169,11 +186,21 @@
       "VersionRemoved": null,
       "GameEventId": null,
       "Inputs": [
-        { "ItemId": "item-part", "Quantity": 1.0 },
-        { "ItemId": "item-gas", "Quantity": 1.0 }
+        {
+          "ItemId": "item-part",
+          "Quantity": 1.0
+        },
+        {
+          "ItemId": "item-gas",
+          "Quantity": 1.0
+        }
       ],
       "Outputs": [
-        { "ItemId": "item-part-hp", "Quantity": 1.0, "SortOrder": 0 }
+        {
+          "ItemId": "item-part-hp",
+          "Quantity": 1.0,
+          "SortOrder": 0
+        }
       ],
       "Facilities": [
         {
@@ -193,10 +220,17 @@
       "VersionRemoved": null,
       "GameEventId": "ev-first",
       "Inputs": [
-        { "ItemId": "item-ore", "Quantity": 1.0 }
+        {
+          "ItemId": "item-ore",
+          "Quantity": 1.0
+        }
       ],
       "Outputs": [
-        { "ItemId": "item-part", "Quantity": 1.0, "SortOrder": 0 }
+        {
+          "ItemId": "item-part",
+          "Quantity": 1.0,
+          "SortOrder": 0
+        }
       ],
       "Facilities": [
         {
@@ -216,10 +250,17 @@
       "VersionRemoved": null,
       "GameEventId": "ev-first",
       "Inputs": [
-        { "ItemId": "item-part", "Quantity": 2.0 }
+        {
+          "ItemId": "item-part",
+          "Quantity": 2.0
+        }
       ],
       "Outputs": [
-        { "ItemId": "item-limited", "Quantity": 1.0, "SortOrder": 0 }
+        {
+          "ItemId": "item-limited",
+          "Quantity": 1.0,
+          "SortOrder": 0
+        }
       ],
       "Facilities": [
         {
