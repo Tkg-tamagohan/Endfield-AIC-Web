@@ -23,6 +23,7 @@ dotnet run --project src/EndfieldAicWeb.Admin   # 管理ツールを起動
 ```
 
 正本のマスタデータは `data/master.json`（構造定義は `data/master.schema.json`）。
+`tools/validate_master.py` で構造定義との照合を検証できる（CI でも実行される。要 `pip install 'jsonschema[format]'`）。
 
 ## License & Disclaimer
 
