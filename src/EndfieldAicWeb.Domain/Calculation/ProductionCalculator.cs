@@ -636,7 +636,7 @@ public sealed class ProductionCalculator
             }
         }
 
-        var flowAdjustments = BuildFlowAdjustments(session, facilityRequirements);
+        var flowAdjustments = BuildFlowAdjustments(session);
 
         WarningBag warnings = session.Warnings;
         AddTransportWarnings(master, session, warnings);
@@ -660,26 +660,18 @@ public sealed class ProductionCalculator
         map.TryGetValue(key, out double value) ? value : 0;
 
     /// <summary>
-    /// 切上台数の全速稼働が必要サイクルを上回るレシピの入力について推奨流量制限を出力する。
-    /// 判定はランごとに行う（設備を共用するレシピが互いの全速分を食い合わないよう制限を提示する）。
+    /// 自身の使用台数に端数（設備の一部余力）があるレシピの入力について推奨流量制限を出力する。
+    /// 判定はランごとの使用台数で行う。設備を共用する場合、0.5 台ずつの使用でも各レシピに
+    /// 制限を出し、整数台の全速稼働（余力なし）には出さない。
     /// </summary>
-    private static List<FlowAdjustment> BuildFlowAdjustments(
-        Session session,
-        List<FacilityRequirement> facilityRequirements)
+    private static List<FlowAdjustment> BuildFlowAdjustments(Session session)
     {
         var adjustments = new Dictionary<(string RecipeId, string InputItemId), double>();
-        var ceilCountByFacility = facilityRequirements.ToDictionary(f => f.FacilityId, f => f.CeilCount, StringComparer.Ordinal);
 
         foreach (PairSelector.Selection run in session.RunOrder)
         {
-            if (!ceilCountByFacility.TryGetValue(run.Pair.FacilityId, out int ceilCount)
-                || run.Pair.CycleTime <= 0)
-            {
-                continue;
-            }
-
-            double capacityCycles = ceilCount * 60.0 / run.Pair.CycleTime;
-            if (session.RunCycles[run] >= capacityCycles - Epsilon)
+            double machines = session.RunCycles[run] * run.Pair.CycleTime / 60.0;
+            if (Ceil(machines) <= machines + Epsilon)
             {
                 continue;
             }

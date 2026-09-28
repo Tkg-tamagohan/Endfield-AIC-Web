@@ -78,4 +78,25 @@ public class FlowAdjustmentTests
         Assert.Equal(5.0 / 60.0, adjA.RecommendedLimitPerSecond, Precision);
         Assert.Equal(5.0 / 60.0, adjB.RecommendedLimitPerSecond, Precision);
     }
+
+    [Fact(DisplayName = "FLW-06: 設備共用でも整数台の全速稼働なら調整行なし")]
+    public void SharedFacilityAtFullSpeedNeedsNoAdjustment()
+    {
+        MasterDataSnapshot master = CalculationFixtures.Snapshot(
+            [
+                CalculationFixtures.Item("i-a"),
+                CalculationFixtures.Item("i-b"),
+                CalculationFixtures.Item("i-ore", "基礎素材", TransportKind.Belt, null, true),
+            ],
+            [CalculationFixtures.Facility("f-sh")],
+            [
+                CalculationFixtures.Recipe("r-a", "f-sh", 6.0, [("i-ore", 1.0)], [("i-a", 1.0)]),
+                CalculationFixtures.Recipe("r-b", "f-sh", 6.0, [("i-ore", 1.0)], [("i-b", 1.0)]),
+            ]);
+
+        ProductionPlan plan = CalculationFixtures.Run(master, [("i-a", 10.0), ("i-b", 10.0)]);
+
+        Assert.Equal(2.0, Fac(plan, "f-sh").ExactCount, Precision);
+        Assert.Empty(plan.FlowAdjustments);
+    }
 }
