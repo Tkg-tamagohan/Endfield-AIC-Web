@@ -96,10 +96,10 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 
 ### Phase 1: 基盤（PR: ソリューション雛形＋正本 JSON スキーマ＋CI）
 
-- [ ] `EndfieldAicWeb.sln` と 7 プロジェクト（src: Domain / Application / Infrastructure / App / Admin、tests: Domain.Tests / Infrastructure.Tests）を作成。App・Admin は Blazor WebAssembly スタンドアロン（net8.0）
-- [ ] NuGet パッケージ導入（固定バージョン）
-- [ ] `data/master.json` のスキーマ定義（`SchemaVersion=1`・`DataVersion`・Items・Facilities・Environments・GameEvents・Recipes・Icons）＋開発用最小サンプルデータ
-- [ ] `.github/workflows/ci.yml`（ubuntu-latest: restore → build → test）。旧版と異なり WPF 依存がないため Linux ランナーで完結する
+- [x] `EndfieldAicWeb.sln` と 7 プロジェクト（src: Domain / Application / Infrastructure / App / Admin、tests: Domain.Tests / Infrastructure.Tests）を作成。App・Admin は Blazor WebAssembly スタンドアロン（net8.0）
+- [x] NuGet パッケージ導入（固定バージョン）
+- [x] `data/master.json` のスキーマ定義（`SchemaVersion=1`・`DataVersion`・Items・Facilities・Environments・GameEvents・Recipes・Icons）＋開発用最小サンプルデータ
+- [x] `.github/workflows/ci.yml`（ubuntu-latest: restore → build → test）。旧版と異なり WPF 依存がないため Linux ランナーで完結する
 - **受け入れ条件**: `dotnet test` が全緑で CI も緑。App・Admin が `dotnet run` でブラウザ表示できる。
 
 ### Phase 2: Domain（PR: モデル＋計算＋検証の移植適合＋単体テスト）
