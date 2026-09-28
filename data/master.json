@@ -122,6 +122,10 @@
     {
       "Id": "ev-first",
       "Name": "初回開放イベント",
+      "Description": "最初の期間限定イベント",
+      "IconKey": null,
+      "VersionAdded": "0.1.0",
+      "VersionRemoved": null,
       "ActiveFrom": "2025-01-01T00:00:00Z",
       "ActiveTo": "2025-01-31T23:59:59Z"
     }

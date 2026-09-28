@@ -41,7 +41,8 @@
             "GameEventId": { "type": ["string", "null"], "description": "null=常設" }
           }
         }
-      ]
+      ],
+      "unevaluatedProperties": false
     },
     "facility": {
       "allOf": [
@@ -55,7 +56,8 @@
             "PowerConsumption": { "type": "number", "minimum": 0 }
           }
         }
-      ]
+      ],
+      "unevaluatedProperties": false
     },
     "environment": {
       "allOf": [
@@ -70,18 +72,22 @@
             "GameEventId": { "type": ["string", "null"] }
           }
         }
-      ]
+      ],
+      "unevaluatedProperties": false
     },
     "gameEvent": {
-      "type": "object",
-      "required": ["Id", "Name", "ActiveFrom", "ActiveTo"],
-      "additionalProperties": false,
-      "properties": {
-        "Id": { "type": "string", "minLength": 1 },
-        "Name": { "type": "string", "minLength": 1 },
-        "ActiveFrom": { "type": ["string", "null"], "format": "date-time", "description": "両 null は常設" },
-        "ActiveTo": { "type": ["string", "null"], "format": "date-time" }
-      }
+      "allOf": [
+        { "$ref": "#/$defs/commonAttributes" },
+        {
+          "type": "object",
+          "required": ["ActiveFrom", "ActiveTo"],
+          "properties": {
+            "ActiveFrom": { "type": ["string", "null"], "format": "date-time", "description": "両 null は常設" },
+            "ActiveTo": { "type": ["string", "null"], "format": "date-time" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
     },
     "recipeIo": {
       "type": "object",
@@ -93,16 +99,14 @@
       }
     },
     "recipeOutput": {
-      "allOf": [
-        { "$ref": "#/$defs/recipeIo" },
-        {
-          "type": "object",
-          "required": ["SortOrder"],
-          "properties": {
-            "SortOrder": { "type": "integer", "minimum": 0, "description": "0 が主産物" }
-          }
-        }
-      ]
+      "type": "object",
+      "required": ["ItemId", "Quantity", "SortOrder"],
+      "additionalProperties": false,
+      "properties": {
+        "ItemId": { "type": "string", "minLength": 1 },
+        "Quantity": { "type": "number", "exclusiveMinimum": 0 },
+        "SortOrder": { "type": "integer", "minimum": 0, "description": "0 が主産物" }
+      }
     },
     "fixedConsumption": {
       "type": "object",
@@ -138,7 +142,8 @@
             "GameEventId": { "type": ["string", "null"] }
           }
         }
-      ]
+      ],
+      "unevaluatedProperties": false
     },
     "icon": {
       "type": "object",
