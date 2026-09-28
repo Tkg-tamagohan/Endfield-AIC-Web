@@ -9,6 +9,20 @@ Blazor WebAssembly ＋ Cloudflare Pages で構成し、Cloudflare 無料枠内�
 
 - [要件定義書](docs/requirements.md): スコープ・計算要件・データモデル・アーキテクチャ
 - [仕様決定記録](docs/decision-records.md): 確定した仕様上の判断事項
+- [実装計画](docs/implementation-plan.md): フェーズ別タスクと進捗の管理
+
+## 開発
+
+.NET 8 SDK が必要。
+
+```sh
+dotnet build                                    # ソリューション全体をビルド
+dotnet test                                     # 単体テストを実行
+dotnet run --project src/EndfieldAicWeb.App     # 計算アプリを起動
+dotnet run --project src/EndfieldAicWeb.Admin   # 管理ツールを起動
+```
+
+正本のマスタデータは `data/master.json`（構造定義は `data/master.schema.json`）。
 
 ## License & Disclaimer
 
