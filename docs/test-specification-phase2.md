@@ -109,9 +109,10 @@
 | 種別 | Id | パラメータ |
 |---|---|---|
 | Item | `i-belt-item` `i-pipe-item` `i-none-item` | Category=部品、TransportKind=Belt/Pipe/None |
-| Item | `i-belt-src` `i-pipe-src` `i-none-src` | Category=基礎素材、TransportKind=対応種別 |
+| Item | `i-belt-src` `i-pipe-src` | Category=基礎素材、TransportKind=Belt/Pipe |
 | Facility | `f-tr` | PowerConsumption=0 |
-| Recipe | `r-belt` `r-pipe` `r-none` | 各ペア (f-tr, 6秒)、src×1 → item×1 |
+| Recipe | `r-belt` `r-pipe` | 各ペア (f-tr, 6秒)、src×1 → item×1 |
+| Recipe | `r-none` | ペア (f-tr, 6秒)、`i-belt-src`×0.01 → `i-none-item`×1（仮想アイテムは入力に使えないため微量の通常素材を入力） |
 
 ### F-10: 環境
 
@@ -158,6 +159,21 @@
 | Recipe | `r-xp` | ペア (f-xp, 4秒, env=`env-gasp`)、`i-ore`×1 → `i-xp`×1 |
 | Recipe | `r-gasp` | ペア (f-mix, 6秒)、`i-ore`×1 → `i-gasp`×10（環境消費が生産へ展開する収束ケース） |
 | Recipe | `r-self` | ペア (f-self, 60秒, FixedConsumption=`i-fuelself`×2/s)、`i-ore`×1 → `i-fuelself`×1（1台あたり生産 1個/分 < 消費 120個/分 で発散する作為的ケース） |
+
+### F-14: 休眠ペアの競合
+
+| 種別 | Id | パラメータ |
+|---|---|---|
+| Item | `i-ore` | Category=基礎素材、TransportKind=Belt |
+| Item | `i-y` `i-z` `i-m` `i-w` | Category=部品、TransportKind=Belt |
+| Facility | `f-a` `f-b` `f-m` `f-disp` `f-w` | PowerConsumption=0 |
+| Environment | `env-x` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-z`、ConsumeRatePerSecond=2 |
+| Environment | `env-y` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-y`、ConsumeRatePerSecond=4 |
+| Recipe | `r-m` | VersionAdded=`1.0.0`、ペア (f-m, 6秒)、`i-ore`×1 → `i-m`×1+`i-y`×1 |
+| Recipe | `r-yz` | VersionAdded=`2.0.0`、ペア A (f-a, 4秒)・ペア B (f-b, 8秒, env=`env-y`)、`i-ore`×1 → `i-y`×1+`i-z`×1 |
+| Recipe | `r-w` | ペア (f-w, 6秒, env=`env-x`)、`i-ore`×1 → `i-w`×1 |
+
+`i-y` は r-yz のペア A で生産開始 → r-m の副産物で引き戻されペア A が休眠 → env-x が i-z 需要を追加してペア B が稼働 → env-y が i-y 需要を追加して休眠中のペア A が復帰しようとする、という遷移を作る。
 
 ## 3. テスト項目一覧
 
