@@ -289,13 +289,13 @@ internal static class CalculationFixtures
             Item("i-none-item", "部品", TransportKind.None),
             Item("i-belt-src", "基礎素材", TransportKind.Belt),
             Item("i-pipe-src", "基礎素材", TransportKind.Pipe),
-            Item("i-none-src", "基礎素材", TransportKind.None),
         ],
         [Facility("f-tr")],
         [
             Recipe("r-belt", "f-tr", 6.0, [("i-belt-src", 1.0)], [("i-belt-item", 1.0)]),
             Recipe("r-pipe", "f-tr", 6.0, [("i-pipe-src", 1.0)], [("i-pipe-item", 1.0)]),
-            Recipe("r-none", "f-tr", 6.0, [("i-none-src", 1.0)], [("i-none-item", 1.0)]),
+            // 仮想アイテムを入力には使えないため、微量の通常素材を入力とする（出力側の容量判定だけを見る）。
+            Recipe("r-none", "f-tr", 6.0, [("i-belt-src", 0.01)], [("i-none-item", 1.0)]),
         ]);
 
     /// <summary>F-10: 環境（env-gas を要するペアと、不要ペアの両方を持つ r-hp）。</summary>
@@ -364,6 +364,30 @@ internal static class CalculationFixtures
         [Recipe("r-fcx", [Pair("r-fcx", "f-fc", 30.0, "env-fcx", ("i-fuel", 0.5))],
             [("i-ore", 1.0)], [("i-fcx", 1.0)])],
         [Env("env-fcx", "f-fc", "i-ore", 1.0)]);
+
+    /// <summary>F-14: 引き戻しで休眠したペアと、別ペア稼働の競合（SEL-11 用）。</summary>
+    /// <remarks>
+    /// i-y は r-yz（ペア A）で生産開始 → r-m の副産物で引き戻されペア A が休眠。
+    /// 次の反復で env-x が i-z 需要を追加してペア B が稼働し、さらに次の反復で
+    /// env-y が i-y 需要を追加して休眠中のペア A が復帰しようとする。
+    /// </remarks>
+    public static MasterDataSnapshot F14() => Snapshot(
+        [
+            Item("i-ore", "基礎素材"),
+            Item("i-y"), Item("i-z"), Item("i-m"), Item("i-w"),
+        ],
+        [Facility("f-a"), Facility("f-b"), Facility("f-m"), Facility("f-disp"), Facility("f-w")],
+        [
+            Recipe("r-m", "f-m", 6.0, [("i-ore", 1.0)], [("i-m", 1.0), ("i-y", 1.0)]),
+            Recipe("r-yz",
+                [Pair("r-yz", "f-a", 4.0), Pair("r-yz", "f-b", 8.0, "env-y")],
+                [("i-ore", 1.0)], [("i-y", 1.0), ("i-z", 1.0)], versionAdded: "2.0.0"),
+            Recipe("r-w", "f-w", 6.0, [("i-ore", 1.0)], [("i-w", 1.0)], environmentId: "env-x"),
+        ],
+        [
+            Env("env-x", "f-disp", "i-z", 2.0),
+            Env("env-y", "f-disp", "i-y", 4.0),
+        ]);
 
     /// <summary>F-12: イベント限定アイテム（i-ltd・i-ltd-raw が ev-ltd 所属）。</summary>
     public static MasterDataSnapshot F12() => Snapshot(

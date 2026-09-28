@@ -277,12 +277,13 @@ public class ValidationTests
 
         Recipe recipe = F.Recipe("r-empty", "f-a", 4.0,
             [("i-ore", 1.0)], [("i-p", 1.0)]);
-        recipe.Inputs.Add(new RecipeInput { ItemId = "", Quantity = 1.0 });
+        recipe.Inputs.Add(new RecipeInput { ItemId = "", Quantity = -2.0 });
         recipes.Add(recipe);
 
         List<MasterValidationError> errors =
             Errs(items, facilities, environments, gameEvents, recipes);
 
         Assert.Contains(errors, e => e.EntityId == "r-empty" && e.Field == "Inputs[1]");
+        Assert.Contains(errors, e => e.EntityId == "r-empty" && e.Field == "Inputs[1].Quantity");
     }
 }

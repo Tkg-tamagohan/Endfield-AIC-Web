@@ -197,10 +197,8 @@ public static class MasterValidator
             {
                 errors.Add(new MasterValidationError(
                     "Recipe", recipeId, name, $"{name}.ItemId は必須です。"));
-                continue;
             }
-
-            if (!seen.Add(itemId))
+            else if (!seen.Add(itemId))
             {
                 errors.Add(new MasterValidationError(
                     "Recipe", recipeId, memberName,

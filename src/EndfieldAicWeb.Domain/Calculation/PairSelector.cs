@@ -12,8 +12,6 @@ namespace EndfieldAicWeb.Domain.Calculation;
 /// </summary>
 public static class PairSelector
 {
-    private const double Epsilon = 1e-9;
-
     /// <summary>選択結果。稼働するレシピとその中のペア行。</summary>
     public sealed record Selection(Recipe Recipe, RecipeFacility Pair);
 
@@ -159,7 +157,7 @@ public static class PairSelector
     private static bool Matches(RecipeFacility pair, PairOverride pairOverride)
     {
         return pair.FacilityId == pairOverride.FacilityId
-            && Math.Abs(pair.CycleTime - pairOverride.CycleTime) <= Epsilon
+            && pair.CycleTime == pairOverride.CycleTime
             && pair.EnvironmentId == pairOverride.EnvironmentId
             && FixedConsumptionEquals(pair.FixedConsumption, pairOverride.FixedConsumption);
     }
@@ -171,7 +169,7 @@ public static class PairSelector
             return a is null && b is null;
         }
 
-        return a.ItemId == b.ItemId && Math.Abs(a.RatePerSecond - b.RatePerSecond) <= Epsilon;
+        return a.ItemId == b.ItemId && a.RatePerSecond == b.RatePerSecond;
     }
 
     private static bool IsPairEligible(

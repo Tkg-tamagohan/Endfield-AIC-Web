@@ -163,4 +163,18 @@ public class SelectionTests
         Assert.Equal(20.0, run.CyclesPerMinute, Precision);
         Assert.Equal(0.0, Req(plan, "i-n").UnmetPerMinute, Precision);
     }
+
+    [Fact(DisplayName = "SEL-11: 引き戻しで休眠したペアの再稼働も稼働中ペアへ正規化")]
+    public void RevivedDormantSelectionFollowsRunningPair()
+    {
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F14(),
+            [("i-y", 10.0), ("i-m", 100.0), ("i-w", 10.0)],
+            overrides: [CalculationFixtures.Override("i-z", "r-yz", "f-b", 8.0, "env-y")]);
+
+        Assert.True(HasWarning(plan, WarningCode.PairConflict));
+        RecipeRun run = Assert.Single(plan.RecipeRuns, r => r.RecipeId == "r-yz");
+        Assert.Equal("f-b", run.FacilityId);
+        Assert.False(HasWarning(plan, WarningCode.ConvergenceNotReached));
+    }
 }

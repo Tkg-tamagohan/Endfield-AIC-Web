@@ -32,9 +32,7 @@ public class ConvergenceTests
         foreach (ItemRequirement req in plan.ItemRequirements)
         {
             double supplied = req.Supplies.Sum(s => s.AmountPerMinute) + req.UnmetPerMinute;
-            Assert.True(
-                supplied >= req.RequiredPerMinute - 1e-6,
-                $"{req.ItemId}: 要求 {req.RequiredPerMinute} に対し供給＋未充足が {supplied}");
+            Assert.Equal(req.RequiredPerMinute, supplied, 6);
         }
     }
 }

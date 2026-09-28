@@ -336,26 +336,27 @@ public sealed class ProductionCalculator
             if (!Selection.TryGetValue(itemId, out PairSelector.Selection? selection))
             {
                 selection = PairSelector.Select(itemId, _master, _context, _overrides, Warnings);
-                if (selection is not null)
-                {
-                    // 同一レシピに別ペアが既に稼働中なら先に確定したペアを採用する（仕様決定 BN）。
-                    // 同一ペアのときも稼働中インスタンスへ正規化し、帳簿照合（ReferenceEquals）を一致させる。
-                    PairSelector.Selection? running = RunOrder
-                        .FirstOrDefault(r => r.Recipe.Id == selection.Recipe.Id);
-                    if (running is not null)
-                    {
-                        if (!ReferenceEquals(running.Pair, selection.Pair))
-                        {
-                            Warnings.Add(new CalculationWarning(
-                                WarningCode.PairConflict,
-                                $"レシピ {selection.Recipe.Id} には既に別のペアが稼働中のため、先に確定したペア（{running.Pair.FacilityId}）を採用します。"));
-                        }
-
-                        selection = running;
-                    }
-                }
-
                 Selection[itemId] = selection;
+            }
+
+            if (selection is not null)
+            {
+                // 同一レシピに別ペアが既に稼働中なら先に確定したペアを採用する（仕様決定 BN）。
+                // 引き戻しで休眠したキャッシュ済み選択にも適用し、稼働中インスタンスへ正規化する。
+                PairSelector.Selection? running = RunOrder
+                    .FirstOrDefault(r => r.Recipe.Id == selection.Recipe.Id);
+                if (running is not null)
+                {
+                    if (!ReferenceEquals(running.Pair, selection.Pair))
+                    {
+                        Warnings.Add(new CalculationWarning(
+                            WarningCode.PairConflict,
+                            $"アイテム {itemId} のレシピ {selection.Recipe.Id} には既に別のペアが稼働中のため、先に確定したペア（{running.Pair.FacilityId}）を採用します。"));
+                    }
+
+                    selection = running;
+                    Selection[itemId] = running;
+                }
             }
 
             if (selection is null)
