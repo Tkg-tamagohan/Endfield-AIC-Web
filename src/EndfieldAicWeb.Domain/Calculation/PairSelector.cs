@@ -96,12 +96,16 @@ public static class PairSelector
         ICollection<CalculationWarning> warnings)
     {
         return candidates
-            .OrderByDescending(r => ParseVersionOrOldest(r.Id, r.VersionAdded, warnings))
-            .ThenBy(r => r.Id, StringComparer.Ordinal)
+            .Select(r => (Recipe: r, Version: ParseVersionOrOldest(r.Id, r.VersionAdded, warnings)))
+            .OrderByDescending(t => t.Version is not null)
+            .ThenByDescending(t => t.Version)
+            .ThenBy(t => t.Recipe.Id, StringComparer.Ordinal)
+            .Select(t => t.Recipe)
             .ToList();
     }
 
-    private static SemVersion ParseVersionOrOldest(
+    /// <summary>semver としてパースできた場合のみ値を返す。パース不能は警告を出して null（最古扱い）。</summary>
+    private static SemVersion? ParseVersionOrOldest(
         string recipeId,
         string? versionText,
         ICollection<CalculationWarning> warnings)
@@ -114,7 +118,7 @@ public static class PairSelector
         warnings.Add(new CalculationWarning(
             WarningCode.InvalidVersionString,
             $"レシピ {recipeId} の VersionAdded {versionText} は semver としてパースできないため、最古として扱います。"));
-        return default;
+        return null;
     }
 
     /// <summary>

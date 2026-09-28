@@ -49,10 +49,18 @@ internal readonly struct SemVersion : IComparable<SemVersion>
             return false;
         }
 
+        // 構文上は有効でも int 範囲を超える要素は扱えないため、パース失敗として返す。
+        if (!int.TryParse(match.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out int major)
+            || !int.TryParse(match.Groups[2].Value, NumberStyles.None, CultureInfo.InvariantCulture, out int minor)
+            || !int.TryParse(match.Groups[3].Value, NumberStyles.None, CultureInfo.InvariantCulture, out int patch))
+        {
+            return false;
+        }
+
         version = new SemVersion(
-            int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture),
-            int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture),
-            int.Parse(match.Groups[3].Value, CultureInfo.InvariantCulture),
+            major,
+            minor,
+            patch,
             match.Groups[4].Success ? match.Groups[4].Value.Split('.') : null);
         return true;
     }

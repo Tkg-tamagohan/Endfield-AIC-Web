@@ -1,4 +1,5 @@
 using EndfieldAicWeb.Domain.Calculation;
+using EndfieldAicWeb.Domain.Models;
 using static EndfieldAicWeb.Domain.Tests.PlanAssert;
 
 namespace EndfieldAicWeb.Domain.Tests;
@@ -51,5 +52,30 @@ public class FlowAdjustmentTests
         Assert.Equal(9.0, Assert.Single(plan.FlowAdjustments).RecommendedLimitPerSecond, Precision);
         Assert.Equal(4.5, Fac(plan, "f-t").ExactCount, Precision);
         Assert.Equal(5, Fac(plan, "f-t").CeilCount);
+    }
+
+    [Fact(DisplayName = "FLW-05: 設備共用で集計が整数でもランごとの推奨制限を出す")]
+    public void SharedFacilityStillEmitsPerRunLimits()
+    {
+        MasterDataSnapshot master = CalculationFixtures.Snapshot(
+            [
+                CalculationFixtures.Item("i-a"),
+                CalculationFixtures.Item("i-b"),
+                CalculationFixtures.Item("i-ore", "基礎素材", TransportKind.Belt, null, true),
+            ],
+            [CalculationFixtures.Facility("f-sh")],
+            [
+                CalculationFixtures.Recipe("r-a", "f-sh", 6.0, [("i-ore", 1.0)], [("i-a", 1.0)]),
+                CalculationFixtures.Recipe("r-b", "f-sh", 6.0, [("i-ore", 1.0)], [("i-b", 1.0)]),
+            ]);
+
+        ProductionPlan plan = CalculationFixtures.Run(master, [("i-a", 5.0), ("i-b", 5.0)]);
+
+        Assert.Equal(1.0, Fac(plan, "f-sh").ExactCount, Precision);
+        Assert.Equal(1, Fac(plan, "f-sh").CeilCount);
+        FlowAdjustment adjA = Assert.Single(plan.FlowAdjustments, a => a.RecipeId == "r-a");
+        FlowAdjustment adjB = Assert.Single(plan.FlowAdjustments, a => a.RecipeId == "r-b");
+        Assert.Equal(5.0 / 60.0, adjA.RecommendedLimitPerSecond, Precision);
+        Assert.Equal(5.0 / 60.0, adjB.RecommendedLimitPerSecond, Precision);
     }
 }

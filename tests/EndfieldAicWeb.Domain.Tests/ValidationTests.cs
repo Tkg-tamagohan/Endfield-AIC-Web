@@ -320,4 +320,14 @@ public class ValidationTests
         Assert.Contains(errors,
             e => e.EntityId == "r-mixed" && e.Field == "Inputs" && e.Message.Contains("i-power"));
     }
+
+    [Fact(DisplayName = "VAL-17: 桁あふれのバージョン要素はエラー（例外にならない）")]
+    public void OversizedVersionComponentIsError()
+    {
+        var errors = new List<MasterValidationError>();
+        MasterValidator.ValidateItem(
+            new Item { Id = "i-big", Name = "n", Category = "c", VersionAdded = "2147483648.0.0" }, errors);
+
+        Assert.Contains(errors, e => e.EntityId == "i-big" && e.Field == "VersionAdded");
+    }
 }

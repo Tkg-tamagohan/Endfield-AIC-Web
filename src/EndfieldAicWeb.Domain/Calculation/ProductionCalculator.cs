@@ -660,22 +660,26 @@ public sealed class ProductionCalculator
         map.TryGetValue(key, out double value) ? value : 0;
 
     /// <summary>
-    /// CeilCount &gt; ExactCount の設備に属するレシピの入力について推奨流量制限を出力する。
+    /// 切上台数の全速稼働が必要サイクルを上回るレシピの入力について推奨流量制限を出力する。
+    /// 判定はランごとに行う（設備を共用するレシピが互いの全速分を食い合わないよう制限を提示する）。
     /// </summary>
     private static List<FlowAdjustment> BuildFlowAdjustments(
         Session session,
         List<FacilityRequirement> facilityRequirements)
     {
         var adjustments = new Dictionary<(string RecipeId, string InputItemId), double>();
-        var facilitiesWithSlack = new HashSet<string>(
-            facilityRequirements
-                .Where(f => f.CeilCount > f.ExactCount + Epsilon)
-                .Select(f => f.FacilityId),
-            StringComparer.Ordinal);
+        var ceilCountByFacility = facilityRequirements.ToDictionary(f => f.FacilityId, f => f.CeilCount, StringComparer.Ordinal);
 
         foreach (PairSelector.Selection run in session.RunOrder)
         {
-            if (!facilitiesWithSlack.Contains(run.Pair.FacilityId))
+            if (!ceilCountByFacility.TryGetValue(run.Pair.FacilityId, out int ceilCount)
+                || run.Pair.CycleTime <= 0)
+            {
+                continue;
+            }
+
+            double capacityCycles = ceilCount * 60.0 / run.Pair.CycleTime;
+            if (session.RunCycles[run] >= capacityCycles - Epsilon)
             {
                 continue;
             }

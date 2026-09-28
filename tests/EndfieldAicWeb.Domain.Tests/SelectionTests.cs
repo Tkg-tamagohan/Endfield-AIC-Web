@@ -214,4 +214,26 @@ public class SelectionTests
         ProductionPlan rel = CalculationFixtures.Run(withRelease, [("i-x", 60.0)]);
         Assert.Equal("r-rel", Assert.Single(rel.RecipeRuns).RecipeId);
     }
+
+    [Fact(DisplayName = "SEL-13: パース不能な VersionAdded は有効な全バージョンより最古")]
+    public void InvalidVersionIsBelowEveryValidVersion()
+    {
+        MasterDataSnapshot master = CalculationFixtures.Snapshot(
+            [
+                CalculationFixtures.Item("i-x"),
+                CalculationFixtures.Item("i-ore", "基礎素材", TransportKind.Belt, null, true),
+            ],
+            [CalculationFixtures.Facility("f-a")],
+            [
+                CalculationFixtures.Recipe("r-huge", "f-a", 6.0,
+                    [("i-ore", 1.0)], [("i-x", 1.0)], "2147483648.0.0"),
+                CalculationFixtures.Recipe("r-alpha", "f-a", 6.0,
+                    [("i-ore", 1.0)], [("i-x", 1.0)], "0.0.0-alpha"),
+            ]);
+
+        ProductionPlan plan = CalculationFixtures.Run(master, [("i-x", 60.0)]);
+
+        Assert.Equal("r-alpha", Assert.Single(plan.RecipeRuns).RecipeId);
+        Assert.True(HasWarning(plan, WarningCode.InvalidVersionString));
+    }
 }
