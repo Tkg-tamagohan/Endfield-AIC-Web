@@ -254,6 +254,8 @@ public class MasterJsonLoaderTests
             root["Icons"]!.AsArray()[0]!.AsObject()["Bytes"] = 0)];
         yield return ["Key欠落", (Action<JsonObject>)(root =>
             root["Icons"]!.AsArray()[0]!.AsObject().Remove("Key"))];
+        yield return ["Key末尾改行", (Action<JsonObject>)(root =>
+            root["Icons"]!.AsArray()[0]!.AsObject()["Key"] = "icon-ore\n")];
         yield return ["Sha256末尾改行", (Action<JsonObject>)(root =>
             root["Icons"]!.AsArray()[0]!.AsObject()["Sha256"] = TestJson.IconOreSha256 + "\n")];
     }

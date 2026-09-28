@@ -67,7 +67,7 @@
 | STR-08 | 必須フィールド欠落 | `Width` なし・`CycleTime` なし・`IsBaseMaterial` なし・`ConsumeRatePerSecond` なし・`SortOrder` なし | それぞれエラー |
 | STR-09 | SortOrder が負 | `SortOrder: -1` | エラー |
 | STR-10 | FixedConsumption 要素欠落 | `ItemId` なし・`RatePerSecond` なし | それぞれエラー |
-| STR-11 | Icons 節の構造違反 | Key 重複・Key 文字種違反・`File` が `icons/<Key>.png` 以外・`Sha256` が 64 桁でない・大文字 hex・末尾改行・`Bytes` が 0・Key 欠落 | それぞれエラー |
+| STR-11 | Icons 節の構造違反 | Key 重複・Key 文字種違反・Key 末尾改行・`File` が `icons/<Key>.png` 以外・`Sha256` が 64 桁でない・大文字 hex・末尾改行・`Bytes` が 0・Key 欠落 | それぞれエラー |
 | STR-12 | 正当な最小 JSON | J-01 | `Success`=true、`Document` 非 null、`Errors` 0 件 |
 | STR-13 | スキーマ必須の nullable キー欠落 | `VersionRemoved`・`IconKey`・`GameEventId`・`EnvironmentId` 削除 | それぞれエラー |
 | STR-14 | Description が null | Item の `Description=null` | エラー |
@@ -98,6 +98,7 @@
 | XPT-08 | 不正 Icons エントリの拒否 | `Sha256` が 64 桁でないエントリを含むドキュメント | 例外で拒否 |
 | XPT-09 | レシピ内の null 要素 | `Inputs`/`Outputs`/`Facilities` に null 要素または null 配列 | `MasterValidationException`（NRE で落ちない） |
 | XPT-10 | Description=null | `Items[0].Description=null` のドキュメント | 例外で拒否 |
+| XPT-11 | SortOrder が負 | `Outputs[0].SortOrder=-1` のドキュメント | 例外で拒否（再読み込み不能な出力を防ぐ） |
 
 ### RND: 往復（読み込み → エクスポート）
 
@@ -121,6 +122,8 @@
 | ICO-08 | 解決不可のフォールバック | null・空・予約キー `icon-placeholder`・文字種違反キー・ファイルなし | すべて null |
 | ICO-09 | ファイルシステム経由の解決 | 実ディレクトリに `icons/<Key>.png` を配置 | `FileSystemIconProvider` 経由で解決・欠落時 null |
 | ICO-10 | ルート外パスの拒否 | `../secret.txt`・`icons/../../secret.txt`・`..\secret.txt` | `ReadAllBytes` は null |
+| ICO-11 | ルート末尾が区切り文字 | `rootDirectory` に末尾 `/` 付きで `icons/<Key>.png` 配置 | 解決できる |
+| ICO-12 | シンボリックリンクによるルート外参照 | icons 内にルート外ファイルへの symlink | `ReadAllBytes` は null |
 
 ## 4. 受け入れ条件との対応
 

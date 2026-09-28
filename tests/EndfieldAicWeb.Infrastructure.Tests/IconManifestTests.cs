@@ -148,6 +148,47 @@ public class IconManifestTests
         }
     }
 
+    [Fact(DisplayName = "ICO-11: ルートディレクトリの末尾に区切り文字があっても解決できる")]
+    public void FileSystemProvider_TrailingSeparatorRoot_Resolves()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"aic-icons-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "icons"));
+            File.WriteAllBytes(Path.Combine(root, "icons", "icon-ore.png"), TestJson.IconOreContent);
+
+            var provider = new FileSystemIconProvider(root + Path.DirectorySeparatorChar);
+
+            Assert.NotNull(provider.ReadAllBytes(IconOrePath));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact(DisplayName = "ICO-12: シンボリックリンクによるルート外参照は拒否される")]
+    public void FileSystemProvider_SymlinkEscape_ReturnsNull()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"aic-icons-{Guid.NewGuid():N}");
+        string outside = Path.Combine(Path.GetTempPath(), $"aic-secret-{Guid.NewGuid():N}.png");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "icons"));
+            File.WriteAllBytes(outside, [0x0B, 0xAD]);
+            File.CreateSymbolicLink(Path.Combine(root, "icons", "link.png"), outside);
+
+            var provider = new FileSystemIconProvider(root);
+
+            Assert.Null(provider.ReadAllBytes("icons/link.png"));
+        }
+        finally
+        {
+            File.Delete(outside);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Theory(DisplayName = "ICO-10: ルート外へ出る相対パスは拒否される")]
     [InlineData("../secret.txt")]
     [InlineData("icons/../../secret.txt")]

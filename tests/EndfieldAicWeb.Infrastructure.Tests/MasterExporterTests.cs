@@ -196,6 +196,15 @@ public class MasterExporterTests
         }
     }
 
+    [Fact(DisplayName = "XPT-11: SortOrder が負のドキュメントは例外で拒否される（再読み込み不能な出力を防ぐ）")]
+    public void Export_NegativeSortOrder_Throws()
+    {
+        MasterDocument document = TestJson.LoadValidDocument();
+        document.Recipes[0].Outputs[0].SortOrder = -1;
+
+        Assert.Throws<MasterValidationException>(() => MasterExporter.Export(document));
+    }
+
     [Fact(DisplayName = "RND-03: 同梱 master.json が正として読める（Errors 0 件）")]
     public void MasterJson_LoadsClean()
     {
