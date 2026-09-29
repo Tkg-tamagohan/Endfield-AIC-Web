@@ -4,7 +4,7 @@ using EndfieldAicWeb.Domain.Models;
 namespace EndfieldAicWeb.Infrastructure.Icons;
 
 /// <summary>アイコン画像のバイト列とマニフェスト記述（Bytes/Sha256）の照合。</summary>
-internal static class IconFiles
+public static class IconFiles
 {
     /// <summary>バイト列の Sha256 を小文字 hex で返す。</summary>
     public static string Sha256Hex(ReadOnlySpan<byte> bytes) =>
