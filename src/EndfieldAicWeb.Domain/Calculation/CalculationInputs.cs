@@ -37,63 +37,112 @@ public sealed class ContextFilter
 /// <summary>
 /// 計算に使うマスタデータのメモリ内スナップショット。
 /// 保存形式や UI に依存しない純粋ロジックの入力となる。
-/// 索引は構築時の内容から遅延生成するため、構築後にエンティティやコレクションを
-/// 変更してはならない。変更がある場合は新しいスナップショットを作ること。
+/// コレクションは構築時に複製され、索引も構築時点の内容で確定するため、
+/// 構築後に元のリストを変更してもスナップショットの内容と索引は影響を受けない。
+/// エンティティ自体は共有参照のため変更してはならない。
+/// 変更がある場合は新しいスナップショットを作ること。
 /// </summary>
 public sealed class MasterDataSnapshot
 {
-    public required IReadOnlyList<Item> Items { get; init; }
-    public required IReadOnlyList<Facility> Facilities { get; init; }
-    public required IReadOnlyList<Environment> Environments { get; init; }
-    public required IReadOnlyList<GameEvent> GameEvents { get; init; }
-    public required IReadOnlyList<Recipe> Recipes { get; init; }
+    private readonly IReadOnlyList<Item> _items = [];
+    private readonly IReadOnlyList<Facility> _facilities = [];
+    private readonly IReadOnlyList<Environment> _environments = [];
+    private readonly IReadOnlyList<GameEvent> _gameEvents = [];
+    private readonly IReadOnlyList<Recipe> _recipes = [];
 
-    private Dictionary<string, Item>? _itemsById;
-    private Dictionary<string, Facility>? _facilitiesById;
-    private Dictionary<string, Environment>? _environmentsById;
-    private Dictionary<string, Recipe>? _recipesById;
-    private Dictionary<string, List<Recipe>>? _recipesByOutputItemId;
+    private readonly IReadOnlyDictionary<string, Item> _itemsById = new Dictionary<string, Item>(StringComparer.Ordinal);
+    private readonly IReadOnlyDictionary<string, Facility> _facilitiesById = new Dictionary<string, Facility>(StringComparer.Ordinal);
+    private readonly IReadOnlyDictionary<string, Environment> _environmentsById = new Dictionary<string, Environment>(StringComparer.Ordinal);
+    private readonly IReadOnlyDictionary<string, Recipe> _recipesById = new Dictionary<string, Recipe>(StringComparer.Ordinal);
+    private readonly IReadOnlyDictionary<string, IReadOnlyList<Recipe>> _recipesByOutputItemId = new Dictionary<string, IReadOnlyList<Recipe>>(StringComparer.Ordinal);
+
+    public required IReadOnlyList<Item> Items
+    {
+        get => _items;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            _items = value.ToArray();
+            _itemsById = _items.ToDictionary(i => i.Id, StringComparer.Ordinal);
+        }
+    }
+
+    public required IReadOnlyList<Facility> Facilities
+    {
+        get => _facilities;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            _facilities = value.ToArray();
+            _facilitiesById = _facilities.ToDictionary(f => f.Id, StringComparer.Ordinal);
+        }
+    }
+
+    public required IReadOnlyList<Environment> Environments
+    {
+        get => _environments;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            _environments = value.ToArray();
+            _environmentsById = _environments.ToDictionary(e => e.Id, StringComparer.Ordinal);
+        }
+    }
+
+    public required IReadOnlyList<GameEvent> GameEvents
+    {
+        get => _gameEvents;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            _gameEvents = value.ToArray();
+        }
+    }
+
+    public required IReadOnlyList<Recipe> Recipes
+    {
+        get => _recipes;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            _recipes = value.ToArray();
+            _recipesById = _recipes.ToDictionary(r => r.Id, StringComparer.Ordinal);
+            _recipesByOutputItemId = BuildRecipesByOutputItemId(_recipes);
+        }
+    }
 
     /// <summary>ItemId → Item。</summary>
-    public IReadOnlyDictionary<string, Item> ItemsById =>
-        _itemsById ??= Items.ToDictionary(i => i.Id, StringComparer.Ordinal);
+    public IReadOnlyDictionary<string, Item> ItemsById => _itemsById;
 
     /// <summary>FacilityId → Facility。</summary>
-    public IReadOnlyDictionary<string, Facility> FacilitiesById =>
-        _facilitiesById ??= Facilities.ToDictionary(f => f.Id, StringComparer.Ordinal);
+    public IReadOnlyDictionary<string, Facility> FacilitiesById => _facilitiesById;
 
     /// <summary>EnvironmentId → Environment。</summary>
-    public IReadOnlyDictionary<string, Environment> EnvironmentsById =>
-        _environmentsById ??= Environments.ToDictionary(e => e.Id, StringComparer.Ordinal);
+    public IReadOnlyDictionary<string, Environment> EnvironmentsById => _environmentsById;
 
     /// <summary>RecipeId → Recipe。</summary>
-    public IReadOnlyDictionary<string, Recipe> RecipesById =>
-        _recipesById ??= Recipes.ToDictionary(r => r.Id, StringComparer.Ordinal);
+    public IReadOnlyDictionary<string, Recipe> RecipesById => _recipesById;
 
     /// <summary>出力アイテム Id → そのアイテムを出力するレシピ一覧。</summary>
-    public IReadOnlyDictionary<string, List<Recipe>> RecipesByOutputItemId
+    public IReadOnlyDictionary<string, IReadOnlyList<Recipe>> RecipesByOutputItemId => _recipesByOutputItemId;
+
+    private static IReadOnlyDictionary<string, IReadOnlyList<Recipe>> BuildRecipesByOutputItemId(IReadOnlyList<Recipe> recipes)
     {
-        get
+        var byOutput = new Dictionary<string, List<Recipe>>(StringComparer.Ordinal);
+        foreach (Recipe recipe in recipes)
         {
-            if (_recipesByOutputItemId is null)
+            foreach (RecipeOutput output in recipe.Outputs)
             {
-                _recipesByOutputItemId = new Dictionary<string, List<Recipe>>(StringComparer.Ordinal);
-                foreach (Recipe recipe in Recipes)
+                if (!byOutput.TryGetValue(output.ItemId, out List<Recipe>? list))
                 {
-                    foreach (RecipeOutput output in recipe.Outputs)
-                    {
-                        if (!_recipesByOutputItemId.TryGetValue(output.ItemId, out List<Recipe>? list))
-                        {
-                            list = [];
-                            _recipesByOutputItemId[output.ItemId] = list;
-                        }
-
-                        list.Add(recipe);
-                    }
+                    list = [];
+                    byOutput[output.ItemId] = list;
                 }
-            }
 
-            return _recipesByOutputItemId;
+                list.Add(recipe);
+            }
         }
+
+        return byOutput.ToDictionary(p => p.Key, p => (IReadOnlyList<Recipe>)p.Value, StringComparer.Ordinal);
     }
 }

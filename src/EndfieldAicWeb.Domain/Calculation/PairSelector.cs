@@ -31,7 +31,7 @@ public static class PairSelector
         ArgumentNullException.ThrowIfNull(overrides);
         ArgumentNullException.ThrowIfNull(warnings);
 
-        IEnumerable<Recipe> candidates = master.RecipesByOutputItemId.TryGetValue(itemId, out List<Recipe>? list)
+        IEnumerable<Recipe> candidates = master.RecipesByOutputItemId.TryGetValue(itemId, out IReadOnlyList<Recipe>? list)
             ? list.Where(r => IsEventEligible(r.GameEventId, context))
             : [];
 
@@ -80,7 +80,7 @@ public static class PairSelector
         ArgumentNullException.ThrowIfNull(master);
         ArgumentNullException.ThrowIfNull(context);
 
-        IEnumerable<Recipe> candidates = master.RecipesByOutputItemId.TryGetValue(itemId, out List<Recipe>? list)
+        IEnumerable<Recipe> candidates = master.RecipesByOutputItemId.TryGetValue(itemId, out IReadOnlyList<Recipe>? list)
             ? list.Where(r => IsEventEligible(r.GameEventId, context))
             : [];
 
