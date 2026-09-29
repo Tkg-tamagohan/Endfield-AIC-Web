@@ -618,6 +618,13 @@ public sealed class ProductionCalculator
             .Select(r => new RecipeRun(r.Recipe.Id, r.Pair.FacilityId, session.RunCycles[r]))
             .ToList();
 
+        // 確定ペアは実際に稼働中（RunOrder に残る）のものだけを出す。
+        // 引き戻しで休眠したペアは Selection に残るが出力しない。
+        var pairSelections = session.Selection
+            .Where(kv => kv.Value is not null && session.RunOrder.Contains(kv.Value))
+            .Select(kv => new PairSelection(kv.Key, kv.Value!.Recipe.Id, kv.Value.Pair))
+            .ToList();
+
         double totalPower = facilityRequirements
             .Sum(f => master.FacilitiesById.TryGetValue(f.FacilityId, out Facility? facility)
                 ? facility.PowerConsumption * f.CeilCount
@@ -646,6 +653,7 @@ public sealed class ProductionCalculator
             ItemRequirements = itemRequirements,
             FacilityRequirements = facilityRequirements,
             RecipeRuns = recipeRuns,
+            PairSelections = pairSelections,
             EnvironmentRequirements = environmentRequirements,
             TotalPowerConsumption = totalPower,
             Surpluses = surpluses,

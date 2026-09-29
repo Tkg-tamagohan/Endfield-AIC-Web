@@ -1,11 +1,571 @@
 @page "/"
+@using System.Globalization
+@inject MasterDataService MasterData
+@inject CalculationService Calculator
 
 <PageTitle>Endfield AIC 計算</PageTitle>
 
-<h1>Endfield AIC 計算</h1>
+@if (!MasterData.IsLoaded)
+{
+    @if (MasterData.LoadError is null && MasterData.Errors.Count == 0)
+    {
+        <p class="muted">マスタデータを読み込み中…</p>
+    }
+    else
+    {
+        <section class="panel">
+            <h2 class="panel-title">マスタデータを読み込めません</h2>
+            @if (MasterData.LoadError is not null)
+            {
+                <p class="error">@MasterData.LoadError</p>
+            }
+            <ul class="error-list">
+                @foreach (var err in MasterData.Errors)
+                {
+                    <li>@err.EntityKind @err.EntityId @err.Field — @err.Message</li>
+                }
+            </ul>
+        </section>
+    }
+}
+else
+{
+    <div class="layout">
+        <section class="panel">
+            <h2 class="panel-title">生産リスト（個/分）</h2>
+            <p class="hint">アイテムと必要数（個/分）を入力してください。</p>
+            @foreach (TargetRow row in _targetRows)
+            {
+                <div class="target-row">
+                    <div class="combo">
+                        <input class="input" value="@row.Filter"
+                               @oninput="e => OnItemFilterInput(row, e)"
+                               @onfocus="() => row.Open = true"
+                               @onblur="() => row.Open = false"
+                               placeholder="アイテムを検索" autocomplete="off" />
+                        @if (row.Open)
+                        {
+                            <div class="combo-list">
+                                @{ IReadOnlyList<Item> matches = ItemSearch.Filter(_selectableItems, row.Filter); }
+                                @foreach (Item item in matches)
+                                {
+                                    <div class="combo-item" @onmousedown="() => SelectItem(row, item)" @onmousedown:preventDefault>
+                                        @item.Name@(item.GameEventId is not null ? "（イベント）" : "")
+                                    </div>
+                                }
+                                @if (matches.Count == 0)
+                                {
+                                    <div class="combo-item muted">該当するアイテムがありません</div>
+                                }
+                            </div>
+                        }
+                    </div>
+                    <input class="input rate" @bind="row.RateText" @bind:event="oninput" inputmode="decimal" placeholder="0" />
+                    <button class="btn ghost" title="行を削除" @onclick="() => RemoveRow(row)">×</button>
+                </div>
+            }
+            <button class="btn" @onclick="AddRow">＋ 行を追加</button>
 
-<p>目標アイテムの生産に必要な素材・設備・消費電力を逆算するツールです。</p>
+            @if (_eventChecks.Count > 0)
+            {
+                <h2 class="panel-title">有効イベント</h2>
+                @foreach (EventCheck check in _autoEventChecks)
+                {
+                    <label class="check">
+                        <input type="checkbox" checked="@check.Checked" @onchange="e => OnEventToggled(check, e)" />
+                        <span>@check.Event.Name@EventPeriod(check.Event)</span>
+                    </label>
+                }
+                @if (_outEventChecks.Count > 0)
+                {
+                    <details class="past-events">
+                        <summary>期間外のイベントを選択（@_outEventChecks.Count 件）</summary>
+                        @foreach (EventCheck check in _outEventChecks)
+                        {
+                            <label class="check">
+                                <input type="checkbox" checked="@check.Checked" @onchange="e => OnEventToggled(check, e)" />
+                                <span>@check.Event.Name@EventPeriod(check.Event)</span>
+                            </label>
+                        }
+                    </details>
+                }
+                <p class="hint">開催期間（±1 日）のイベントは自動で有効になります。期間外は折りたたみから選択できます。</p>
+            }
 
-<p class="text-muted">
-    本アプリは『アークナイツ：エンドフィールド』の非公式ファンツールです。
-</p>
+            @if (_inputError is not null)
+            {
+                <p class="error">@_inputError</p>
+            }
+            <button class="btn primary" @onclick="Recalculate">計算</button>
+            <p class="hint">データ版 @MasterData.Document?.DataVersion</p>
+        </section>
+
+        <section class="panel">
+            @if (_view is null)
+            {
+                <p class="muted">左の生産リストを入力して「計算」を押してください。</p>
+            }
+            else
+            {
+                <div class="toolbar">
+                    <div class="segmented">
+                        <button class="seg @(_unadjusted ? "" : "on")" @onclick="() => SetView(false)">調整済</button>
+                        <button class="seg @(_unadjusted ? "on" : "")" @onclick="() => SetView(true)">未調整</button>
+                    </div>
+                    <div class="segmented">
+                        <button class="seg @(_unit == AmountUnit.PerMinute ? "on" : "")" @onclick="() => _unit = AmountUnit.PerMinute">毎分</button>
+                        <button class="seg @(_unit == AmountUnit.PerSecond ? "on" : "")" @onclick="() => _unit = AmountUnit.PerSecond">毎秒</button>
+                        <button class="seg @(_unit == AmountUnit.Period ? "on" : "")" @onclick="() => _unit = AmountUnit.Period">期間</button>
+                    </div>
+                    @if (_unit == AmountUnit.Period)
+                    {
+                        <span class="period-inputs">
+                            <input class="input" @bind="_daysText" @bind:event="oninput" inputmode="decimal" placeholder="0" /> 日
+                            <input class="input" @bind="_hoursText" @bind:event="oninput" inputmode="decimal" placeholder="0" /> 時
+                            <input class="input" @bind="_minutesText" @bind:event="oninput" inputmode="decimal" placeholder="0" /> 分
+                        </span>
+                    }
+                </div>
+                @if (_unit == AmountUnit.Period && !PeriodValid())
+                {
+                    <p class="error">期間は 0 以上の数値で入力してください。</p>
+                }
+                @if (_view.Warnings.Count > 0)
+                {
+                    <div class="warnings">
+                        @foreach (CalculationWarning w in _view.Warnings)
+                        {
+                            <div class="warn">⚠ @w.Message</div>
+                        }
+                    </div>
+                }
+
+                <h2 class="panel-title">素材</h2>
+                @foreach (MaterialViewRow m in _view.Materials)
+                {
+                    <div class="mat-row">
+                        <div class="mat-head">
+                            <span class="icon-slot" title="@IconTitle(m.ItemId)">?</span>
+                            <strong>@ItemName(m.ItemId)</strong>
+                            @if (IsEventItem(m.ItemId))
+                            {
+                                <span class="tag">イベント</span>
+                            }
+                            <span class="muted">@Fmt(m.RequiredPerMinute)@Suffix()</span>
+                            @if (m.UnmetPerMinute > 1e-9)
+                            {
+                                <span class="danger">未充足 @Fmt(m.UnmetPerMinute)@Suffix()</span>
+                            }
+                        </div>
+                        <div class="mat-body">
+                            @foreach (SupplyPortion s in m.Supplies)
+                            {
+                                <span class="chip">@SupplyText(s)</span>
+                            }
+                            @if (_outcome!.PairOptionsByItemId.TryGetValue(m.ItemId, out IReadOnlyList<PairOption>? options))
+                            {
+                                <select class="input pair" value="@(m.SelectedPairKey ?? "")" @onchange="e => OnPairChanged(m.ItemId, e)">
+                                    <option value="">既定（自動選択）</option>
+                                    @foreach (PairOption o in options)
+                                    {
+                                        <option value="@o.Key">@OptionLabel(o)</option>
+                                    }
+                                </select>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <h2 class="panel-title">設備</h2>
+                @foreach (FacilityViewRow f in _view.Facilities)
+                {
+                    <div class="result-line">
+                        <strong>@FacilityName(f.FacilityId)</strong>
+                        <span class="muted"> @f.ExactCount.ToString("0.##", CultureInfo.InvariantCulture) 台 → </span><strong>@f.CeilCount 台</strong>
+                        @foreach (FlowAdjustment l in f.FlowLimits)
+                        {
+                            <div class="hint">@RecipeName(l.RecipeId) の @ItemName(l.InputItemId) を @l.RecommendedLimitPerSecond.ToString("0.###", CultureInfo.InvariantCulture)/秒 に制限</div>
+                        }
+                    </div>
+                }
+
+                @if (_view.Environments.Count > 0)
+                {
+                    <h2 class="panel-title">環境</h2>
+                    <p class="hint">散布機台数を下げると消費量に反映します（自動値が上限）。変更すると再計算します。</p>
+                    @if (_envError is not null)
+                    {
+                        <p class="error">@_envError</p>
+                    }
+                    @foreach (EnvironmentRequirement e in _view.Environments)
+                    {
+                        <div class="result-line env-line">
+                            <strong>@EnvName(e.EnvironmentId)</strong>
+                            <span class="muted"> @FacilityName(e.ProviderFacilityId)</span>
+                            <input class="input tiny" value="@EnvCountText(e.EnvironmentId)"
+                                   @onchange="ev => OnEnvCountChanged(e.EnvironmentId, ev)"
+                                   inputmode="numeric" placeholder="自動" /> 台
+                            <span class="muted">（自動 @EnvAutoCount(e.EnvironmentId) 台まで）</span>
+                            <span> ・ @ItemName(e.ConsumeItemId) @e.ConsumeRatePerSecondTotal.ToString("0.##", CultureInfo.InvariantCulture) 個/s@(PeriodConsumption(e.ConsumeRatePerSecondTotal))</span>
+                        </div>
+                    }
+                }
+
+                <h2 class="panel-title">消費電力</h2>
+                <div class="result-line">
+                    <strong>@_view.TotalPowerConsumption.ToString("0.##", CultureInfo.InvariantCulture)</strong>
+                    <span class="muted">（消費側の合計。発電側は計算しません）</span>
+                </div>
+
+                <h2 class="panel-title">余剰</h2>
+                @if (_view.Surpluses.Count == 0)
+                {
+                    <p class="muted">余剰はありません。</p>
+                }
+                else
+                {
+                    @foreach (SurplusProduction s in _view.Surpluses)
+                    {
+                        <div class="result-line">
+                            <strong>@ItemName(s.ItemId)</strong>
+                            <span class="muted"> +@Fmt(s.ExcessPerMinute)@Suffix()</span>
+                        </div>
+                    }
+                }
+            }
+        </section>
+    </div>
+}
+
+@code {
+    private sealed class TargetRow
+    {
+        public string? ItemId;
+        public string RateText = "60";
+        public string Filter = "";
+        public bool Open;
+    }
+
+    private sealed class EventCheck(GameEvent gameEvent)
+    {
+        public GameEvent Event { get; } = gameEvent;
+        public bool Checked;
+    }
+
+    private sealed class EnvInput(DomainEnv environment, int max)
+    {
+        public DomainEnv Env { get; } = environment;
+        public int Max { get; set; } = max;
+        public string CountText = "";
+    }
+
+    private readonly List<TargetRow> _targetRows = [new()];
+    private List<EventCheck> _eventChecks = [];
+    private List<EventCheck> _autoEventChecks = [];
+    private List<EventCheck> _outEventChecks = [];
+    private List<EnvInput> _envInputs = [];
+    private List<Item> _selectableItems = [];
+    private DateOnly _today = DateOnly.FromDateTime(DateTime.Now);
+
+    /// <summary>ユーザーが選んだペア上書き（アイテム Id → 候補）。既定 = キーなし。</summary>
+    private readonly Dictionary<string, PairOption> _pairOverrides = new(StringComparer.Ordinal);
+
+    private MasterDataSnapshot? _snapshot;
+    private CalculationOutcome? _outcome;
+    private ResultView? _view;
+    private ContextFilter _context = new();
+    private string? _inputError;
+    private string? _envError;
+    private bool _unadjusted;
+    private bool _viewTouched;
+    private AmountUnit _unit = AmountUnit.PerMinute;
+    private string _daysText = "0";
+    private string _hoursText = "0";
+    private string _minutesText = "0";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await MasterData.LoadAsync();
+        if (MasterData.IsLoaded)
+        {
+            _snapshot = MasterData.Snapshot!;
+            _selectableItems = _snapshot.Items.Where(i => i.TransportKind != TransportKind.None).ToList();
+            _eventChecks = _snapshot.GameEvents
+                .Select(e => new EventCheck(e) { Checked = EventAutoActivation.IsActiveByDefault(e, _today) })
+                .ToList();
+            _autoEventChecks = _eventChecks
+                .Where(c => EventAutoActivation.IsActiveByDefault(c.Event, _today))
+                .ToList();
+            _outEventChecks = _eventChecks.Except(_autoEventChecks).ToList();
+        }
+    }
+
+    private void AddRow() => _targetRows.Add(new TargetRow());
+
+    private void RemoveRow(TargetRow row)
+    {
+        _targetRows.Remove(row);
+        if (_targetRows.Count == 0)
+        {
+            _targetRows.Add(new TargetRow());
+        }
+    }
+
+    private void OnItemFilterInput(TargetRow row, ChangeEventArgs e)
+    {
+        row.Filter = e.Value?.ToString() ?? "";
+        // 選択済み名と本文がずれたら選択を解除する（古い Id のまま計算しないため）。
+        if (row.ItemId is not null && row.Filter != ItemName(row.ItemId))
+        {
+            row.ItemId = null;
+        }
+    }
+
+    private void SelectItem(TargetRow row, Item item)
+    {
+        row.ItemId = item.Id;
+        row.Filter = item.Name;
+        row.Open = false;
+    }
+
+    private void OnEventToggled(EventCheck check, ChangeEventArgs e)
+    {
+        check.Checked = e.Value is true;
+        Recalculate();
+    }
+
+    private void OnPairChanged(string itemId, ChangeEventArgs e)
+    {
+        string? key = e.Value?.ToString();
+        if (string.IsNullOrEmpty(key))
+        {
+            _pairOverrides.Remove(itemId);
+        }
+        else if (_outcome?.PairOptionsByItemId.TryGetValue(itemId, out IReadOnlyList<PairOption>? options) == true
+            && options.FirstOrDefault(o => o.Key == key) is { } option)
+        {
+            _pairOverrides[itemId] = option;
+        }
+
+        Recalculate();
+    }
+
+    private string EnvCountText(string envId) =>
+        _envInputs.FirstOrDefault(r => r.Env.Id == envId)?.CountText ?? "";
+
+    private int EnvAutoCount(string envId) =>
+        _envInputs.FirstOrDefault(r => r.Env.Id == envId)?.Max ?? 0;
+
+    private void OnEnvCountChanged(string envId, ChangeEventArgs e)
+    {
+        if (_envInputs.FirstOrDefault(r => r.Env.Id == envId) is { } input)
+        {
+            input.CountText = e.Value?.ToString() ?? "";
+            Recalculate();
+        }
+    }
+
+    private void SetView(bool unadjusted)
+    {
+        _unadjusted = unadjusted;
+        _viewTouched = true;
+        RebuildView();
+    }
+
+    private void Recalculate()
+    {
+        _inputError = null;
+        if (_snapshot is null)
+        {
+            return;
+        }
+
+        var targets = new List<ProductionTarget>();
+        foreach (TargetRow row in _targetRows)
+        {
+            if (row.ItemId is null && string.IsNullOrWhiteSpace(row.RateText))
+            {
+                continue;
+            }
+
+            if (row.ItemId is null || !_snapshot.ItemsById.ContainsKey(row.ItemId))
+            {
+                _inputError = "アイテムを選んでください。";
+                return;
+            }
+
+            if (!double.TryParse(row.RateText, NumberStyles.Float, CultureInfo.InvariantCulture, out double rate) || !double.IsFinite(rate) || rate <= 0)
+            {
+                _inputError = $"{ItemName(row.ItemId)} の数量を 0 より大きい数値で入力してください。";
+                return;
+            }
+
+            targets.Add(new ProductionTarget(row.ItemId, rate));
+        }
+
+        if (targets.Count == 0)
+        {
+            _inputError = "生産リストにアイテムを追加してください。";
+            return;
+        }
+
+        _envError = null;
+        var environmentOverrides = new List<EnvironmentCountOverride>();
+        foreach (EnvInput row in _envInputs)
+        {
+            if (string.IsNullOrWhiteSpace(row.CountText))
+            {
+                continue;
+            }
+
+            if (!int.TryParse(row.CountText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int count)
+                || count < 0 || count > row.Max)
+            {
+                _envError = $"{row.Env.Name} の散布機台数は 0〜{row.Max} の整数で入力してください。";
+                return;
+            }
+
+            environmentOverrides.Add(new EnvironmentCountOverride(row.Env.Id, count));
+        }
+
+        _context = new ContextFilter
+        {
+            ActiveGameEventIds = _eventChecks.Where(c => c.Checked).Select(c => c.Event.Id).ToList(),
+        };
+        var pairOverrides = _pairOverrides.Select(kv => kv.Value.ToOverride(kv.Key)).ToList();
+
+        _outcome = Calculator.Calculate(_snapshot, targets, _context, pairOverrides, environmentOverrides);
+        if (!_viewTouched)
+        {
+            // 切上げ過剰が出る計画では調整済を既定とする（仕様決定 O）。
+            // 全設備が整数台数なら両者の見え方が同じため未調整表示とする。
+            _unadjusted = _outcome.Plan.FacilityRequirements.All(f => f.ExactCount == f.CeilCount);
+        }
+
+        // 散布機台数の入力は計算結果に登場する環境だけに出し、自動値（必要台数）を上限とする。
+        // 上書き後の台数ではなく稼働ペアから必要台数を導く（0 に下げても戻せるように）。
+        // ユーザー入力（下げた台数）は再計算をまたいで保持する。
+        var prevCounts = _envInputs.ToDictionary(r => r.Env.Id, r => r.CountText, StringComparer.Ordinal);
+        _envInputs = _outcome.Plan.EnvironmentRequirements
+            .Select(r => new EnvInput(
+                _snapshot.EnvironmentsById[r.EnvironmentId],
+                _outcome.Plan.PairSelections
+                    .Where(p => p.Pair.EnvironmentId == r.EnvironmentId)
+                    .Select(p => p.RecipeId)
+                    .Distinct(StringComparer.Ordinal)
+                    .Count())
+            {
+                CountText = prevCounts.GetValueOrDefault(r.EnvironmentId, ""),
+            })
+            .ToList();
+
+        RebuildView();
+    }
+
+    private void RebuildView()
+    {
+        if (_outcome is not null && _snapshot is not null)
+        {
+            _view = ResultViewBuilder.Build(_outcome.Plan, _snapshot, _context, _unadjusted);
+        }
+    }
+
+    private PeriodAmount CurrentPeriod()
+    {
+        PeriodAmount period = default;
+        bool valid =
+            TryParsePart(_daysText, out double days) &&
+            TryParsePart(_hoursText, out double hours) &&
+            TryParsePart(_minutesText, out double minutes) &&
+            PeriodAmount.TryCreate(days, hours, minutes, out period);
+        return valid ? period : default;
+    }
+
+    private bool PeriodValid()
+    {
+        return TryParsePart(_daysText, out double days)
+            && TryParsePart(_hoursText, out double hours)
+            && TryParsePart(_minutesText, out double minutes)
+            && PeriodAmount.TryCreate(days, hours, minutes, out _);
+    }
+
+    private static bool TryParsePart(string text, out double value)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            value = 0;
+            return true;
+        }
+
+        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+    }
+
+    private string Fmt(double perMinute)
+    {
+        double converted = AmountConverter.Convert(perMinute, _unit, CurrentPeriod());
+        return converted.ToString(_unit == AmountUnit.PerSecond ? "0.###" : "0.##", CultureInfo.InvariantCulture);
+    }
+
+    private string Suffix() => AmountConverter.Suffix(_unit);
+
+    private string PeriodConsumption(double ratePerSecond)
+    {
+        return _unit == AmountUnit.Period && PeriodValid()
+            ? $"（{(ratePerSecond * 60 * CurrentPeriod().TotalMinutes).ToString("0.##", CultureInfo.InvariantCulture)} 個/期間）"
+            : "";
+    }
+
+    private string SupplyText(SupplyPortion portion) => portion.Kind switch
+    {
+        SupplyKind.Recipe => $"レシピ {RecipeName(portion.RecipeId!)} {Fmt(portion.AmountPerMinute)}{Suffix()}",
+        SupplyKind.Byproduct => $"副産物 {RecipeName(portion.RecipeId!)} {Fmt(portion.AmountPerMinute)}{Suffix()}",
+        _ => $"基礎素材 {Fmt(portion.AmountPerMinute)}{Suffix()}",
+    };
+
+    private string OptionLabel(PairOption option)
+    {
+        string label = $"{RecipeName(option.RecipeId)} ／ {FacilityName(option.FacilityId)} {option.CycleTime.ToString("0.##", CultureInfo.InvariantCulture)}秒";
+        label += option.EnvironmentId is null ? "・環境なし" : $"・{EnvName(option.EnvironmentId)}";
+        if (option.FixedConsumption is { } fc)
+        {
+            label += $"・{ItemName(fc.ItemId)} {fc.RatePerSecond.ToString("0.##", CultureInfo.InvariantCulture)}/秒";
+        }
+
+        if (option.IsDefault)
+        {
+            label += "（既定）";
+        }
+
+        return label;
+    }
+
+    private string EventPeriod(GameEvent gameEvent)
+    {
+        if (gameEvent.ActiveFrom is null && gameEvent.ActiveTo is null)
+        {
+            return "";
+        }
+
+        string from = gameEvent.ActiveFrom?.ToString("MM/dd") ?? "";
+        string to = gameEvent.ActiveTo?.ToString("MM/dd") ?? "";
+        return $"（{from}〜{to}）";
+    }
+
+    private string IconTitle(string itemId) =>
+        _snapshot is not null && _snapshot.ItemsById.TryGetValue(itemId, out Item? item) ? item.IconKey ?? "" : "";
+
+    private bool IsEventItem(string itemId) =>
+        _snapshot is not null && _snapshot.ItemsById.TryGetValue(itemId, out Item? item) && item.GameEventId is not null;
+
+    private string ItemName(string id) =>
+        _snapshot is not null && _snapshot.ItemsById.TryGetValue(id, out Item? item) ? item.Name : id;
+
+    private string FacilityName(string id) =>
+        _snapshot is not null && _snapshot.FacilitiesById.TryGetValue(id, out Facility? facility) ? facility.Name : id;
+
+    private string RecipeName(string id) =>
+        _snapshot is not null && _snapshot.RecipesById.TryGetValue(id, out Recipe? recipe) ? recipe.Name : id;
+
+    private string EnvName(string id) =>
+        _snapshot is not null && _snapshot.EnvironmentsById.TryGetValue(id, out DomainEnv? env) ? env.Name : id;
+}
