@@ -117,6 +117,10 @@
             {
                 <span class="ok">master.json をダウンロードしました</span>
             }
+            @if (_exportError is { } exportError)
+            {
+                <span class="error">@exportError</span>
+            }
         </div>
     </section>
 }
@@ -127,6 +131,7 @@
     private bool _loading;
     private bool _exported;
     private string? _fileError;
+    private string? _exportError;
 
     protected override void OnParametersSet()
     {
@@ -225,7 +230,17 @@
             return;
         }
 
-        _exported = true;
-        await JS.InvokeVoidAsync("downloadTextFile", "master.json", outcome.Json);
+        try
+        {
+            await JS.InvokeVoidAsync("downloadTextFile", "master.json", outcome.Json);
+            Store.MarkExported();
+            _exported = true;
+            _exportError = null;
+        }
+        catch (Exception ex)
+        {
+            // ダウンロード失敗ではダーティを維持する（未保存のまま読み込み直し警告が出る）
+            _exportError = $"ダウンロードに失敗しました: {ex.Message}";
+        }
     }
 }

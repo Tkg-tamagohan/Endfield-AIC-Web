@@ -55,7 +55,8 @@ public sealed class AdminDocumentService
     /// エディタの破棄（ページ遷移・エンティティ切替）では消さず、修正・対象削除・読み込み直しでのみ消える。</summary>
     private readonly Dictionary<(object Owner, string Field), string> _invalidEditors = [];
 
-    /// <summary>不正入力を登録する。text に null を渡すと解除する。</summary>
+    /// <summary>不正入力を登録する。text に null を渡すと解除する。
+    /// 登録された時点で前回の検証結果は当てにならないため stale にする。</summary>
     public void SetEditorInvalid(object owner, string field, string? text)
     {
         if (text is null)
@@ -65,6 +66,12 @@ public sealed class AdminDocumentService
         else
         {
             _invalidEditors[(owner, field)] = text;
+            if (ValidationRan)
+            {
+                ValidationStale = true;
+            }
+
+            ValidationErrors = [];
         }
     }
 
@@ -96,9 +103,20 @@ public sealed class AdminDocumentService
     public MasterDataSnapshot? Snapshot =>
         Document is null ? null : MasterSnapshotFactory.Create(Document);
 
-    /// <summary>URL（相対パスまたは絶対 URL）から正本 JSON を取得して読み込む。</summary>
+    /// <summary>読み込みの世代番号。並走した取得では最後に始まった要求だけが文書を置き換える。</summary>
+    private int _loadGeneration;
+
+    /// <summary>文書の編集回数。エクスポート後に編集が入ったかの判定に使う。</summary>
+    private int _editCounter;
+
+    /// <summary>最後に書き出しを成功させた時点の編集回数。</summary>
+    private int _counterAtExport = -1;
+
+    /// <summary>URL（相対パスまたは絶対 URL）から正本 JSON を取得して読み込む。
+    /// 待機中に別の読み込みが始まった場合は結果を捨てる（新しいほうが優先）。</summary>
     public async Task<bool> LoadFromUrlAsync(string url)
     {
+        int generation = ++_loadGeneration;
         string json;
         try
         {
@@ -106,8 +124,18 @@ public sealed class AdminDocumentService
         }
         catch (Exception ex)
         {
+            if (generation != _loadGeneration)
+            {
+                return false;
+            }
+
             LoadFailure = $"取得に失敗しました: {ex.Message}";
             LoadErrors = [];
+            return false;
+        }
+
+        if (generation != _loadGeneration)
+        {
             return false;
         }
 
@@ -117,6 +145,7 @@ public sealed class AdminDocumentService
     /// <summary>JSON 文字列を読み込む。違反があれば一覧を保持して編集状態へ入らない。</summary>
     public bool LoadJson(string json, string sourceLabel)
     {
+        _loadGeneration++;
         LoadFailure = null;
         try
         {
@@ -147,6 +176,7 @@ public sealed class AdminDocumentService
     /// <summary>編集ページからの変更通知。直前の検証結果は破棄し、要再検証の状態にする。</summary>
     public void NotifyChanged()
     {
+        _editCounter++;
         IsDirty = true;
         ValidationErrors = [];
         if (ValidationRan)
@@ -212,7 +242,7 @@ public sealed class AdminDocumentService
         try
         {
             string json = MasterExporter.Export(Document);
-            IsDirty = false;
+            _counterAtExport = _editCounter;
             ValidationErrors = [];
             ValidationRan = true;
             ValidationStale = false;
@@ -226,6 +256,13 @@ public sealed class AdminDocumentService
             ValidationStale = false;
             return new ExportOutcome(null, ex.Errors);
         }
+    }
+
+    /// <summary>JSON ファイルのダウンロードが完了したことを記録し、ダーティフラグを落とす。
+    /// 書き出し成功から完了までの間に編集が入っていた場合はダーティを維持する。</summary>
+    public void MarkExported()
+    {
+        IsDirty = _editCounter != _counterAtExport;
     }
 
     public event Action? Changed;
