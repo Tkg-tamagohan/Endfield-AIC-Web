@@ -22,7 +22,8 @@ SCHEMA_PATH = ROOT / "data" / "master.schema.json"
 MASTER_PATH = ROOT / "data" / "master.json"
 ICONS_DIR = ROOT / "data" / "icons"
 
-ICON_KEY_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+# Python の $ は末尾改行の直前でも一致するため、アプリ側 IconKeyRules と揃うよう \Z を使う。
+ICON_KEY_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}\Z")
 PLACEHOLDER_KEY = "icon-placeholder"
 
 ENTITY_SECTIONS = ("Items", "Facilities", "Environments", "GameEvents", "Recipes")

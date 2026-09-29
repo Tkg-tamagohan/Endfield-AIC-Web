@@ -188,14 +188,27 @@ public sealed class AdminDocumentService
 
         _iconStore.Clear();
         _iconDataUrls.Clear();
+        var manifestByFile = Document!.Icons
+            .GroupBy(e => e.File, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         foreach ((string path, byte[] bytes) in icons)
         {
-            _iconStore.Set(path, bytes);
+            // マニフェスト記載ファイルは照合一致のみ取り込む（不一致は未取得＝エクスポートで拒否）。
+            // 収録外ファイルはファイル名解決の差し込みとして保持する。
+            if (manifestByFile.TryGetValue(path, out IconEntry? entry))
+            {
+                if (IconFiles.Matches(bytes, entry))
+                {
+                    _iconStore.Set(path, bytes);
+                }
+            }
+            else
+            {
+                _iconStore.Set(path, bytes);
+            }
         }
 
-        // zip 内のファイルを実体として照合する。マニフェストより取得できた件数が多い分は
-        // 収録外キー（ファイル名解決の差し込み）としてそのまま残る。
-        IconFilesExpected = Document!.Icons.Count;
+        IconFilesExpected = Document.Icons.Count;
         IconFilesLoaded = Document.Icons.Count(e => _iconStore.ReadAllBytes(e.File) is not null);
         return true;
     }
@@ -430,9 +443,10 @@ public sealed class AdminDocumentService
             return;
         }
 
+        // 明示した有効キーはそのまま使い、自動補完時だけ他エンティティとの衝突を避ける。
         string key = IconKeyRules.IsValid(entity.IconKey)
             ? entity.IconKey!
-            : IconExportPlanner.SuggestKey(entity.Id);
+            : UniqueSuggestedKey(entity);
         IconEntry entry = IconExportPlanner.CreateEntry(key, pngBytes);
 
         entity.IconKey = key;
@@ -458,6 +472,43 @@ public sealed class AdminDocumentService
     {
         entity.IconKey = null;
         NotifyChanged();
+    }
+
+    /// <summary><c>icon-&lt;Id&gt;</c> の提案キーを、他エンティティが使用中なら連番を付けて一意にする。
+    /// Id はエンティティ種別をまたぐと一意でなく、置換・切詰めでも衝突し得るため。</summary>
+    private string UniqueSuggestedKey(MasterEntity entity)
+    {
+        string baseKey = IconExportPlanner.SuggestKey(entity.Id);
+        var used = new HashSet<string>(
+            EnumerateEntities()
+                .Where(e => !ReferenceEquals(e, entity))
+                .Select(e => e.IconKey)
+                .Where(k => k is not null)!,
+            StringComparer.Ordinal);
+        string key = baseKey;
+        for (int n = 2; used.Contains(key); n++)
+        {
+            string suffix = $"-{n}";
+            key = baseKey.Length + suffix.Length <= 64
+                ? baseKey + suffix
+                : baseKey[..(64 - suffix.Length)] + suffix;
+        }
+
+        return key;
+    }
+
+    private IEnumerable<MasterEntity> EnumerateEntities()
+    {
+        if (Document is null)
+        {
+            yield break;
+        }
+
+        foreach (Item e in Document.Items) yield return e;
+        foreach (Facility e in Document.Facilities) yield return e;
+        foreach (Domain.Models.Environment e in Document.Environments) yield return e;
+        foreach (GameEvent e in Document.GameEvents) yield return e;
+        foreach (Recipe e in Document.Recipes) yield return e;
     }
 
     /// <summary>DataVersion を載せて全置換 JSON＋アイコンを zip で書き出す。違反時は Errors を返して書き出さない。</summary>

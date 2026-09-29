@@ -41,7 +41,11 @@
     private string? _url;
     private string? _error;
 
-    protected override void OnParametersSet() =>
+    protected override void OnParametersSet() => Refresh();
+
+    // 子コンポーネント内の編集では OnParametersSet が再実行されないため、
+    // キー変更・クリア・取り込みの後はプレビューを自分で再計算する。
+    private void Refresh() =>
         _url = Store.IconDataUrl(Store.EffectiveIconKey(Entity));
 
     private void OnKeyChanged(ChangeEventArgs e)
@@ -50,12 +54,14 @@
         string? value = e.Value?.ToString();
         Entity.IconKey = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
         Store.NotifyChanged();
+        Refresh();
     }
 
     private void Clear()
     {
         _error = null;
         Store.ClearIcon(Entity);
+        Refresh();
     }
 
     private async Task ImportAsync(InputFileChangeEventArgs e)
@@ -73,6 +79,7 @@
             string normalized = await JS.InvokeAsync<string>("normalizeIconPng", dataUrl);
             byte[] png = Convert.FromBase64String(normalized[(normalized.IndexOf(',') + 1)..]);
             Store.RegisterIcon(Entity, png);
+            Refresh();
         }
         catch (Exception ex) when (ex is IOException or JSException or FormatException or InvalidOperationException)
         {

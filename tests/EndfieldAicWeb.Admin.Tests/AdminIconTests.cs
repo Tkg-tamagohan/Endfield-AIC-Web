@@ -170,6 +170,70 @@ public class AdminIconTests
     }
 
     [Fact]
+    public void ADM09_種別をまたいで同じ提案キーになる場合は一意のキーを割り当てる()
+    {
+        AdminDocumentService service = I01Loaded();
+        // item と facility の Id は種別内でしか一意でないため、同一 Id が共存し得る。
+        var item = new Item { Id = "shared", Name = "共用", VersionAdded = "1.0.0", Category = "素材", TransportKind = TransportKind.Belt };
+        var facility = new Facility { Id = "shared", Name = "共用", VersionAdded = "1.0.0", Width = 1, Height = 1 };
+        service.Document!.Items.Add(item);
+        service.Document.Facilities.Add(facility);
+
+        service.RegisterIcon(item, IconA);
+        service.RegisterIcon(facility, IconB);
+
+        Assert.Equal("icon-shared", item.IconKey);
+        Assert.NotEqual(item.IconKey, facility.IconKey);
+        Assert.Equal("icon-shared-2", facility.IconKey);
+        // それぞれ別の画像を保持しており、先に登録した画像が上書きされていない。
+        Assert.Equal(IconA.LongLength, service.Document.Icons.Single(e => e.Key == "icon-shared").Bytes);
+        Assert.Equal(IconB.LongLength, service.Document.Icons.Single(e => e.Key == "icon-shared-2").Bytes);
+    }
+
+    [Fact]
+    public void ADM10_マニフェストと一致しないzip内画像は未取得扱いでエクスポートを拒否する()
+    {
+        AdminDocumentService service = I01Loaded();
+        ExportZipOutcome exported = service.ExportZip("1.0.1");
+        Assert.True(exported.Success);
+
+        // zip 内の icon-ore.png を別内容に差し替える（マニフェスト Sha256/Bytes と一致しない）。
+        byte[] tampered;
+        Assert.True(IconArchive.TryReadZip(exported.ZipBytes!, out string? json, out IReadOnlyDictionary<string, byte[]> icons));
+        var rebuilt = new Dictionary<string, byte[]>(icons);
+        rebuilt["icons/icon-ore.png"] = [0xFF, 0xFF];
+        using (var stream = new MemoryStream())
+        {
+            using (var archive = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+            {
+                using var writer = new StreamWriter(archive.CreateEntry(IconArchive.JsonEntryName).Open());
+                writer.Write(json);
+            }
+
+            using (var archive = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode.Update, leaveOpen: true))
+            {
+                foreach ((string path, byte[] bytes) in rebuilt)
+                {
+                    System.IO.Compression.ZipArchiveEntry entry = archive.CreateEntry(IconArchive.IconsPrefix + Path.GetFileName(path));
+                    using Stream entryStream = entry.Open();
+                    entryStream.Write(bytes, 0, bytes.Length);
+                }
+            }
+
+            tampered = stream.ToArray();
+        }
+
+        var reloaded = new AdminDocumentService(new HttpClient());
+        Assert.True(reloaded.LoadZip(tampered, "master-export.zip"));
+        Assert.Equal(3, reloaded.IconFilesExpected);
+        Assert.Equal(2, reloaded.IconFilesLoaded);
+        Assert.NotNull(reloaded.IconDataUrl("icon-part"));
+        // 不一致ファイルはストアに入らないため、プレビューもエクスポートも欠落扱いになる。
+        Assert.Null(reloaded.IconDataUrl("icon-ore"));
+        Assert.False(reloaded.ExportZip("1.0.2").Success);
+    }
+
+    [Fact]
     public void ADM08_エクスポートしたzipを読み込み直せる()
     {
         AdminDocumentService service = I01Loaded();
