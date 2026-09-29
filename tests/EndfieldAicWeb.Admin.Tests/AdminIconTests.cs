@@ -234,6 +234,31 @@ public class AdminIconTests
     }
 
     [Fact]
+    public void ADM11_JSON読み込みでは温存ストアを新マニフェストで再照合する()
+    {
+        // zip 読み込みで検証済みの画像をストアに持った状態で、
+        // 同じ File に異なる Sha256 を書いた .json を読み込むと未取得として数える。
+        AdminDocumentService service = I01Loaded();
+        ExportZipOutcome exported = service.ExportZip("1.0.1");
+        Assert.True(exported.Success);
+        var reloaded = new AdminDocumentService(new HttpClient());
+        Assert.True(reloaded.LoadZip(exported.ZipBytes!, "master-export.zip"));
+        Assert.Equal(3, reloaded.IconFilesLoaded);
+
+        Assert.True(IconArchive.TryReadZip(exported.ZipBytes!, out string? json, out _));
+        // icon-part は IconB 単独（icon-ore/icon-fac は IconA 共有で Sha256 も同じ）なので
+        // この Sha256 だけを潰せば該当エントリのみが照合落ちする。
+        string tamperedJson = json!.Replace(
+            service.Document!.Icons.Single(e => e.Key == "icon-part").Sha256,
+            new string('0', 64));
+        Assert.True(reloaded.LoadJson(tamperedJson, "tampered.json"));
+        Assert.Equal(3, reloaded.IconFilesExpected);
+        Assert.Equal(2, reloaded.IconFilesLoaded);
+        Assert.Null(reloaded.IconDataUrl("icon-part"));
+        Assert.NotNull(reloaded.IconDataUrl("icon-ore"));
+    }
+
+    [Fact]
     public void ADM08_エクスポートしたzipを読み込み直せる()
     {
         AdminDocumentService service = I01Loaded();

@@ -282,10 +282,10 @@ public sealed class AdminDocumentService
             ValidationStale = false;
             _invalidEditors.Clear();
             // .json 単体の読み込みではアイコンストアは温存する（作業フォルダの合意）。
-            // 取得件数は既存ストアに対する現状値を表示する。
+            // 温存分も新マニフェストの Sha256/Bytes で再照合し、一致分だけを取得済みに数える。
             IconFilesExpected = result.Document.Icons.Count;
             IconFilesLoaded = result.Document.Icons
-                .Count(e => _iconStore.ReadAllBytes(e.File) is not null);
+                .Count(e => _iconStore.ReadAllBytes(e.File) is byte[] bytes && IconFiles.Matches(bytes, e));
             return true;
         }
         catch (Exception ex)
