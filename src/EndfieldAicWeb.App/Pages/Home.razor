@@ -259,12 +259,6 @@ else
         public bool Open;
     }
 
-    private sealed class EventCheck(GameEvent gameEvent)
-    {
-        public GameEvent Event { get; } = gameEvent;
-        public bool Checked;
-    }
-
     private sealed class EnvInput(DomainEnv environment, int max)
     {
         public DomainEnv Env { get; } = environment;
@@ -304,13 +298,9 @@ else
             _snapshot = MasterData.Snapshot!;
             await Icons.LoadAsync(MasterData.Document!);
             _selectableItems = _snapshot.Items.Where(i => i.TransportKind != TransportKind.None).ToList();
-            _eventChecks = _snapshot.GameEvents
-                .Select(e => new EventCheck(e) { Checked = EventAutoActivation.IsActiveByDefault(e, _today) })
-                .ToList();
-            _autoEventChecks = _eventChecks
-                .Where(c => EventAutoActivation.IsActiveByDefault(c.Event, _today))
-                .ToList();
-            _outEventChecks = _eventChecks.Except(_autoEventChecks).ToList();
+            _eventChecks = CalculationInputBuilder.InitializeEventChecks(_snapshot.GameEvents, _today);
+            _autoEventChecks = _eventChecks.Where(c => c.IsActiveByDefault).ToList();
+            _outEventChecks = _eventChecks.Where(c => !c.IsActiveByDefault).ToList();
         }
     }
 
@@ -394,32 +384,13 @@ else
             return;
         }
 
-        var targets = new List<ProductionTarget>();
-        foreach (TargetRow row in _targetRows)
+        if (!CalculationInputBuilder.TryParseTargets(
+                _targetRows.Select(r => new TargetRowInput(r.ItemId, r.RateText)),
+                _snapshot,
+                out List<ProductionTarget> targets,
+                out string? error))
         {
-            if (row.ItemId is null && string.IsNullOrWhiteSpace(row.RateText))
-            {
-                continue;
-            }
-
-            if (row.ItemId is null || !_snapshot.ItemsById.ContainsKey(row.ItemId))
-            {
-                _inputError = "アイテムを選んでください。";
-                return;
-            }
-
-            if (!double.TryParse(row.RateText, NumberStyles.Float, CultureInfo.InvariantCulture, out double rate) || !double.IsFinite(rate) || rate <= 0)
-            {
-                _inputError = $"{ItemName(row.ItemId)} の数量を 0 より大きい数値で入力してください。";
-                return;
-            }
-
-            targets.Add(new ProductionTarget(row.ItemId, rate));
-        }
-
-        if (targets.Count == 0)
-        {
-            _inputError = "生産リストにアイテムを追加してください。";
+            _inputError = error;
             return;
         }
 
@@ -451,23 +422,16 @@ else
         _outcome = Calculator.Calculate(_snapshot, targets, _context, pairOverrides, environmentOverrides);
         if (!_viewTouched)
         {
-            // 切上げ過剰が出る計画では調整済を既定とする（仕様決定 O）。
-            // 全設備が整数台数なら両者の見え方が同じため未調整表示とする。
-            _unadjusted = _outcome.Plan.FacilityRequirements.All(f => f.ExactCount == f.CeilCount);
+            _unadjusted = PlanViewDefaults.DefaultUnadjusted(_outcome.Plan);
         }
 
-        // 散布機台数の入力は計算結果に登場する環境だけに出し、自動値（必要台数）を上限とする。
-        // 上書き後の台数ではなく稼働ペアから必要台数を導く（0 に下げても戻せるように）。
+        // 散布機台数の入力は計算結果に登場する環境だけに出す。
         // ユーザー入力（下げた台数）は再計算をまたいで保持する。
         var prevCounts = _envInputs.ToDictionary(r => r.Env.Id, r => r.CountText, StringComparer.Ordinal);
         _envInputs = _outcome.Plan.EnvironmentRequirements
             .Select(r => new EnvInput(
                 _snapshot.EnvironmentsById[r.EnvironmentId],
-                _outcome.Plan.PairSelections
-                    .Where(p => p.Pair.EnvironmentId == r.EnvironmentId)
-                    .Select(p => p.RecipeId)
-                    .Distinct(StringComparer.Ordinal)
-                    .Count())
+                PlanViewDefaults.DispenserLimit(_outcome.Plan, r.EnvironmentId))
             {
                 CountText = prevCounts.GetValueOrDefault(r.EnvironmentId, ""),
             })

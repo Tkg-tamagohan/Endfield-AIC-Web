@@ -184,12 +184,6 @@ else
         public string RateText = "60";
     }
 
-    private sealed class EventCheck(GameEvent gameEvent)
-    {
-        public GameEvent Event { get; } = gameEvent;
-        public bool Checked;
-    }
-
     private readonly List<TargetRow> _targetRows = [new()];
     private List<EventCheck> _eventChecks = [];
     private List<EventCheck> _autoEventChecks = [];
@@ -215,13 +209,9 @@ else
                 .Where(i => i.TransportKind != TransportKind.None)
                 .Select(i => new SelectOption(i.Id, i.Name))
                 .ToList();
-            _eventChecks = _snapshot.GameEvents
-                .Select(e => new EventCheck(e) { Checked = EventAutoActivation.IsActiveByDefault(e, _today) })
-                .ToList();
-            _autoEventChecks = _eventChecks
-                .Where(c => EventAutoActivation.IsActiveByDefault(c.Event, _today))
-                .ToList();
-            _outEventChecks = _eventChecks.Except(_autoEventChecks).ToList();
+            _eventChecks = CalculationInputBuilder.InitializeEventChecks(_snapshot.GameEvents, _today);
+            _autoEventChecks = _eventChecks.Where(c => c.IsActiveByDefault).ToList();
+            _outEventChecks = _eventChecks.Where(c => !c.IsActiveByDefault).ToList();
         }
     }
 
@@ -282,32 +272,13 @@ else
             return;
         }
 
-        var targets = new List<ProductionTarget>();
-        foreach (TargetRow row in _targetRows)
+        if (!CalculationInputBuilder.TryParseTargets(
+                _targetRows.Select(r => new TargetRowInput(r.ItemId, r.RateText)),
+                snapshot,
+                out List<ProductionTarget> targets,
+                out string? error))
         {
-            if (row.ItemId is null && string.IsNullOrWhiteSpace(row.RateText))
-            {
-                continue;
-            }
-
-            if (row.ItemId is null || !snapshot.ItemsById.ContainsKey(row.ItemId))
-            {
-                _inputError = "アイテムを選んでください。";
-                return;
-            }
-
-            if (!double.TryParse(row.RateText, NumberStyles.Float, CultureInfo.InvariantCulture, out double rate) || !double.IsFinite(rate) || rate <= 0)
-            {
-                _inputError = $"{ItemName(row.ItemId)} の数量を 0 より大きい数値で入力してください。";
-                return;
-            }
-
-            targets.Add(new ProductionTarget(row.ItemId, rate));
-        }
-
-        if (targets.Count == 0)
-        {
-            _inputError = "生産リストにアイテムを追加してください。";
+            _inputError = error;
             return;
         }
 
@@ -330,7 +301,7 @@ else
 
         if (!_viewTouched)
         {
-            _unadjusted = _outcome.Plan.FacilityRequirements.All(f => f.ExactCount == f.CeilCount);
+            _unadjusted = PlanViewDefaults.DefaultUnadjusted(_outcome.Plan);
         }
 
         RebuildView();
