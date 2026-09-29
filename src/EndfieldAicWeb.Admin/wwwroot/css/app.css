@@ -278,6 +278,60 @@ select.input {
     padding: 8px 0;
 }
 
+/* 計算プレビュー */
+.layout {
+    display: grid;
+    grid-template-columns: minmax(300px, 380px) 1fr;
+    gap: 16px;
+    align-items: start;
+}
+
+.segmented {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.seg {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    padding: 6px 14px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.seg.on {
+    background: var(--accent);
+    color: #141414;
+    font-weight: 700;
+}
+
+.past-events {
+    margin: 4px 0 6px;
+}
+
+.past-events summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 0.9rem;
+    padding: 4px 0;
+}
+
+.past-events summary:hover {
+    color: var(--text);
+}
+
+.fc-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-top: 4px;
+    flex-wrap: wrap;
+}
+
 .chip {
     background: var(--chip);
     border: 1px solid var(--border);
@@ -530,6 +584,10 @@ select.input {
 }
 
 @media (max-width: 780px) {
+    .layout {
+        grid-template-columns: 1fr;
+    }
+
     .admin-layout {
         grid-template-columns: 1fr;
     }

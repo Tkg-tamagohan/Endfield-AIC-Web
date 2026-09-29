@@ -54,7 +54,7 @@ Phase 4 と同じシェル（`site-header`・`site-main`・`site-footer`）と�
 | `/environments` | 同上＋編集フォーム（共通属性・ProviderFacilityId・ConsumeItemId・ConsumeRatePerSecond・GameEventId） |
 | `/events` | 同上＋編集フォーム（共通属性・ActiveFrom・ActiveTo。空欄は期間なし・常設） |
 | `/recipes` | 同上＋編集フォーム（共通属性・GameEventId・Inputs・Outputs（SortOrder つき）・Facilities ペア（FacilityId・CycleTime・EnvironmentId・FixedConsumption の有無と ItemId/RatePerSecond）） |
-| `/preview` | 目標行（アイテム＋個/分）・有効イベントの切替・計算ボタン、素材・設備・環境・電力・余剰・警告の表示（`ResultViewBuilder` の調整済ビュー） |
+| `/preview` | 目標行（アイテム＋個/分）・有効イベントの切替・計算ボタン、素材・設備・環境（dispenser 台数付き）・電力・余剰・警告の表示（`ResultViewBuilder`、調整済/未調整の表示切替は公開アプリと同じ構成） |
 
 ### 編集フォームの規則
 

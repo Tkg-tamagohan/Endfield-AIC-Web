@@ -134,7 +134,7 @@ else
                     {
                         <div class="result-line">
                             <strong>@EnvName(e.EnvironmentId)</strong>
-                            <span class="muted"> @FacilityName(e.ProviderFacilityId) ・ @ItemName(e.ConsumeItemId) @e.ConsumeRatePerSecondTotal.ToString("0.##", CultureInfo.InvariantCulture) 個/s</span>
+                            <span class="muted"> @FacilityName(e.ProviderFacilityId) @e.DispenserCount 台 ・ @ItemName(e.ConsumeItemId) @e.ConsumeRatePerSecondTotal.ToString("0.##", CultureInfo.InvariantCulture) 個/s</span>
                         </div>
                     }
                 }
@@ -256,10 +256,10 @@ else
     private void Recalculate()
     {
         _inputError = null;
+        _outcome = null;
+        _view = null;
         if (!EnsureSnapshot() || _snapshot is not { } snapshot)
         {
-            _outcome = null;
-            _view = null;
             return;
         }
 

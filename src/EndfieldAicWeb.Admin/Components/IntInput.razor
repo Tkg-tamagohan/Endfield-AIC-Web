@@ -1,3 +1,6 @@
+@implements IDisposable
+@inject AdminDocumentService Store
+
 <input class="@CssClass @(_invalid ? "invalid" : "")" value="@_text" @onchange="OnChange" inputmode="numeric" />
 
 @code {
@@ -34,11 +37,15 @@
         {
             _invalid = false;
             _applied = value;
+            Store.SetEditorInvalid(this, false);
             await ValueChanged.InvokeAsync(value);
         }
         else
         {
             _invalid = true;
+            Store.SetEditorInvalid(this, true);
         }
     }
+
+    public void Dispose() => Store.SetEditorInvalid(this, false);
 }

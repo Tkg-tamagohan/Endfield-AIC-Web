@@ -109,6 +109,10 @@
         <p class="hint">全置換形式で書き出します。違反があると書き出せません。出力後はリポジトリの data/master.json を差し替えて PR を作成してください。</p>
         <div class="toolbar">
             <button class="btn primary" style="width: auto" @onclick="ExportJson">JSON をエクスポート</button>
+            @if (Store.HasInvalidInput)
+            {
+                <span class="error">確定されていない不正な入力値（赤枠）があります。修正してください。</span>
+            }
             @if (_exported)
             {
                 <span class="ok">master.json をダウンロードしました</span>

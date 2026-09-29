@@ -48,6 +48,21 @@ public sealed class AdminDocumentService
     /// <summary>HTTP 取得・ファイル読取の致命的失敗メッセージ。</summary>
     public string? LoadFailure { get; private set; }
 
+    /// <summary>赤枠表示のまま確定されていない不正な入力値を持つエディタがあるか。</summary>
+    public bool HasInvalidInput => _invalidEditors.Count > 0;
+
+    private readonly HashSet<object> _invalidEditors = [];
+
+    /// <summary>エディタの不正入力状態を登録・解除する。キーはエディタコンポーネント自身。</summary>
+    public void SetEditorInvalid(object editor, bool invalid)
+    {
+        bool changed = invalid ? _invalidEditors.Add(editor) : _invalidEditors.Remove(editor);
+        if (changed)
+        {
+            Changed?.Invoke();
+        }
+    }
+
     public bool IsLoaded => Document is not null;
 
     /// <summary>計算プレビュー用スナップショット（未読み込み時は null）。</summary>
@@ -124,6 +139,12 @@ public sealed class AdminDocumentService
         }
 
         var errors = new List<MasterValidationError>();
+        if (HasInvalidInput)
+        {
+            errors.Add(new MasterValidationError(
+                "入力", "", "", "確定されていない不正な入力値（赤枠）があります。修正してから検証・書き出ししてください。"));
+        }
+
         MasterValidator.ValidateAll(
             Document.Items,
             Document.Facilities,
@@ -145,6 +166,20 @@ public sealed class AdminDocumentService
             return new ExportOutcome(null, []);
         }
 
+        if (HasInvalidInput)
+        {
+            var blocked = new List<MasterValidationError>
+            {
+                new("入力", "", "", "確定されていない不正な入力値（赤枠）があります。修正してから書き出してください。"),
+            };
+            ValidationErrors = blocked;
+            ValidationRan = true;
+            ValidationStale = false;
+            return new ExportOutcome(null, blocked);
+        }
+
+        // 書き出しに失敗したときは文書側の DataVersion を元に戻す（変更は確定させない）。
+        string previousVersion = Document.DataVersion;
         Document.DataVersion = dataVersion;
         try
         {
@@ -157,6 +192,7 @@ public sealed class AdminDocumentService
         }
         catch (MasterValidationException ex)
         {
+            Document.DataVersion = previousVersion;
             ValidationErrors = ex.Errors;
             ValidationRan = true;
             ValidationStale = false;
