@@ -1,276 +1,307 @@
 {
   "SchemaVersion": 1,
-  "DataVersion": "0.1.0",
+  "DataVersion": "0.2.0",
   "Items": [
     {
+      "Category": "基礎素材",
+      "IsBaseMaterial": true,
+      "TransportKind": "Belt",
+      "GameEventId": null,
       "Id": "item-ore",
       "Name": "原鉱石",
       "Description": "採取される基礎的な鉱石",
-      "IconKey": null,
+      "IconKey": "icon-item-ore",
       "VersionAdded": "0.1.0",
-      "VersionRemoved": null,
+      "VersionRemoved": null
+    },
+    {
       "Category": "基礎素材",
       "IsBaseMaterial": true,
       "TransportKind": "Belt",
-      "GameEventId": null
-    },
-    {
+      "GameEventId": null,
       "Id": "item-fuel",
       "Name": "固形燃料",
       "Description": "設備の動力として継続消費される燃料",
-      "IconKey": null,
+      "IconKey": "icon-item-fuel",
       "VersionAdded": "0.1.0",
-      "VersionRemoved": null,
-      "Category": "基礎素材",
-      "IsBaseMaterial": true,
-      "TransportKind": "Belt",
-      "GameEventId": null
+      "VersionRemoved": null
     },
     {
+      "Category": "基礎素材",
+      "IsBaseMaterial": true,
+      "TransportKind": "Pipe",
+      "GameEventId": null,
       "Id": "item-gas",
       "Name": "活性ガス",
       "Description": "散布機が環境維持のために消費するガス",
       "IconKey": null,
       "VersionAdded": "0.1.0",
-      "VersionRemoved": null,
-      "Category": "基礎素材",
-      "IsBaseMaterial": true,
-      "TransportKind": "Pipe",
-      "GameEventId": null
+      "VersionRemoved": null
     },
     {
-      "Id": "item-power",
-      "Name": "電力",
-      "Description": "輸送できない仮想アイテム",
-      "IconKey": null,
-      "VersionAdded": "0.1.0",
-      "VersionRemoved": null,
       "Category": "エネルギー",
       "IsBaseMaterial": false,
       "TransportKind": "None",
-      "GameEventId": null
+      "GameEventId": null,
+      "Id": "item-power",
+      "Name": "電力",
+      "Description": "輸送できない仮想アイテム",
+      "IconKey": "icon-item-power",
+      "VersionAdded": "0.1.0",
+      "VersionRemoved": null
     },
     {
-      "Id": "item-part",
-      "Name": "汎用部品",
-      "Description": "各種加工に使う汎用的な部品",
-      "IconKey": null,
-      "VersionAdded": "0.1.0",
-      "VersionRemoved": null,
       "Category": "部品",
       "IsBaseMaterial": false,
       "TransportKind": "Belt",
-      "GameEventId": null
+      "GameEventId": null,
+      "Id": "item-part",
+      "Name": "汎用部品",
+      "Description": "各種加工に使う汎用的な部品",
+      "IconKey": "icon-item-part",
+      "VersionAdded": "0.1.0",
+      "VersionRemoved": null
     },
     {
+      "Category": "部品",
+      "IsBaseMaterial": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
       "Id": "item-part-hp",
       "Name": "高純度部品",
       "Description": "ガス環境下で精製される高純度の部品",
       "IconKey": null,
       "VersionAdded": "0.1.0",
-      "VersionRemoved": null,
-      "Category": "部品",
-      "IsBaseMaterial": false,
-      "TransportKind": "Belt",
-      "GameEventId": null
+      "VersionRemoved": null
     },
     {
+      "Category": "イベント",
+      "IsBaseMaterial": false,
+      "TransportKind": "Belt",
+      "GameEventId": "ev-first",
       "Id": "item-limited",
       "Name": "祝祭の勲章",
       "Description": "イベント期間限定の記念品",
       "IconKey": null,
       "VersionAdded": "0.1.0",
-      "VersionRemoved": null,
-      "Category": "イベント",
-      "IsBaseMaterial": false,
-      "TransportKind": "Belt",
-      "GameEventId": "ev-first"
+      "VersionRemoved": null
     }
   ],
   "Facilities": [
     {
+      "Width": 3,
+      "Height": 3,
+      "PowerConsumption": 50,
       "Id": "fac-assembler",
       "Name": "加工機",
       "Description": "素材を加工する汎用設備",
-      "IconKey": null,
+      "IconKey": "icon-fac-assembler",
       "VersionAdded": "0.1.0",
-      "VersionRemoved": null,
-      "Width": 3,
-      "Height": 3,
-      "PowerConsumption": 50.0
+      "VersionRemoved": null
     },
     {
+      "Width": 2,
+      "Height": 2,
+      "PowerConsumption": 20,
       "Id": "fac-dispenser",
       "Name": "ガス散布機",
       "Description": "ガスを散布してガス環境を供給する設備",
       "IconKey": null,
       "VersionAdded": "0.1.0",
-      "VersionRemoved": null,
-      "Width": 2,
-      "Height": 2,
-      "PowerConsumption": 20.0
+      "VersionRemoved": null
     }
   ],
   "Environments": [
     {
+      "ProviderFacilityId": "fac-dispenser",
+      "ConsumeItemId": "item-gas",
+      "ConsumeRatePerSecond": 6,
+      "GameEventId": null,
       "Id": "env-gas",
       "Name": "ガス環境",
       "Description": "ガスが充満した環境。専用レシピを開放する",
       "IconKey": null,
       "VersionAdded": "0.1.0",
-      "VersionRemoved": null,
-      "ProviderFacilityId": "fac-dispenser",
-      "ConsumeItemId": "item-gas",
-      "ConsumeRatePerSecond": 6.0,
-      "GameEventId": null
+      "VersionRemoved": null
     }
   ],
   "GameEvents": [
     {
+      "ActiveFrom": "2025-01-01T00:00:00Z",
+      "ActiveTo": "2025-01-31T23:59:59Z",
       "Id": "ev-first",
       "Name": "初回開放イベント",
       "Description": "最初の期間限定イベント",
       "IconKey": null,
       "VersionAdded": "0.1.0",
-      "VersionRemoved": null,
-      "ActiveFrom": "2025-01-01T00:00:00Z",
-      "ActiveTo": "2025-01-31T23:59:59Z"
+      "VersionRemoved": null
     }
   ],
   "Recipes": [
     {
-      "Id": "recipe-part",
-      "Name": "汎用部品",
-      "Description": "原鉱石から汎用部品を加工する",
-      "IconKey": null,
-      "VersionAdded": "0.1.0",
-      "VersionRemoved": null,
       "GameEventId": null,
       "Inputs": [
         {
           "ItemId": "item-ore",
-          "Quantity": 2.0
+          "Quantity": 2
         }
       ],
       "Outputs": [
         {
           "ItemId": "item-part",
-          "Quantity": 1.0,
+          "Quantity": 1,
           "SortOrder": 0
         }
       ],
       "Facilities": [
         {
           "FacilityId": "fac-assembler",
-          "CycleTime": 4.0,
+          "CycleTime": 4,
           "EnvironmentId": null,
           "FixedConsumption": null
         },
         {
           "FacilityId": "fac-assembler",
-          "CycleTime": 3.0,
+          "CycleTime": 3,
           "EnvironmentId": "env-gas",
           "FixedConsumption": {
             "ItemId": "item-fuel",
             "RatePerSecond": 0.5
           }
         }
-      ]
-    },
-    {
-      "Id": "recipe-part-hp",
-      "Name": "高純度部品",
-      "Description": "ガス環境下で汎用部品を精製する",
+      ],
+      "Id": "recipe-part",
+      "Name": "汎用部品",
+      "Description": "原鉱石から汎用部品を加工する",
       "IconKey": null,
       "VersionAdded": "0.1.0",
-      "VersionRemoved": null,
+      "VersionRemoved": null
+    },
+    {
       "GameEventId": null,
       "Inputs": [
         {
           "ItemId": "item-part",
-          "Quantity": 1.0
+          "Quantity": 1
         },
         {
           "ItemId": "item-gas",
-          "Quantity": 1.0
+          "Quantity": 1
         }
       ],
       "Outputs": [
         {
           "ItemId": "item-part-hp",
-          "Quantity": 1.0,
+          "Quantity": 1,
           "SortOrder": 0
         }
       ],
       "Facilities": [
         {
           "FacilityId": "fac-assembler",
-          "CycleTime": 6.0,
+          "CycleTime": 6,
           "EnvironmentId": "env-gas",
           "FixedConsumption": null
         }
-      ]
+      ],
+      "Id": "recipe-part-hp",
+      "Name": "高純度部品",
+      "Description": "ガス環境下で汎用部品を精製する",
+      "IconKey": null,
+      "VersionAdded": "0.1.0",
+      "VersionRemoved": null
     },
     {
+      "GameEventId": "ev-first",
+      "Inputs": [
+        {
+          "ItemId": "item-ore",
+          "Quantity": 1
+        }
+      ],
+      "Outputs": [
+        {
+          "ItemId": "item-part",
+          "Quantity": 1,
+          "SortOrder": 0
+        }
+      ],
+      "Facilities": [
+        {
+          "FacilityId": "fac-assembler",
+          "CycleTime": 2,
+          "EnvironmentId": null,
+          "FixedConsumption": null
+        }
+      ],
       "Id": "recipe-part-event",
       "Name": "汎用部品（イベント）",
       "Description": "イベント期間限定の高効率レシピ",
       "IconKey": null,
       "VersionAdded": "0.1.0",
-      "VersionRemoved": null,
-      "GameEventId": "ev-first",
-      "Inputs": [
-        {
-          "ItemId": "item-ore",
-          "Quantity": 1.0
-        }
-      ],
-      "Outputs": [
-        {
-          "ItemId": "item-part",
-          "Quantity": 1.0,
-          "SortOrder": 0
-        }
-      ],
-      "Facilities": [
-        {
-          "FacilityId": "fac-assembler",
-          "CycleTime": 2.0,
-          "EnvironmentId": null,
-          "FixedConsumption": null
-        }
-      ]
+      "VersionRemoved": null
     },
     {
-      "Id": "recipe-limited",
-      "Name": "祝祭の勲章",
-      "Description": "イベント期間限定の記念品を鋳造する",
-      "IconKey": null,
-      "VersionAdded": "0.1.0",
-      "VersionRemoved": null,
       "GameEventId": "ev-first",
       "Inputs": [
         {
           "ItemId": "item-part",
-          "Quantity": 2.0
+          "Quantity": 2
         }
       ],
       "Outputs": [
         {
           "ItemId": "item-limited",
-          "Quantity": 1.0,
+          "Quantity": 1,
           "SortOrder": 0
         }
       ],
       "Facilities": [
         {
           "FacilityId": "fac-assembler",
-          "CycleTime": 8.0,
+          "CycleTime": 8,
           "EnvironmentId": null,
           "FixedConsumption": null
         }
-      ]
+      ],
+      "Id": "recipe-limited",
+      "Name": "祝祭の勲章",
+      "Description": "イベント期間限定の記念品を鋳造する",
+      "IconKey": null,
+      "VersionAdded": "0.1.0",
+      "VersionRemoved": null
     }
   ],
-  "Icons": []
+  "Icons": [
+    {
+      "Key": "icon-item-ore",
+      "File": "icons/icon-item-ore.png",
+      "Sha256": "570eac0e5f37fdaab671e914f9d1937af147933d5afd31b87de0f099b0d70840",
+      "Bytes": 988
+    },
+    {
+      "Key": "icon-item-fuel",
+      "File": "icons/icon-item-fuel.png",
+      "Sha256": "419e31083aa53e59622b6c45b7a08c2014b7667a44870a36bc7bbec5c3d90491",
+      "Bytes": 1021
+    },
+    {
+      "Key": "icon-item-power",
+      "File": "icons/icon-item-power.png",
+      "Sha256": "7b2850179e825150a6c0c248df48b5b211659dae7a9b89d6029c1b32b48db84f",
+      "Bytes": 860
+    },
+    {
+      "Key": "icon-item-part",
+      "File": "icons/icon-item-part.png",
+      "Sha256": "9df8f922bb3bca2aa467a284115c7f34b5da59f98749354bfcdbb3e9daa24c81",
+      "Bytes": 1124
+    },
+    {
+      "Key": "icon-fac-assembler",
+      "File": "icons/icon-fac-assembler.png",
+      "Sha256": "de18333b31a98183b7c133b605aac78f2b712154b306c812c48bfb2ade3b27ca",
+      "Bytes": 729
+    }
+  ]
 }
