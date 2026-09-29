@@ -28,8 +28,15 @@ dotnet run --project src/EndfieldAicWeb.Admin --no-launch-profile --urls http://
 
 ## レスポンシブ確認
 
-- ブレークポイントは 641px（`Layout/NavMenu.razor.css`・`MainLayout.razor.css` の `@media (min-width: 641px)`）。これ未満でサイドバーが上部バー＋ハンバーガーに折りたたまれる。
-- Chrome の最小ウィンドウ幅は約 500px で、`wmctrl -e` でのリサイズは 530px 程度までしか縮められない。それでも 641px 未満なので折りたたみ経路は検証できる。真の 375px 幅が必要ならウィンドウリサイズではなく CDP のデバイスエミュレーションを使う。
+- 計算 UI（`Pages/Home.razor`）の 2 カラム `.layout` は **780px 未満**で 1 カラム化（`wwwroot/css/app.css` の `@media (max-width: 780px)`）。780px は Chrome 最小幅を上回るため、`wmctrl -e` のウィンドウリサイズだけで検証できる。
+- Chrome の最小ウィンドウ幅は約 500px で、`wmctrl -e` でのリサイズは 530px 程度までしか縮められない。真の 375px 幅が必要ならウィンドウリサイズではなく CDP のデバイスエミュレーションを使う。
+
+## computer-use での操作注意（計算ページ）
+
+- 「＋ 行を追加」等の小さいボタンは端のクリックが 1px ずれで外れることがある。失敗したら `zoom` で実座標を取り直して中央をクリックする。
+- ネイティブ `<select>`（ペア選択プルダウン）はクリックで開き、選択肢を直接クリックすれば `@onchange` が発火する（JS 不要）。
+- `@bind:event="oninput"` の入力（数量・期間の日/時/分）は type で即時反映。`@onchange` の入力（散布機台数）は Tab（blur）を送るまで確定しないので、type 後に Tab を押す。
+- コンボボックスは `@onmousedown` で項目選択。候補リストは `@onfocus`/`@onblur` で開閉するため、入力クリック → type → 候補をクリックの順で安定する。
 
 ## 環境
 
