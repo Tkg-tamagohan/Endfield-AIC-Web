@@ -1,0 +1,36 @@
+name: deploy-pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# 直列化して、重複実行で古いコミットの成果物が後勝ちしないようにする。
+# グループは ref 単位とし、プレビュー用 dispatch がキュー中の本番実行を押し出さないようにする。
+# 保留できるのは最新イベントの 1 実行のみのため、最後に完了する実行が必ず最新コミットのものになる。
+concurrency:
+  group: pages-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet test -c Release
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install 'jsonschema[format]==4.25.1'
+      - run: python tools/validate_master.py
+      - run: dotnet publish src/EndfieldAicWeb.App -c Release -o artifacts/app
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.136.3'
+          # --branch を実行対象 ref に揃える。main への push / main での dispatch は本番、
+          # それ以外のブランチでの dispatch はプレビューデプロイになり本番へ触れない。
+          command: pages deploy artifacts/app/wwwroot --project-name=endfield-aic --branch ${{ github.ref_name }}

@@ -1,0 +1,4 @@
+/data/*
+  Cache-Control: public, max-age=0, must-revalidate
+/_framework/*
+  Cache-Control: public, max-age=0, must-revalidate
