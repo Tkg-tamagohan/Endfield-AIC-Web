@@ -259,6 +259,21 @@ public class AdminIconTests
     }
 
     [Fact]
+    public void ADM12_nullバージョンのエクスポートは必須違反で拒否され文書を汚さない()
+    {
+        AdminDocumentService service = I01Loaded();
+
+        ExportOutcome json = service.Export(null!);
+        ExportZipOutcome zip = service.ExportZip(null!);
+
+        Assert.False(json.Success);
+        Assert.False(zip.Success);
+        Assert.Contains(json.Errors, e => e.Field == "DataVersion");
+        Assert.Contains(zip.Errors, e => e.Field == "DataVersion");
+        Assert.Equal("1.0.0", service.Document!.DataVersion);
+    }
+
+    [Fact]
     public void ADM08_エクスポートしたzipを読み込み直せる()
     {
         AdminDocumentService service = I01Loaded();

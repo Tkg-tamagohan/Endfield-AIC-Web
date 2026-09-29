@@ -362,7 +362,8 @@ public sealed class AdminDocumentService
         {
             // 差し替え用引数で書き出すため、文書への一時上書き・復元は行わない。
             // DataVersion の確定は書き出し成功後だけにする。
-            string json = MasterExporter.Export(Document, dataVersion: dataVersion);
+            // null は「文書の現値を使う」意味になってしまうため空文字に丸め、必須違反として弾く。
+            string json = MasterExporter.Export(Document, dataVersion: dataVersion ?? "");
             Document.DataVersion = dataVersion;
             _counterAtExport = _editCounter;
             ValidationErrors = [];
@@ -506,7 +507,8 @@ public sealed class AdminDocumentService
         {
             // 差し替え用引数で書き出すため、文書への一時上書き・復元は行わない。
             // 収録したバージョンとマニフェストの確定は書き出し成功後だけにする。
-            string json = MasterExporter.Export(Document, dataVersion: dataVersion, icons: manifest);
+            // null は「文書の現値を使う」意味になってしまうため空文字に丸め、必須違反として弾く。
+            string json = MasterExporter.Export(Document, dataVersion: dataVersion ?? "", icons: manifest);
             byte[] zip = IconArchive.CreateZip(json, manifest, _iconStore);
             Document.DataVersion = dataVersion;
             Document.Icons = manifest;
