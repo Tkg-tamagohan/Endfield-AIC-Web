@@ -98,6 +98,15 @@ public static class IconArchive
                     string relative = name.StartsWith(IconsPrefix, StringComparison.Ordinal)
                         ? name[5..]
                         : name;
+                    // 空セグメント（icons//a.png 等）を畳んで正規パスに揃える。
+                    // 畳まないと読み取り側のマニフェスト照合を抜けて同名ファイルへ混入する。
+                    string[] segments = relative.Split('/', StringSplitOptions.RemoveEmptyEntries);
+                    if (segments.Any(segment => segment == ".."))
+                    {
+                        continue;
+                    }
+
+                    relative = string.Join('/', segments);
                     if (!relative.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
                     {
                         continue;

@@ -322,6 +322,35 @@ public class IconPipelineTests
     }
 
     [Fact]
+    public void ZIP06_空セグメントを含むアイコン名は正規パスに畳んで返す()
+    {
+        // icons//a.png を icons/a.png として返さないと、マニフェスト照合を抜けて
+        // 同名ファイルを差し替えられる。
+        byte[] zip;
+        using (var stream = new MemoryStream())
+        {
+            using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                using var writer = new StreamWriter(archive.CreateEntry("data/master.json").Open());
+                writer.Write("{}");
+            }
+
+            using (var archive = new ZipArchive(stream, ZipArchiveMode.Update, leaveOpen: true))
+            {
+                ZipArchiveEntry icon = archive.CreateEntry("data/icons//a.png");
+                using Stream entryStream = icon.Open();
+                entryStream.Write(IconA, 0, IconA.Length);
+            }
+
+            zip = stream.ToArray();
+        }
+
+        Assert.True(IconArchive.TryReadZip(zip, out _, out IReadOnlyDictionary<string, byte[]> icons));
+        Assert.Equal(IconA, icons["icons/a.png"]);
+        Assert.DoesNotContain("icons//a.png", icons.Keys);
+    }
+
+    [Fact]
     public void ZIP05_正本JSONのないzipは読み取りに失敗する()
     {
         byte[] zip;
