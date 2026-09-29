@@ -9,7 +9,7 @@ namespace EndfieldAicWeb.Infrastructure.Tests;
 
 /// <summary>
 /// アイコン取り込み・エクスポートパイプラインの検証テスト。
-/// ケース ID は docs/test-specification-phase7.md（IMP・EXP・ZIP）に対応する。
+/// ケース ID は docs/phases/test-specification-phase7.md（IMP・EXP・ZIP）に対応する。
 /// </summary>
 public class IconPipelineTests
 {

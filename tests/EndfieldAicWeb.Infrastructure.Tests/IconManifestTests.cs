@@ -5,7 +5,7 @@ using EndfieldAicWeb.Infrastructure.Icons;
 namespace EndfieldAicWeb.Infrastructure.Tests;
 
 /// <summary>
-/// Icons マニフェスト照合・IconKey 解決の検証テスト。ケース ID は docs/test-specification-phase3.md に対応する。
+/// Icons マニフェスト照合・IconKey 解決の検証テスト。ケース ID は docs/phases/test-specification-phase3.md に対応する。
 /// </summary>
 public class IconManifestTests
 {

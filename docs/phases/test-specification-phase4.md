@@ -1,7 +1,7 @@
 # Phase 4 テスト仕様書
 
 **対象**: Phase 4 成果物（Application 層のユースケース・表示導出、および計算アプリ UI）
-**前提ドキュメント**: [requirements.md](requirements.md)、[decision-records.md](decision-records.md)、[implementation-plan.md](implementation-plan.md)、[implementation-plan-phase4.md](implementation-plan-phase4.md)
+**前提ドキュメント**: [requirements.md](../requirements.md)、[decision-records.md](../decision-records.md)、[implementation-plan.md](../implementation-plan.md)、[implementation-plan-phase4.md](implementation-plan-phase4.md)
 
 > 本書は Phase 4 の受け入れ条件を検証するためのテスト項目と仕様を定める。
 > 項目 ID は `分類-連番` で採番し、要件との対応をトレースできるようにする。

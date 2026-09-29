@@ -42,7 +42,11 @@ Endfield-AIC-Web/
 └── docs/
     ├── requirements.md                 # 確定版要件定義書
     ├── decision-records.md             # 仕様決定記録
-    └── implementation-plan.md          # 本書
+    ├── implementation-plan.md          # 本書
+    ├── remaining-issues.md             # レビューで先送りした残課題
+    └── phases/                         # Phase 別の実装詳細計画・テスト仕様
+        ├── implementation-plan-phase<N>.md
+        └── test-specification-phase<N>.md
 ```
 
 **依存方向**: `App → Application → Domain` / `Admin → Application → Domain`、`Infrastructure → Domain`（要件 §6.2）。
@@ -157,7 +161,7 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 ## 5. 実装メモ・規約
 
 - **NuGet**: 公開から 7 日以上経過した安定版のみ。`latest`/範囲指定禁止。新規ライブラリは導入前にライセンスを確認する。
-- **テスト方針**: Domain の計算・検証を最も厚くする。テストケースは文書（requirements/decision-records）を根拠に作成し、ID を振って結果を表で報告する。各 Phase の詳細計画とテスト仕様は、Phase 開始時に `implementation-plan-phase<N>.md`・`test-specification-phase<N>.md` として切り出してよい（旧リポジトリと同じ慣行）。
+- **テスト方針**: Domain の計算・検証を最も厚くする。テストケースは文書（requirements/decision-records）を根拠に作成し、ID を振って結果を表で報告する。各 Phase の詳細計画とテスト仕様は、Phase 開始時に `phases/implementation-plan-phase<N>.md`・`phases/test-specification-phase<N>.md` として切り出してよい（旧リポジトリと同じ慣行）。
 - **UI の確認**: ユーザー操作を伴う画面は、テスト作成の前にブラウザプレビューでユーザーに実際に触ってもらい、フィードバックを反映する。
 - **コミット**: Phase 内でも論理単位で分割する。UI 文字列・マスタデータは日本語のみ。
 - **IP 配慮**: ゲーム画像素材は同梱しない。配布アイコンは自作・権利クリアなものに限る（仕様決定 R）。

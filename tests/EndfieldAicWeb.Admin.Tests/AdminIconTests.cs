@@ -8,7 +8,7 @@ namespace EndfieldAicWeb.Admin.Tests;
 
 /// <summary>
 /// 管理ツールのアイコン編集・zip エクスポートの検証テスト。
-/// ケース ID は docs/test-specification-phase7.md（ADM）に対応する。
+/// ケース ID は docs/phases/test-specification-phase7.md（ADM）に対応する。
 /// </summary>
 public class AdminIconTests
 {
