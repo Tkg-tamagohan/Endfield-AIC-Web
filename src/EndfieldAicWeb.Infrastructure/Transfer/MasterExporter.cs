@@ -22,11 +22,14 @@ public static class MasterExporter
     /// <summary>
     /// SchemaVersion/DataVersion 付きの JSON 文字列を返す。
     /// 全エンティティを含み、Icons 節は <see cref="MasterDocument.Icons"/> をそのまま出力する。
+    /// <paramref name="dataVersion"/>・<paramref name="icons"/> を渡した場合は文書の値の代わりに
+    /// その値を検証・出力する（文書自体は変更しない）。
     /// </summary>
-    public static string Export(MasterDocument document)
+    public static string Export(MasterDocument document, string? dataVersion = null, List<IconEntry>? icons = null)
     {
         ArgumentNullException.ThrowIfNull(document);
 
+        string effectiveDataVersion = dataVersion ?? document.DataVersion;
         var errors = new List<MasterValidationError>();
 
         if (document.SchemaVersion != MasterJsonReader.SupportedSchemaVersion)
@@ -38,7 +41,7 @@ public static class MasterExporter
                 $"未対応の SchemaVersion です: {document.SchemaVersion}（対応版: {MasterJsonReader.SupportedSchemaVersion}）"));
         }
 
-        if (string.IsNullOrWhiteSpace(document.DataVersion))
+        if (string.IsNullOrWhiteSpace(effectiveDataVersion))
         {
             errors.Add(new MasterValidationError("Document", "", "DataVersion", "DataVersion は必須です。"));
         }
@@ -49,14 +52,14 @@ public static class MasterExporter
         List<Environment> environments = RequiredCollection(document.Environments, "Environments", errors);
         List<GameEvent> gameEvents = RequiredCollection(document.GameEvents, "GameEvents", errors);
         List<Recipe> recipes = RequiredCollection(document.Recipes, "Recipes", errors);
-        List<IconEntry> icons = RequiredCollection(document.Icons, "Icons", errors);
+        List<IconEntry> iconEntries = RequiredCollection(icons ?? document.Icons, "Icons", errors);
 
         RejectNullElements(items, "Items", errors);
         RejectNullElements(facilities, "Facilities", errors);
         RejectNullElements(environments, "Environments", errors);
         RejectNullElements(gameEvents, "GameEvents", errors);
         RejectNullElements(recipes, "Recipes", errors);
-        RejectNullElements(icons, "Icons", errors);
+        RejectNullElements(iconEntries, "Icons", errors);
 
         // Description はスキーマ type=string の必須。null（空文字化しない呼び出し側の違反）は拒否する。
         RejectNullDescription(items, "Item", errors);
@@ -94,7 +97,7 @@ public static class MasterExporter
             errors);
 
         MasterJsonReader.ValidateIconManifestValues(
-            icons.Select((e, i) => (Element: e, Index: i))
+            iconEntries.Select((e, i) => (Element: e, Index: i))
                 .Where(x => x.Element is not null)
                 .Select(x => (x.Index, (string?)x.Element!.Key, (string?)x.Element.File,
                     (string?)x.Element.Sha256, (long?)x.Element.Bytes)),
@@ -108,13 +111,13 @@ public static class MasterExporter
         var jsonDocument = new MasterJsonDocument
         {
             SchemaVersion = document.SchemaVersion,
-            DataVersion = document.DataVersion,
+            DataVersion = effectiveDataVersion,
             Items = document.Items.Select(ToItemJson).Cast<ItemJson?>().ToList(),
             Facilities = document.Facilities.Select(ToFacilityJson).Cast<FacilityJson?>().ToList(),
             Environments = document.Environments.Select(ToEnvironmentJson).Cast<EnvironmentJson?>().ToList(),
             GameEvents = document.GameEvents.Select(ToGameEventJson).Cast<GameEventJson?>().ToList(),
             Recipes = document.Recipes.Select(ToRecipeJson).Cast<RecipeJson?>().ToList(),
-            Icons = document.Icons.Select(e => (IconJson?)new IconJson
+            Icons = iconEntries.Select(e => (IconJson?)new IconJson
             {
                 Key = e.Key,
                 File = e.File,

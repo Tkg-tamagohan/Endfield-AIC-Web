@@ -50,6 +50,34 @@ public static class IconExportPlanner
     }
 
     /// <summary>
+    /// <c>icon-&lt;Id&gt;</c> の提案キーを、文書内の他エンティティが使用中なら連番を付けて一意にする。
+    /// Id はエンティティ種別をまたぐと一意でなく、置換・切詰めでも衝突し得るため。
+    /// </summary>
+    public static string UniqueSuggestedKey(MasterEntity entity, MasterDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+        ArgumentNullException.ThrowIfNull(document);
+
+        string baseKey = SuggestKey(entity.Id);
+        var used = new HashSet<string>(
+            EnumerateEntities(document)
+                .Where(e => !ReferenceEquals(e, entity))
+                .Select(e => e.IconKey)
+                .Where(k => k is not null)!,
+            StringComparer.Ordinal);
+        string key = baseKey;
+        for (int n = 2; used.Contains(key); n++)
+        {
+            string suffix = $"-{n}";
+            key = baseKey.Length + suffix.Length <= 64
+                ? baseKey + suffix
+                : baseKey[..(64 - suffix.Length)] + suffix;
+        }
+
+        return key;
+    }
+
+    /// <summary>
     /// <c>icon-&lt;entityId&gt;</c> 形の既定キーを提案する。無効文字は <c>-</c> へ置き、
     /// 64 文字に収まるよう切り詰める（IconKeyRules の文字種制約、旧版の補完規則と同じ）。
     /// </summary>

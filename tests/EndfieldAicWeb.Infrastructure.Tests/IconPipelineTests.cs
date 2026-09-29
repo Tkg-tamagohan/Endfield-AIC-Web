@@ -233,6 +233,52 @@ public class IconPipelineTests
     }
 
     [Fact]
+    public void EXP11_提案キーが使用中なら連番を付けて一意にする()
+    {
+        MasterDocument doc = I01();
+        // item と facility の Id は種別内でしか一意でないため、同一 Id が共存し得る。
+        var item = new Item { Id = "shared", Name = "共用", VersionAdded = "1.0.0", Category = "素材", TransportKind = TransportKind.Belt };
+        var facility = new Facility { Id = "shared", Name = "共用", VersionAdded = "1.0.0", Width = 1, Height = 1 };
+        doc.Items.Add(item);
+        doc.Facilities.Add(facility);
+
+        string first = IconExportPlanner.UniqueSuggestedKey(item, doc);
+        item.IconKey = first;
+        string second = IconExportPlanner.UniqueSuggestedKey(facility, doc);
+
+        Assert.Equal("icon-shared", first);
+        Assert.Equal("icon-shared-2", second);
+    }
+
+    [Fact]
+    public void EXP12_連番付きでも64文字以内の有効キーになる()
+    {
+        MasterDocument doc = I01();
+        // 提案キーが 64 文字ちょうどになる Id 同士の衝突では、切り詰めてから連番を付ける。
+        var item = new Item { Id = new string('a', 100), Name = "長名", VersionAdded = "1.0.0", Category = "素材", TransportKind = TransportKind.Belt };
+        var facility = new Facility { Id = new string('a', 100), Name = "長名", VersionAdded = "1.0.0", Width = 1, Height = 1 };
+        doc.Items.Add(item);
+        doc.Facilities.Add(facility);
+
+        item.IconKey = IconExportPlanner.UniqueSuggestedKey(item, doc);
+        string key = IconExportPlanner.UniqueSuggestedKey(facility, doc);
+
+        Assert.EndsWith("-2", key);
+        Assert.True(key.Length <= 64);
+        Assert.True(IconKeyRules.IsValid(key));
+    }
+
+    [Fact]
+    public void EXP13_対象エンティティ自身のキーは衝突判定から外れる()
+    {
+        MasterDocument doc = I01();
+        var item = new Item { Id = "self", Name = "自身", IconKey = "icon-self", VersionAdded = "1.0.0", Category = "素材", TransportKind = TransportKind.Belt };
+        doc.Items.Add(item);
+
+        Assert.Equal("icon-self", IconExportPlanner.UniqueSuggestedKey(item, doc));
+    }
+
+    [Fact]
     public void EXP10_未参照の孤立エントリは出力に含めない()
     {
         MasterDocument doc = I01();

@@ -205,6 +205,44 @@ public class MasterExporterTests
         Assert.Throws<MasterValidationException>(() => MasterExporter.Export(document));
     }
 
+    [Fact(DisplayName = "XPT-12: dataVersion 引数は文書の値の代わりに出力され文書を変更しない")]
+    public void Export_DataVersionOverride_DoesNotMutateDocument()
+    {
+        MasterDocument document = TestJson.LoadValidDocument();
+
+        string json = MasterExporter.Export(document, dataVersion: "9.9.9");
+        JsonObject root = JsonNode.Parse(json)!.AsObject();
+
+        Assert.Equal("9.9.9", root["DataVersion"]!.GetValue<string>());
+        Assert.Equal("1.0.0", document.DataVersion);
+    }
+
+    [Fact(DisplayName = "XPT-13: icons 引数は文書の Icons の代わりに検証・出力される")]
+    public void Export_IconsOverride_UsedForOutput()
+    {
+        MasterDocument document = TestJson.LoadValidDocument();
+        List<IconEntry> manifest =
+        [
+            new IconEntry { Key = "icon-alt", File = "icons/icon-alt.png", Sha256 = new string('a', 64), Bytes = 2 },
+        ];
+
+        string json = MasterExporter.Export(document, icons: manifest);
+        JsonObject root = JsonNode.Parse(json)!.AsObject();
+
+        JsonArray icons = root["Icons"]!.AsArray();
+        Assert.Single(icons);
+        Assert.Equal("icon-alt", icons[0]!["Key"]!.GetValue<string>());
+        Assert.Equal("icon-ore", document.Icons.Single().Key);
+    }
+
+    [Fact(DisplayName = "XPT-14: dataVersion 引数が空白なら例外で拒否される")]
+    public void Export_BlankDataVersionOverride_Throws()
+    {
+        MasterDocument document = TestJson.LoadValidDocument();
+
+        Assert.Throws<MasterValidationException>(() => MasterExporter.Export(document, dataVersion: " "));
+    }
+
     [Fact(DisplayName = "RND-03: 同梱 master.json が正として読める（Errors 0 件）")]
     public void MasterJson_LoadsClean()
     {

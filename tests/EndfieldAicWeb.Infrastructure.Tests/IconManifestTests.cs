@@ -77,6 +77,32 @@ public class IconManifestTests
         Assert.Contains(errors, e => e.Field == "File");
     }
 
+    [Fact(DisplayName = "ICO-13: CountMatching は実体が一致するエントリだけを数える")]
+    public void CountMatching_CountsOnlyMatchingEntries()
+    {
+        var provider = new InMemoryIconProvider()
+            .Add(IconOrePath, TestJson.IconOreContent)
+            .Add("icons/icon-part.png", [0x01, 0x02]);
+        var mismatch = new IconEntry
+        {
+            Key = "icon-part",
+            File = "icons/icon-part.png",
+            Sha256 = new string('0', 64),
+            Bytes = 999,
+        };
+        var missing = new IconEntry
+        {
+            Key = "icon-missing",
+            File = "icons/icon-missing.png",
+            Sha256 = new string('1', 64),
+            Bytes = 2,
+        };
+
+        int count = IconManifestVerifier.CountMatching([ValidEntry(), mismatch, missing], provider);
+
+        Assert.Equal(1, count);
+    }
+
     [Fact(DisplayName = "ICO-05: 収録キーは照合一致で icons/icon-ore.png を返す")]
     public void Resolve_ManifestKey_ReturnsPath()
     {
