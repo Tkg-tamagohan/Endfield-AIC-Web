@@ -1,0 +1,82 @@
+@* アイコンの取り込み・プレビュー・クリア。正規化（中央正方形→128×128 PNG）はブラウザの Canvas で行う。 *@
+@inject AdminDocumentService Store
+@inject IJSRuntime JS
+
+<div class="icon-editor">
+    <span class="icon-preview">
+        @if (_url is not null)
+        {
+            <img src="@_url" alt="アイコン" />
+        }
+        else
+        {
+            <span class="icon-ph">?</span>
+        }
+    </span>
+    <div class="icon-editor-body">
+        <input class="input" value="@(Entity.IconKey ?? "")" placeholder="IconKey（未設定）"
+               @onchange="OnKeyChanged" />
+        <div class="icon-actions">
+            <label class="file-pick">
+                <span class="btn small">画像を選択</span>
+                <InputFile OnChange="ImportAsync" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none" />
+            </label>
+            <button class="btn small" @onclick="Clear" disabled="@(Entity.IconKey is null)">クリア</button>
+        </div>
+        @if (Entity.IconKey is null && Store.EffectiveIconKey(Entity) is not null)
+        {
+            <p class="hint">主出力アイテムのアイコンが使われます。</p>
+        }
+        @if (_error is not null)
+        {
+            <p class="error">@_error</p>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>編集対象。Items/Facilities/Environments/Events/Recipes 共通。</summary>
+    [Parameter, EditorRequired] public MasterEntity Entity { get; set; } = default!;
+
+    private string? _url;
+    private string? _error;
+
+    protected override void OnParametersSet() =>
+        _url = Store.IconDataUrl(Store.EffectiveIconKey(Entity));
+
+    private void OnKeyChanged(ChangeEventArgs e)
+    {
+        _error = null;
+        string? value = e.Value?.ToString();
+        Entity.IconKey = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        Store.NotifyChanged();
+    }
+
+    private void Clear()
+    {
+        _error = null;
+        Store.ClearIcon(Entity);
+    }
+
+    private async Task ImportAsync(InputFileChangeEventArgs e)
+    {
+        _error = null;
+        IBrowserFile file = e.File;
+        try
+        {
+            // 大きい画像も取れるよう 20MB 上限。正規化はブラウザ側の normalizeIconPng。
+            await using Stream stream = file.OpenReadStream(maxAllowedSize: 20_000_000);
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer);
+            string dataUrl = $"data:{file.ContentType};base64,{Convert.ToBase64String(buffer.ToArray())}";
+
+            string normalized = await JS.InvokeAsync<string>("normalizeIconPng", dataUrl);
+            byte[] png = Convert.FromBase64String(normalized[(normalized.IndexOf(',') + 1)..]);
+            Store.RegisterIcon(Entity, png);
+        }
+        catch (Exception ex) when (ex is IOException or JSException or FormatException or InvalidOperationException)
+        {
+            _error = $"画像の取り込みに失敗しました: {ex.Message}";
+        }
+    }
+}

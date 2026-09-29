@@ -40,6 +40,7 @@ else
                 {
                     <label class="check">
                         <input type="checkbox" checked="@check.Checked" @onchange="e => OnEventToggled(check, e)" />
+                        <EntityIcon IconKey="@check.Event.IconKey" />
                         <span>@check.Event.Name@EventPeriod(check.Event)</span>
                     </label>
                 }
@@ -51,6 +52,7 @@ else
                         {
                             <label class="check">
                                 <input type="checkbox" checked="@check.Checked" @onchange="e => OnEventToggled(check, e)" />
+                                <EntityIcon IconKey="@check.Event.IconKey" />
                                 <span>@check.Event.Name@EventPeriod(check.Event)</span>
                             </label>
                         }
@@ -94,6 +96,7 @@ else
                 {
                     <div class="mat-row">
                         <div class="mat-head">
+                            <EntityIcon IconKey="@ItemIconKey(m.ItemId)" />
                             <strong>@ItemName(m.ItemId)</strong>
                             @if (IsEventItem(m.ItemId))
                             {
@@ -108,7 +111,13 @@ else
                         <div class="mat-body">
                             @foreach (SupplyPortion s in m.Supplies)
                             {
-                                <span class="chip">@SupplyText(s)</span>
+                                <span class="chip">
+                                    @if (s.RecipeId is not null)
+                                    {
+                                        <EntityIcon IconKey="@RecipeIconKey(s.RecipeId)" />
+                                    }
+                                    @SupplyText(s)
+                                </span>
                             }
                         </div>
                     </div>
@@ -118,6 +127,7 @@ else
                 @foreach (FacilityViewRow f in _view.Facilities)
                 {
                     <div class="result-line">
+                        <EntityIcon IconKey="@FacilityIconKey(f.FacilityId)" />
                         <strong>@FacilityName(f.FacilityId)</strong>
                         <span class="muted"> @f.ExactCount.ToString("0.##", CultureInfo.InvariantCulture) 台 → </span><strong>@f.CeilCount 台</strong>
                         @foreach (FlowAdjustment l in f.FlowLimits)
@@ -133,6 +143,7 @@ else
                     @foreach (EnvironmentRequirement e in _view.Environments)
                     {
                         <div class="result-line">
+                            <EntityIcon IconKey="@EnvIconKey(e.EnvironmentId)" />
                             <strong>@EnvName(e.EnvironmentId)</strong>
                             <span class="muted"> @FacilityName(e.ProviderFacilityId) @e.DispenserCount 台 ・ @ItemName(e.ConsumeItemId) @e.ConsumeRatePerSecondTotal.ToString("0.##", CultureInfo.InvariantCulture) 個/s</span>
                         </div>
@@ -155,6 +166,7 @@ else
                     @foreach (SurplusProduction s in _view.Surpluses)
                     {
                         <div class="result-line">
+                            <EntityIcon IconKey="@ItemIconKey(s.ItemId)" />
                             <strong>@ItemName(s.ItemId)</strong>
                             <span class="muted"> +@Fmt(s.ExcessPerMinute) 個/分</span>
                         </div>
@@ -355,6 +367,21 @@ else
 
     private bool IsEventItem(string itemId) =>
         _snapshot is not null && _snapshot.ItemsById.TryGetValue(itemId, out Item? item) && item.GameEventId is not null;
+
+    private string? ItemIconKey(string id) =>
+        _snapshot is not null && _snapshot.ItemsById.TryGetValue(id, out Item? item) ? item.IconKey : null;
+
+    private string? FacilityIconKey(string id) =>
+        _snapshot is not null && _snapshot.FacilitiesById.TryGetValue(id, out Facility? facility) ? facility.IconKey : null;
+
+    private string? EnvIconKey(string id) =>
+        _snapshot is not null && _snapshot.EnvironmentsById.TryGetValue(id, out DomainEnv? env) ? env.IconKey : null;
+
+    /// <summary>レシピの実効 IconKey（未設定時は主出力アイテムへフォールバック）。</summary>
+    private string? RecipeIconKey(string id) =>
+        _snapshot is not null && _snapshot.RecipesById.TryGetValue(id, out Recipe? recipe)
+            ? Store.EffectiveIconKey(recipe)
+            : null;
 
     private string ItemName(string id) =>
         _snapshot is not null && _snapshot.ItemsById.TryGetValue(id, out Item? item) ? item.Name : id;
