@@ -1,12 +1,16 @@
-﻿@inherits LayoutComponentBase
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+@inherits LayoutComponentBase
 
-    <main>
-        <article class="content px-4">
-            @Body
-        </article>
+<div class="shell">
+    <header class="site-header">
+        <div class="site-header-inner">
+            <span class="site-title">Endfield AIC 計算</span>
+            <span class="site-note">非公式ファンツール</span>
+        </div>
+    </header>
+    <main class="site-main">
+        @Body
     </main>
+    <footer class="site-footer">
+        本アプリは『アークナイツ：エンドフィールド』の非公式ファンツールです。ゲーム運営とは関係ありません。
+    </footer>
 </div>

@@ -13,6 +13,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\EndfieldAicWeb.Application\EndfieldAicWeb.Application.csproj" />
+    <ProjectReference Include="..\EndfieldAicWeb.Infrastructure\EndfieldAicWeb.Infrastructure.csproj" />
   </ItemGroup>
+
+  <!-- 正本マスタを wwwroot へコピーして静的アセットとして配信する（生成物なので gitignore 済み）。 -->
+  <Target Name="CopyMasterJson" BeforeTargets="AssignTargetPaths">
+    <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\data" />
+    <Copy SourceFiles="..\..\data\master.json" DestinationFiles="$(MSBuildProjectDirectory)\wwwroot\data\master.json" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>
