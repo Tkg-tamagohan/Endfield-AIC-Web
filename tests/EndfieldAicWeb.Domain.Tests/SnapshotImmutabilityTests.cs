@@ -60,5 +60,12 @@ public class SnapshotImmutabilityTests
         KeyValuePair<string, IReadOnlyList<Recipe>> byOutput = Assert.Single(snapshot.RecipesByOutputItemId);
         Assert.Equal("i-2", byOutput.Key);
         Assert.Equal("r-1", Assert.Single(byOutput.Value).Id);
+
+        // 公開コレクションは実行時型へのキャストでも変更できない。
+        Assert.Throws<InvalidCastException>(() => _ = (Item[])snapshot.Items);
+        Assert.Throws<InvalidCastException>(() => _ = (Dictionary<string, Item>)snapshot.ItemsById);
+        Assert.Throws<InvalidCastException>(() => _ = (List<Recipe>)byOutput.Value);
+        Assert.Throws<InvalidCastException>(() =>
+            _ = (Dictionary<string, IReadOnlyList<Recipe>>)snapshot.RecipesByOutputItemId);
     }
 }

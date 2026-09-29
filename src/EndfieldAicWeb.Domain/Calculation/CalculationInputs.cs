@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using EndfieldAicWeb.Domain.Models;
 using Environment = EndfieldAicWeb.Domain.Models.Environment;
 
@@ -62,8 +63,9 @@ public sealed class MasterDataSnapshot
         init
         {
             ArgumentNullException.ThrowIfNull(value);
-            _items = value.ToArray();
-            _itemsById = _items.ToDictionary(i => i.Id, StringComparer.Ordinal);
+            _items = Array.AsReadOnly(value.ToArray());
+            _itemsById = new ReadOnlyDictionary<string, Item>(
+                _items.ToDictionary(i => i.Id, StringComparer.Ordinal));
         }
     }
 
@@ -73,8 +75,9 @@ public sealed class MasterDataSnapshot
         init
         {
             ArgumentNullException.ThrowIfNull(value);
-            _facilities = value.ToArray();
-            _facilitiesById = _facilities.ToDictionary(f => f.Id, StringComparer.Ordinal);
+            _facilities = Array.AsReadOnly(value.ToArray());
+            _facilitiesById = new ReadOnlyDictionary<string, Facility>(
+                _facilities.ToDictionary(f => f.Id, StringComparer.Ordinal));
         }
     }
 
@@ -84,8 +87,9 @@ public sealed class MasterDataSnapshot
         init
         {
             ArgumentNullException.ThrowIfNull(value);
-            _environments = value.ToArray();
-            _environmentsById = _environments.ToDictionary(e => e.Id, StringComparer.Ordinal);
+            _environments = Array.AsReadOnly(value.ToArray());
+            _environmentsById = new ReadOnlyDictionary<string, Environment>(
+                _environments.ToDictionary(e => e.Id, StringComparer.Ordinal));
         }
     }
 
@@ -95,7 +99,7 @@ public sealed class MasterDataSnapshot
         init
         {
             ArgumentNullException.ThrowIfNull(value);
-            _gameEvents = value.ToArray();
+            _gameEvents = Array.AsReadOnly(value.ToArray());
         }
     }
 
@@ -105,8 +109,9 @@ public sealed class MasterDataSnapshot
         init
         {
             ArgumentNullException.ThrowIfNull(value);
-            _recipes = value.ToArray();
-            _recipesById = _recipes.ToDictionary(r => r.Id, StringComparer.Ordinal);
+            _recipes = Array.AsReadOnly(value.ToArray());
+            _recipesById = new ReadOnlyDictionary<string, Recipe>(
+                _recipes.ToDictionary(r => r.Id, StringComparer.Ordinal));
             _recipesByOutputItemId = BuildRecipesByOutputItemId(_recipes);
         }
     }
@@ -143,6 +148,10 @@ public sealed class MasterDataSnapshot
             }
         }
 
-        return byOutput.ToDictionary(p => p.Key, p => (IReadOnlyList<Recipe>)p.Value, StringComparer.Ordinal);
+        return new ReadOnlyDictionary<string, IReadOnlyList<Recipe>>(
+            byOutput.ToDictionary(
+                p => p.Key,
+                p => (IReadOnlyList<Recipe>)p.Value.AsReadOnly(),
+                StringComparer.Ordinal));
     }
 }
