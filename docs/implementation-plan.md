@@ -140,8 +140,8 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 - [x] JSON 読み込み（デプロイ済み URL またはファイル選択）→ エンティティ編集 → 保存時に整合性検証（要件 §7）
 - [x] 計算プレビュー: 編集中データで Domain の計算を実行し、投入データの妥当性を確認できる
 - [x] JSON エクスポート（全置換、`DataVersion` 更新）
-- [ ] 別 Pages プロジェクト（専用ドメイン）へデプロイし、Cloudflare Access（メール OTP）で管理者のみに制限する（仕様決定 E）
-  - Pages プロジェクト `endfield-aic-admin` は作成・初回デプロイ済み。Access は Zero Trust 組織の有効化がユーザー側で必要なため未設定
+- [x] 別 Pages プロジェクト（専用ドメイン）へデプロイし、Cloudflare Access（メール OTP）で管理者のみに制限する（仕様決定 E）
+  - `endfield-aic-admin` に初回デプロイ済み。Access（Allow + 管理者メールのみ・One-time PIN）は API で設定済み。未認証アクセスが Access ログインへ 302 されることを確認済み
 - [x] Phase 4 と同様にプレビューでのユーザー確認を挟む
 - **受け入れ条件**: 編集 → 検証 → プレビュー → エクスポートの一連が動作し、Access により非管理者が遮断される。
 

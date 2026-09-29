@@ -83,19 +83,16 @@ Phase 4 と同じシェル（`site-header`・`site-main`・`site-footer`）と�
 - API トークンに `Zero Trust: Access` 権限があれば API でアプリケーションとポリシーを作成する。権限がない場合は、Cloudflare ダッシュボード（Zero Trust → Access → Applications）での手順をユーザーへ案内する。
 - 保護確認は、未認証で `https://endfield-aic-admin.pages.dev/` へアクセスした際に Access のログイン画面（メール OTP）へ誘導されること、および `curl` で 302/`401` 系応答になることで行う。
 
-### 現状（2026-09-29 時点）
+### 現状（2026-09-29 時点・設定完了）
 
-- Pages プロジェクト `endfield-aic-admin` は作成済みで、初回デプロイ済み（`https://endfield-aic-admin.pages.dev` が 200 で公開中。Access 未適用のため誰でも見える状態）。
-- Zero Trust 組織が未作成のため Access アプリケーションを API から作れない（`access.api.error.not_enabled`）。また現行の API トークンには Zero Trust 系スコープがなく、組織作成 API も拒否される。
+- Pages プロジェクト `endfield-aic-admin` は作成済みで、初回デプロイ済み（`https://endfield-aic-admin.pages.dev`）。
+- Zero Trust 組織はチーム名 `tkgtamagohan`（`tkgtamagohan.cloudflareaccess.com`）で有効化済み。
+- Access 設定は API で実施済み:
+  - Self-hosted アプリケーション「Endfield AIC 管理ツール」（`endfield-aic-admin.pages.dev`、セッション 24h、アプリ ID `5a57a87c-dc1a-4073-9bbb-d882597febd2`）
+  - ポリシー「管理者メールのみ」（Allow + Include: Emails = 管理者の Gmail アドレス 1 件、ポリシー ID `bdd6e282-31bf-4239-b88f-e06f2807a3e1`）。ログイン方式は既定の One-time PIN（メール OTP）
+- 未認証アクセスは `tkgtamagohan.cloudflareaccess.com` への 302 リダイレクトを確認済み（メール OTP 本体のログイン動作は管理者側で確認）。
 
-残作業（ユーザー側の Cloudflare 操作）:
-
-1. Cloudflare ダッシュボード → Zero Trust を初めて有効化する。無料プランを選び、team name を決める（例: `tkg-aic`）。
-2. Zero Trust → Access → Applications → Add an application → Self-hosted で、`Application domain` に `endfield-aic-admin.pages.dev`（サブドメイン `endfield-aic-admin`、ドメイン `pages.dev`）を指定して作成する。
-3. ポリシーは「Allow + Include: Emails = 管理者本人の Gmail アドレス」1 件のみ。ログイン方式は既定の One-time PIN（メール OTP）のままでよい。
-4. 未認証でアクセスして Access の OTP 画面へ誘導されること、別メールでは入れないことを確認する。
-
-代案: Devin 側の `CLOUDFLARE_API_TOKEN` に Zero Trust 系の Edit 権限を追加し、組織作成後であればアプリケーションとポリシーは API で設定できる。組織の初回有効化（プラン選択・チーム名決定）はダッシュボードが必要と推測される（API での作成は現行権限では未検証）。
+メモ: Zero Trust 組織の初回有効化（チーム名決定・プラン選択）はダッシュボードからのみ可能。組織ができた後のアプリケーション・ポリシー作成は API トークン（Zero Trust 系 Edit 権限が必要）で実施した。
 
 ## 7. Application 層の構成
 
