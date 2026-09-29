@@ -24,6 +24,8 @@
 
     private string _text = "";
     private double _applied;
+    private object? _appliedOwner;
+    private string? _appliedField;
     private bool _invalid;
 
     protected override void OnParametersSet()
@@ -39,13 +41,17 @@
         }
 
         // 編集対象の切替・外部からの値変更では表示を作り直す。入力中の値は保つ。
-        if (Value != _applied || (!_invalid && _text == ""))
+        // 対象オブジェクト（Owner/Field）が変わった場合も値が同じでも作り直す。
+        if (Value != _applied || !ReferenceEquals(_appliedOwner, Owner) || _appliedField != Field
+            || (!_invalid && _text == ""))
         {
             _text = Value.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
             _invalid = false;
         }
 
         _applied = Value;
+        _appliedOwner = Owner;
+        _appliedField = Field;
     }
 
     private async Task OnChange(ChangeEventArgs e)

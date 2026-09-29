@@ -216,6 +216,13 @@ else
     /// <summary>違反があるとスナップショット構築で例外になるため、先に検証してから作る。</summary>
     private bool EnsureSnapshot()
     {
+        if (!Store.IsLoaded)
+        {
+            _snapshot = null;
+            _snapshotErrors = [];
+            return false;
+        }
+
         Store.Validate();
         if (Store.ValidationErrors.Count > 0)
         {

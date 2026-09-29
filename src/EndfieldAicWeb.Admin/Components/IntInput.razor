@@ -23,6 +23,8 @@
 
     private string _text = "";
     private int _applied;
+    private object? _appliedOwner;
+    private string? _appliedField;
     private bool _invalid;
 
     protected override void OnParametersSet()
@@ -36,13 +38,16 @@
             return;
         }
 
-        if (Value != _applied || (!_invalid && _text == ""))
+        if (Value != _applied || !ReferenceEquals(_appliedOwner, Owner) || _appliedField != Field
+            || (!_invalid && _text == ""))
         {
             _text = Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
             _invalid = false;
         }
 
         _applied = Value;
+        _appliedOwner = Owner;
+        _appliedField = Field;
     }
 
     private async Task OnChange(ChangeEventArgs e)
