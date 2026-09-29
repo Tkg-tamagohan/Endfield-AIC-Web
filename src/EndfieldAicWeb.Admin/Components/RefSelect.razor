@@ -1,0 +1,29 @@
+<select class="input" value="@(Value ?? "")" @onchange="OnChange">
+    <option value="">@EmptyLabel</option>
+    @foreach (SelectOption option in Options)
+    {
+        <option value="@option.Value">@option.Label</option>
+    }
+</select>
+
+@code {
+    /// <summary>現在値。空選択は null。</summary>
+    [Parameter]
+    public string? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> ValueChanged { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<SelectOption> Options { get; set; } = [];
+
+    /// <summary>空選択時の表示。必須項目でも空を選べるよう残し、検証側で必須違反を出す。</summary>
+    [Parameter]
+    public string EmptyLabel { get; set; } = "（なし）";
+
+    private async Task OnChange(ChangeEventArgs e)
+    {
+        string? value = e.Value?.ToString();
+        await ValueChanged.InvokeAsync(string.IsNullOrEmpty(value) ? null : value);
+    }
+}

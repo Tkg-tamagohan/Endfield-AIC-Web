@@ -1,0 +1,302 @@
+@page "/recipes"
+@inject AdminDocumentService Store
+@inject IJSRuntime JS
+
+<PageTitle>レシピ - Endfield AIC 管理ツール</PageTitle>
+
+@if (!Store.IsLoaded)
+{
+    <section class="panel"><p class="muted">ホームで正本 JSON を読み込んでください。</p></section>
+}
+else
+{
+    <div class="admin-layout">
+        <ListPane TItem="Recipe" Items="Store.Document!.Recipes"
+                  KeyOf="r => r.Id" TextOf="r => r.Name" SubOf="r => r.Id"
+                  SelectedKey="@_selected?.Id"
+                  OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
+
+        <section class="panel" @key="_selected">
+            @if (_selected is null)
+            {
+                <p class="muted">左の一覧からレシピを選ぶか、新規追加してください。</p>
+            }
+            else
+            {
+                <h2 class="panel-title">レシピ編集</h2>
+                <CommonFieldsEditor Entity="_selected" OnChanged="Changed" />
+                <div class="form-grid">
+                    <label>所属イベント</label>
+                    <RefSelect Value="@_selected.GameEventId" Options="_eventOptions" EmptyLabel="（常設）"
+                               ValueChanged="SetGameEvent" />
+                </div>
+
+                <h3 class="panel-title">入力（Inputs）</h3>
+                <div class="sub-block">
+                    <table class="sub-table">
+                        <thead><tr><th>アイテム</th><th style="width:100px">個数</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (RecipeInput input in _selected.Inputs)
+                            {
+                                <tr @key="input">
+                                    <td><RefSelect Value="@input.ItemId" Options="_itemOptions" EmptyLabel="（未選択）"
+                                                   ValueChanged="v => SetInputItem(input, v)" /></td>
+                                    <td><NumberInput Value="@input.Quantity" Owner="input" Field="Quantity" CssClass="input num"
+                                                     ValueChanged="v => SetInputQuantity(input, v)" /></td>
+                                    <td class="act"><button class="btn ghost" @onclick="() => RemoveInput(input)">×</button></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    <button class="btn small" @onclick="AddInput">＋ 入力を追加</button>
+                </div>
+
+                <h3 class="panel-title">出力（Outputs）</h3>
+                <div class="sub-block">
+                    <table class="sub-table">
+                        <thead><tr><th>アイテム</th><th style="width:100px">個数</th><th style="width:80px">SortOrder</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (RecipeOutput output in _selected.Outputs)
+                            {
+                                <tr @key="output">
+                                    <td><RefSelect Value="@output.ItemId" Options="_itemOptions" EmptyLabel="（未選択）"
+                                                   ValueChanged="v => SetOutputItem(output, v)" /></td>
+                                    <td><NumberInput Value="@output.Quantity" Owner="output" Field="Quantity" CssClass="input num"
+                                                     ValueChanged="v => SetOutputQuantity(output, v)" /></td>
+                                    <td><IntInput Value="@output.SortOrder" Owner="output" Field="SortOrder" CssClass="input tiny"
+                                                  ValueChanged="v => SetOutputSortOrder(output, v)" /></td>
+                                    <td class="act"><button class="btn ghost" @onclick="() => RemoveOutput(output)">×</button></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    <button class="btn small" @onclick="AddOutput">＋ 出力を追加</button>
+                    <p class="hint">SortOrder=0 が主産物です。</p>
+                </div>
+
+                <h3 class="panel-title">設備ペア（Facilities）</h3>
+                <div class="sub-block">
+                    <table class="sub-table">
+                        <thead>
+                            <tr>
+                                <th>設備</th><th style="width:90px">サイクル秒</th><th>環境</th>
+                                <th>固定消費</th><th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (RecipeFacility pair in _selected.Facilities)
+                            {
+                                <tr @key="pair">
+                                    <td><RefSelect Value="@pair.FacilityId" Options="_facilityOptions" EmptyLabel="（未選択）"
+                                                   ValueChanged="v => SetPairFacility(pair, v)" /></td>
+                                    <td><NumberInput Value="@pair.CycleTime" Owner="pair" Field="CycleTime" CssClass="input num"
+                                                     ValueChanged="v => SetPairCycleTime(pair, v)" /></td>
+                                    <td><RefSelect Value="@pair.EnvironmentId" Options="_envOptions" EmptyLabel="（不要）"
+                                                   ValueChanged="v => SetPairEnvironment(pair, v)" /></td>
+                                    <td>
+                                        <span class="check">
+                                            <input type="checkbox" checked="@(pair.FixedConsumption is not null)"
+                                                   @onchange="e => ToggleFixedConsumption(pair, e.Value is true)" />
+                                            <span class="muted">あり</span>
+                                        </span>
+                                        @if (pair.FixedConsumption is { } fc)
+                                        {
+                                            <div class="fc-row">
+                                                <RefSelect Value="@fc.ItemId" Options="_itemOptions" EmptyLabel="（未選択）"
+                                                           ValueChanged="v => SetFcItem(fc, v)" />
+                                                <NumberInput Value="@fc.RatePerSecond" Owner="fc" Field="RatePerSecond" CssClass="input tiny"
+                                                             ValueChanged="v => SetFcRate(fc, v)" />
+                                                <span class="muted">個/s</span>
+                                            </div>
+                                        }
+                                    </td>
+                                    <td class="act"><button class="btn ghost" @onclick="() => RemovePair(pair)">×</button></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    <button class="btn small" @onclick="AddPair">＋ ペアを追加</button>
+                </div>
+
+                <p class="hint">変更は即時反映されます。ホームの「検証を実行」で整合性を確認してください。</p>
+            }
+        </section>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? Select { get; set; }
+
+    private Recipe? _selected;
+    private IReadOnlyList<SelectOption> _itemOptions = [];
+    private IReadOnlyList<SelectOption> _facilityOptions = [];
+    private IReadOnlyList<SelectOption> _envOptions = [];
+    private IReadOnlyList<SelectOption> _eventOptions = [];
+
+    protected override void OnParametersSet()
+    {
+        if (!Store.IsLoaded)
+        {
+            return;
+        }
+
+        MasterDocument doc = Store.Document!;
+        _itemOptions = doc.Items.Select(i => new SelectOption(i.Id, i.Name)).ToList();
+        _facilityOptions = doc.Facilities.Select(f => new SelectOption(f.Id, f.Name)).ToList();
+        _envOptions = doc.Environments.Select(e => new SelectOption(e.Id, e.Name)).ToList();
+        _eventOptions = doc.GameEvents.Select(e => new SelectOption(e.Id, e.Name)).ToList();
+        if (Select is { } id)
+        {
+            _selected = doc.Recipes.FirstOrDefault(r => r.Id == id);
+        }
+    }
+
+    private void SelectEntity(string id)
+    {
+        _selected = Store.Document!.Recipes.FirstOrDefault(r => r.Id == id);
+    }
+
+    private void New()
+    {
+        MasterDocument doc = Store.Document!;
+        string id = EntityFactory.SuggestId(doc.Recipes.Select(r => r.Id), "recipe");
+        var recipe = EntityFactory.NewRecipe(
+            id,
+            doc.DataVersion,
+            doc.Items.FirstOrDefault()?.Id,
+            doc.Facilities.FirstOrDefault()?.Id);
+        doc.Recipes.Add(recipe);
+        Store.NotifyChanged();
+        _selected = recipe;
+    }
+
+    private async Task Delete(Recipe recipe)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", $"{recipe.Name}（{recipe.Id}）を削除しますか？"))
+        {
+            return;
+        }
+
+        Store.Document!.Recipes.Remove(recipe);
+        Store.ClearInvalidOwners([recipe, ..recipe.Inputs, ..recipe.Outputs,
+            ..recipe.Facilities, ..recipe.Facilities.Select(p => p.FixedConsumption).OfType<object>()]);
+        if (_selected == recipe)
+        {
+            _selected = null;
+        }
+
+        Store.NotifyChanged();
+    }
+
+    private void AddInput()
+    {
+        _selected!.Inputs.Add(new RecipeInput
+        {
+            ItemId = Store.Document!.Items.FirstOrDefault()?.Id ?? "",
+            Quantity = 1,
+        });
+        Store.NotifyChanged();
+    }
+
+    private void RemoveInput(RecipeInput input)
+    {
+        _selected!.Inputs.Remove(input);
+        Store.ClearInvalidOwner(input);
+        Store.NotifyChanged();
+    }
+
+    private void AddOutput()
+    {
+        int nextSort = _selected!.Outputs.Count == 0 ? 0 : _selected.Outputs.Max(o => o.SortOrder) + 1;
+        _selected.Outputs.Add(new RecipeOutput
+        {
+            ItemId = Store.Document!.Items.FirstOrDefault()?.Id ?? "",
+            Quantity = 1,
+            SortOrder = nextSort,
+        });
+        Store.NotifyChanged();
+    }
+
+    private void RemoveOutput(RecipeOutput output)
+    {
+        _selected!.Outputs.Remove(output);
+        Store.ClearInvalidOwner(output);
+        Store.NotifyChanged();
+    }
+
+    private void AddPair()
+    {
+        _selected!.Facilities.Add(new RecipeFacility
+        {
+            RecipeId = _selected.Id,
+            FacilityId = Store.Document!.Facilities.FirstOrDefault()?.Id ?? "",
+            CycleTime = 4,
+        });
+        Store.NotifyChanged();
+    }
+
+    private void RemovePair(RecipeFacility pair)
+    {
+        _selected!.Facilities.Remove(pair);
+        Store.ClearInvalidOwners(pair.FixedConsumption is { } fcRow ? [pair, fcRow] : [pair]);
+        Store.NotifyChanged();
+    }
+
+    private void ToggleFixedConsumption(RecipeFacility pair, bool enabled)
+    {
+        if (!enabled && pair.FixedConsumption is { } old)
+        {
+            Store.ClearInvalidOwner(old);
+        }
+
+        pair.FixedConsumption = enabled
+            ? new FixedConsumption
+            {
+                ItemId = Store.Document!.Items.FirstOrDefault()?.Id ?? "",
+                RatePerSecond = 1,
+            }
+            : null;
+        Store.NotifyChanged();
+    }
+
+    private void SetInputItem(RecipeInput input, string? value) { input.ItemId = value ?? ""; Store.NotifyChanged(); }
+
+    private void SetInputQuantity(RecipeInput input, double value) { input.Quantity = value; Store.NotifyChanged(); }
+
+    private void SetOutputItem(RecipeOutput output, string? value) { output.ItemId = value ?? ""; Store.NotifyChanged(); }
+
+    private void SetOutputQuantity(RecipeOutput output, double value) { output.Quantity = value; Store.NotifyChanged(); }
+
+    private void SetOutputSortOrder(RecipeOutput output, int value) { output.SortOrder = value; Store.NotifyChanged(); }
+
+    private void SetPairFacility(RecipeFacility pair, string? value) { pair.FacilityId = value ?? ""; Store.NotifyChanged(); }
+
+    private void SetPairCycleTime(RecipeFacility pair, double value) { pair.CycleTime = value; Store.NotifyChanged(); }
+
+    private void SetPairEnvironment(RecipeFacility pair, string? value) { pair.EnvironmentId = value; Store.NotifyChanged(); }
+
+    private void SetFcItem(FixedConsumption fc, string? value) { fc.ItemId = value ?? ""; Store.NotifyChanged(); }
+
+    private void SetFcRate(FixedConsumption fc, double value) { fc.RatePerSecond = value; Store.NotifyChanged(); }
+
+    private void SetGameEvent(string? value)
+    {
+        _selected!.GameEventId = value;
+        Store.NotifyChanged();
+    }
+
+    private void Changed(string? _)
+    {
+        // Id 変更をペアへ伝搬する（所属レシピと一致する必要があるため）。
+        if (_selected is not null)
+        {
+            foreach (RecipeFacility pair in _selected.Facilities)
+            {
+                pair.RecipeId = _selected.Id;
+            }
+        }
+
+        Store.NotifyChanged();
+    }
+}

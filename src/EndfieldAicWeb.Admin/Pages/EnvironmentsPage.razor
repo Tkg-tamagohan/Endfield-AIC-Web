@@ -1,0 +1,141 @@
+@page "/environments"
+@inject AdminDocumentService Store
+@inject IJSRuntime JS
+
+<PageTitle>環境 - Endfield AIC 管理ツール</PageTitle>
+
+@if (!Store.IsLoaded)
+{
+    <section class="panel"><p class="muted">ホームで正本 JSON を読み込んでください。</p></section>
+}
+else
+{
+    <div class="admin-layout">
+        <ListPane TItem="DomainEnv" Items="Store.Document!.Environments"
+                  KeyOf="e => e.Id" TextOf="e => e.Name" SubOf="e => e.Id"
+                  SelectedKey="@_selected?.Id"
+                  OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
+
+        <section class="panel" @key="_selected">
+            @if (_selected is null)
+            {
+                <p class="muted">左の一覧から環境を選ぶか、新規追加してください。</p>
+            }
+            else
+            {
+                <h2 class="panel-title">環境編集</h2>
+                <CommonFieldsEditor Entity="_selected" OnChanged="Changed" />
+                <div class="form-grid">
+                    <label>供給設備（散布機）</label>
+                    <RefSelect Value="@_selected.ProviderFacilityId" Options="_facilityOptions" EmptyLabel="（未選択）"
+                               ValueChanged="SetProvider" />
+
+                    <label>消費アイテム</label>
+                    <RefSelect Value="@_selected.ConsumeItemId" Options="_itemOptions" EmptyLabel="（未選択）"
+                               ValueChanged="SetConsumeItem" />
+
+                    <label>消費速度（個/s）</label>
+                    <span><NumberInput Value="@_selected.ConsumeRatePerSecond" Owner="_selected" Field="ConsumeRatePerSecond" ValueChanged="v => ApplyNum(v => _selected.ConsumeRatePerSecond = v, v)" /></span>
+
+                    <label>所属イベント</label>
+                    <RefSelect Value="@_selected.GameEventId" Options="_eventOptions" EmptyLabel="（常設）"
+                               ValueChanged="v => ApplyRef(v => _selected.GameEventId = v, v)" />
+                </div>
+                <p class="hint">変更は即時反映されます。ホームの「検証を実行」で整合性を確認してください。</p>
+            }
+        </section>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? Select { get; set; }
+
+    private DomainEnv? _selected;
+    private IReadOnlyList<SelectOption> _facilityOptions = [];
+    private IReadOnlyList<SelectOption> _itemOptions = [];
+    private IReadOnlyList<SelectOption> _eventOptions = [];
+
+    protected override void OnParametersSet()
+    {
+        if (!Store.IsLoaded)
+        {
+            return;
+        }
+
+        _facilityOptions = Store.Document!.Facilities.Select(f => new SelectOption(f.Id, f.Name)).ToList();
+        _itemOptions = Store.Document.Items.Select(i => new SelectOption(i.Id, i.Name)).ToList();
+        _eventOptions = Store.Document.GameEvents.Select(e => new SelectOption(e.Id, e.Name)).ToList();
+        if (Select is { } id)
+        {
+            _selected = Store.Document.Environments.FirstOrDefault(e => e.Id == id);
+        }
+    }
+
+    private void SelectEntity(string id)
+    {
+        _selected = Store.Document!.Environments.FirstOrDefault(e => e.Id == id);
+    }
+
+    private void New()
+    {
+        string id = EntityFactory.SuggestId(Store.Document!.Environments.Select(e => e.Id), "env");
+        var env = EntityFactory.NewEnvironment(
+            id,
+            Store.Document.DataVersion,
+            Store.Document.Facilities.FirstOrDefault()?.Id,
+            Store.Document.Items.FirstOrDefault()?.Id);
+        Store.Document.Environments.Add(env);
+        Store.NotifyChanged();
+        _selected = env;
+    }
+
+    private async Task Delete(DomainEnv env)
+    {
+        IReadOnlyList<MasterReference> refs = MasterReferenceFinder.FindEnvironmentReferences(Store.Document!, env.Id);
+        string message = refs.Count == 0
+            ? $"{env.Name}（{env.Id}）を削除しますか？"
+            : $"{env.Name}（{env.Id}）は {refs.Count} 箇所から参照されています:\n"
+                + string.Join("\n", refs.Select(r => $"・{r.EntityKind} {r.EntityId} の {r.Field}"))
+                + "\n\n参照が残るため検証違反になります。削除しますか？";
+        if (!await JS.InvokeAsync<bool>("confirm", message))
+        {
+            return;
+        }
+
+        Store.Document!.Environments.Remove(env);
+        Store.ClearInvalidOwner(env);
+        if (_selected == env)
+        {
+            _selected = null;
+        }
+
+        Store.NotifyChanged();
+    }
+
+    private void ApplyNum(Action<double> apply, double value)
+    {
+        apply(value);
+        Store.NotifyChanged();
+    }
+
+    private void SetProvider(string? value)
+    {
+        _selected!.ProviderFacilityId = value ?? "";
+        Store.NotifyChanged();
+    }
+
+    private void SetConsumeItem(string? value)
+    {
+        _selected!.ConsumeItemId = value ?? "";
+        Store.NotifyChanged();
+    }
+
+    private void ApplyRef(Action<string?> apply, string? value)
+    {
+        apply(value);
+        Store.NotifyChanged();
+    }
+
+    private void Changed(string? _) => Store.NotifyChanged();
+}

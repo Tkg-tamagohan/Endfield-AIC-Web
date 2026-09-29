@@ -1,0 +1,102 @@
+@page "/facilities"
+@inject AdminDocumentService Store
+@inject IJSRuntime JS
+
+<PageTitle>設備 - Endfield AIC 管理ツール</PageTitle>
+
+@if (!Store.IsLoaded)
+{
+    <section class="panel"><p class="muted">ホームで正本 JSON を読み込んでください。</p></section>
+}
+else
+{
+    <div class="admin-layout">
+        <ListPane TItem="Facility" Items="Store.Document!.Facilities"
+                  KeyOf="f => f.Id" TextOf="f => f.Name" SubOf="f => f.Id"
+                  SelectedKey="@_selected?.Id"
+                  OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
+
+        <section class="panel" @key="_selected">
+            @if (_selected is null)
+            {
+                <p class="muted">左の一覧から設備を選ぶか、新規追加してください。</p>
+            }
+            else
+            {
+                <h2 class="panel-title">設備編集</h2>
+                <CommonFieldsEditor Entity="_selected" OnChanged="Changed" />
+                <div class="form-grid">
+                    <label>幅</label>
+                    <span><NumberInput Value="@_selected.Width" Owner="_selected" Field="Width" ValueChanged="v => ApplyNum(v => _selected.Width = v, v)" /></span>
+
+                    <label>高さ</label>
+                    <span><NumberInput Value="@_selected.Height" Owner="_selected" Field="Height" ValueChanged="v => ApplyNum(v => _selected.Height = v, v)" /></span>
+
+                    <label>消費電力</label>
+                    <span><NumberInput Value="@_selected.PowerConsumption" Owner="_selected" Field="PowerConsumption" ValueChanged="v => ApplyNum(v => _selected.PowerConsumption = v, v)" /></span>
+                </div>
+                <p class="hint">変更は即時反映されます。ホームの「検証を実行」で整合性を確認してください。</p>
+            }
+        </section>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? Select { get; set; }
+
+    private Facility? _selected;
+
+    protected override void OnParametersSet()
+    {
+        if (Store.IsLoaded && Select is { } id)
+        {
+            _selected = Store.Document!.Facilities.FirstOrDefault(f => f.Id == id);
+        }
+    }
+
+    private void SelectEntity(string id)
+    {
+        _selected = Store.Document!.Facilities.FirstOrDefault(f => f.Id == id);
+    }
+
+    private void New()
+    {
+        string id = EntityFactory.SuggestId(Store.Document!.Facilities.Select(f => f.Id), "fac");
+        var facility = EntityFactory.NewFacility(id, Store.Document.DataVersion);
+        Store.Document.Facilities.Add(facility);
+        Store.NotifyChanged();
+        _selected = facility;
+    }
+
+    private async Task Delete(Facility facility)
+    {
+        IReadOnlyList<MasterReference> refs = MasterReferenceFinder.FindFacilityReferences(Store.Document!, facility.Id);
+        string message = refs.Count == 0
+            ? $"{facility.Name}（{facility.Id}）を削除しますか？"
+            : $"{facility.Name}（{facility.Id}）は {refs.Count} 箇所から参照されています:\n"
+                + string.Join("\n", refs.Select(r => $"・{r.EntityKind} {r.EntityId} の {r.Field}"))
+                + "\n\n参照が残るため検証違反になります。削除しますか？";
+        if (!await JS.InvokeAsync<bool>("confirm", message))
+        {
+            return;
+        }
+
+        Store.Document!.Facilities.Remove(facility);
+        Store.ClearInvalidOwner(facility);
+        if (_selected == facility)
+        {
+            _selected = null;
+        }
+
+        Store.NotifyChanged();
+    }
+
+    private void ApplyNum(Action<double> apply, double value)
+    {
+        apply(value);
+        Store.NotifyChanged();
+    }
+
+    private void Changed(string? _) => Store.NotifyChanged();
+}

@@ -1,0 +1,47 @@
+@inject NavigationManager Nav
+
+<ul class="error-list">
+    @foreach (MasterValidationError err in Errors)
+    {
+        <li>
+            @if (EntityPage(err.EntityKind) is { } page && !string.IsNullOrEmpty(err.EntityId))
+            {
+                <button class="link" @onclick="() => GoToEntity(err)">
+                    @err.EntityKind @err.EntityId
+                </button>
+            }
+            else
+            {
+                <span>@err.EntityKind @err.EntityId</span>
+            }
+            @if (!string.IsNullOrEmpty(err.Field))
+            {
+                <span> @err.Field</span>
+            }
+            — @err.Message
+        </li>
+    }
+</ul>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<MasterValidationError> Errors { get; set; } = [];
+
+    private void GoToEntity(MasterValidationError err)
+    {
+        if (EntityPage(err.EntityKind) is { } page && !string.IsNullOrEmpty(err.EntityId))
+        {
+            Nav.NavigateTo($"{page}?select={Uri.EscapeDataString(err.EntityId)}");
+        }
+    }
+
+    private static string? EntityPage(string kind) => kind switch
+    {
+        "Item" => "items",
+        "Facility" => "facilities",
+        "Environment" => "environments",
+        "GameEvent" => "events",
+        "Recipe" => "recipes",
+        _ => null,
+    };
+}

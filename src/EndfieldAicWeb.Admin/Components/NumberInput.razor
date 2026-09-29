@@ -1,0 +1,78 @@
+@inject AdminDocumentService Store
+
+<input class="@CssClass @(_invalid ? "invalid" : "")" value="@_text" @onchange="OnChange" inputmode="decimal" />
+
+@code {
+    /// <summary>確定済みの値。編集対象の double プロパティ。</summary>
+    [Parameter]
+    public double Value { get; set; }
+
+    [Parameter]
+    public EventCallback<double> ValueChanged { get; set; }
+
+    [Parameter]
+    public string CssClass { get; set; } = "input num";
+
+    /// <summary>不正入力の記憶キー（対象オブジェクト）。Field とセットで指定すると、
+    /// 不正値のままページを離れても未確定として保持され、戻ったとき再表示される。</summary>
+    [Parameter]
+    public object? Owner { get; set; }
+
+    /// <summary>不正入力の記憶キー（フィールド名）。Owner とセットで指定する。</summary>
+    [Parameter]
+    public string? Field { get; set; }
+
+    private string _text = "";
+    private double _applied;
+    private object? _appliedOwner;
+    private string? _appliedField;
+    private bool _invalid;
+
+    protected override void OnParametersSet()
+    {
+        // 未確定の不正値が残っている対象では、拒否された入力文字列をそのまま再表示する。
+        if (Owner is not null && Field is not null
+            && Store.TryGetInvalidText(Owner, Field, out string? pending))
+        {
+            _text = pending!;
+            _invalid = true;
+            _applied = Value;
+            return;
+        }
+
+        // 編集対象の切替・外部からの値変更では表示を作り直す。入力中の値は保つ。
+        // 対象オブジェクト（Owner/Field）が変わった場合も値が同じでも作り直す。
+        if (Value != _applied || !ReferenceEquals(_appliedOwner, Owner) || _appliedField != Field
+            || (!_invalid && _text == ""))
+        {
+            _text = Value.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+            _invalid = false;
+        }
+
+        _applied = Value;
+        _appliedOwner = Owner;
+        _appliedField = Field;
+    }
+
+    private async Task OnChange(ChangeEventArgs e)
+    {
+        _text = e.Value?.ToString() ?? "";
+        if (double.TryParse(_text, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out double value) && double.IsFinite(value))
+        {
+            _invalid = false;
+            _applied = value;
+            Store.SetEditorInvalid(Owner!, Field!, null);
+            await ValueChanged.InvokeAsync(value);
+        }
+        else
+        {
+            // 不正値は表示に残したまま文書へ確定しない。検証・エクスポートもブロックするよう記憶する。
+            _invalid = true;
+            if (Owner is not null && Field is not null)
+            {
+                Store.SetEditorInvalid(Owner, Field, _text);
+            }
+        }
+    }
+}

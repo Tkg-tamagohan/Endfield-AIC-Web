@@ -1,0 +1,112 @@
+@page "/events"
+@inject AdminDocumentService Store
+@inject IJSRuntime JS
+
+<PageTitle>イベント - Endfield AIC 管理ツール</PageTitle>
+
+@if (!Store.IsLoaded)
+{
+    <section class="panel"><p class="muted">ホームで正本 JSON を読み込んでください。</p></section>
+}
+else
+{
+    <div class="admin-layout">
+        <ListPane TItem="GameEvent" Items="Store.Document!.GameEvents"
+                  KeyOf="e => e.Id" TextOf="e => e.Name" SubOf="e => e.Id"
+                  SelectedKey="@_selected?.Id"
+                  OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
+
+        <section class="panel" @key="_selected">
+            @if (_selected is null)
+            {
+                <p class="muted">左の一覧からイベントを選ぶか、新規追加してください。</p>
+            }
+            else
+            {
+                <h2 class="panel-title">イベント編集</h2>
+                <CommonFieldsEditor Entity="_selected" OnChanged="Changed" />
+                <div class="form-grid">
+                    <label>開始（UTC）</label>
+                    <input class="input" type="datetime-local" value="@DateText(_selected.ActiveFrom)"
+                           @onchange="e => ApplyDate(v => _selected.ActiveFrom = v, e)" />
+
+                    <label>終了（UTC）</label>
+                    <input class="input" type="datetime-local" value="@DateText(_selected.ActiveTo)"
+                           @onchange="e => ApplyDate(v => _selected.ActiveTo = v, e)" />
+                </div>
+                <p class="hint">両方空欄は常設イベントです。変更は即時反映されます。ホームの「検証を実行」で整合性を確認してください。</p>
+            }
+        </section>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? Select { get; set; }
+
+    private GameEvent? _selected;
+
+    protected override void OnParametersSet()
+    {
+        if (Store.IsLoaded && Select is { } id)
+        {
+            _selected = Store.Document!.GameEvents.FirstOrDefault(e => e.Id == id);
+        }
+    }
+
+    private void SelectEntity(string id)
+    {
+        _selected = Store.Document!.GameEvents.FirstOrDefault(e => e.Id == id);
+    }
+
+    private void New()
+    {
+        string id = EntityFactory.SuggestId(Store.Document!.GameEvents.Select(e => e.Id), "ev");
+        var gameEvent = EntityFactory.NewGameEvent(id, Store.Document.DataVersion);
+        Store.Document.GameEvents.Add(gameEvent);
+        Store.NotifyChanged();
+        _selected = gameEvent;
+    }
+
+    private async Task Delete(GameEvent gameEvent)
+    {
+        IReadOnlyList<MasterReference> refs = MasterReferenceFinder.FindGameEventReferences(Store.Document!, gameEvent.Id);
+        string message = refs.Count == 0
+            ? $"{gameEvent.Name}（{gameEvent.Id}）を削除しますか？"
+            : $"{gameEvent.Name}（{gameEvent.Id}）は {refs.Count} 箇所から参照されています:\n"
+                + string.Join("\n", refs.Select(r => $"・{r.EntityKind} {r.EntityId} の {r.Field}"))
+                + "\n\n参照が残るため検証違反になります。削除しますか？";
+        if (!await JS.InvokeAsync<bool>("confirm", message))
+        {
+            return;
+        }
+
+        Store.Document!.GameEvents.Remove(gameEvent);
+        Store.ClearInvalidOwner(gameEvent);
+        if (_selected == gameEvent)
+        {
+            _selected = null;
+        }
+
+        Store.NotifyChanged();
+    }
+
+    private static string DateText(DateTime? value) =>
+        value?.ToString("yyyy-MM-ddTHH:mm", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+
+    /// <summary>datetime-local の入力を UTC として確定する（正本 JSON は Z 付き UTC 表記）。空欄は null。</summary>
+    private void ApplyDate(Action<DateTime?> apply, ChangeEventArgs e)
+    {
+        string text = e.Value?.ToString() ?? "";
+        apply(
+            string.IsNullOrWhiteSpace(text)
+                ? null
+                : DateTime.TryParse(text, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out DateTime parsed)
+                    ? DateTime.SpecifyKind(parsed, DateTimeKind.Utc)
+                    : null);
+        Store.NotifyChanged();
+    }
+
+    private void Changed(string? _) => Store.NotifyChanged();
+}

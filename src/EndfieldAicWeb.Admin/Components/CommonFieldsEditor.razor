@@ -1,0 +1,37 @@
+<div class="form-grid">
+    <label>Id</label>
+    <input class="input" value="@Entity.Id" @onchange="e => Apply(e, v => Entity.Id = v)" />
+
+    <label>名前</label>
+    <input class="input" value="@Entity.Name" @onchange="e => Apply(e, v => Entity.Name = v)" />
+
+    <label>説明</label>
+    <input class="input" value="@Entity.Description" @onchange="e => Apply(e, v => Entity.Description = v)" />
+
+    <label>IconKey</label>
+    <input class="input" value="@(Entity.IconKey ?? "")" placeholder="（未設定）"
+           @onchange="e => Apply(e, v => Entity.IconKey = string.IsNullOrWhiteSpace(v) ? null : v)" />
+
+    <label>VersionAdded</label>
+    <input class="input" value="@Entity.VersionAdded" @onchange="e => Apply(e, v => Entity.VersionAdded = v)" />
+
+    <label>VersionRemoved</label>
+    <input class="input" value="@(Entity.VersionRemoved ?? "")" placeholder="（なし）"
+           @onchange="e => Apply(e, v => Entity.VersionRemoved = string.IsNullOrWhiteSpace(v) ? null : v)" />
+</div>
+
+@code {
+    /// <summary>編集対象のエンティティ。共通属性をその場で書き換える。</summary>
+    [Parameter, EditorRequired]
+    public MasterEntity Entity { get; set; } = default!;
+
+    /// <summary>変更確定後に呼ばれる（参照同期・ダーティ通知に使う）。</summary>
+    [Parameter]
+    public EventCallback<string?> OnChanged { get; set; }
+
+    private async Task Apply(ChangeEventArgs e, Action<string> apply)
+    {
+        apply(e.Value?.ToString() ?? "");
+        await OnChanged.InvokeAsync(Entity.Id);
+    }
+}

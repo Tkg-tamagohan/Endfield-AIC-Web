@@ -483,8 +483,9 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 
-# App: 正本からコピーされる生成物
+# App/Admin: 正本からコピーされる生成物
 src/EndfieldAicWeb.App/wwwroot/data/
+src/EndfieldAicWeb.Admin/wwwroot/data/
 
 # wrangler ローカル状態
 .wrangler/
