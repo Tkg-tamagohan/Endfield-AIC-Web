@@ -8,9 +8,8 @@
     <label>説明</label>
     <input class="input" value="@Entity.Description" @onchange="e => Apply(e, v => Entity.Description = v)" />
 
-    <label>IconKey</label>
-    <input class="input" value="@(Entity.IconKey ?? "")" placeholder="（未設定）"
-           @onchange="e => Apply(e, v => Entity.IconKey = string.IsNullOrWhiteSpace(v) ? null : v)" />
+    <label>アイコン</label>
+    <IconEditor Entity="Entity" />
 
     <label>VersionAdded</label>
     <input class="input" value="@Entity.VersionAdded" @onchange="e => Apply(e, v => Entity.VersionAdded = v)" />

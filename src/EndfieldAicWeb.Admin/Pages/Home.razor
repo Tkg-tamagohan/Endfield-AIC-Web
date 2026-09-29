@@ -21,9 +21,9 @@
         </div>
         <div class="load-row">
             <label class="file-pick">
-                <InputFile OnChange="OnFileSelected" accept=".json,application/json" />
+                <InputFile OnChange="OnFileSelected" accept=".json,.zip,application/json,application/zip" />
             </label>
-            <span class="hint">ローカルの JSON ファイルを選択</span>
+            <span class="hint">ローカルの JSON / master-export.zip を選択</span>
         </div>
     </div>
     @if (_loading)
@@ -62,7 +62,7 @@
             <span><span class="k">環境:</span> @Store.Document.Environments.Count</span>
             <span><span class="k">イベント:</span> @Store.Document.GameEvents.Count</span>
             <span><span class="k">レシピ:</span> @Store.Document.Recipes.Count</span>
-            <span><span class="k">アイコン:</span> @Store.Document.Icons.Count</span>
+            <span><span class="k">アイコン:</span> @Store.Document.Icons.Count 件@(IconFetchNote)</span>
             @if (Store.IsDirty)
             {
                 <span class="tag dirty">未エクスポートの変更あり</span>
@@ -106,16 +106,16 @@
                 <button class="btn small" @onclick="() => _dataVersion = suggested">提案値 @suggested を使う</button>
             }
         </div>
-        <p class="hint">全置換形式で書き出します。違反があると書き出せません。出力後はリポジトリの data/master.json を差し替えて PR を作成してください。</p>
+        <p class="hint">data/master.json と data/icons/ の一式を master-export.zip で書き出します。違反があると書き出せません。出力後はリポジトリルートで展開し、data/ の差分を PR にしてください。</p>
         <div class="toolbar">
-            <button class="btn primary" style="width: auto" @onclick="ExportJson">JSON をエクスポート</button>
+            <button class="btn primary" style="width: auto" @onclick="ExportZip">master-export.zip をエクスポート</button>
             @if (Store.HasInvalidInput)
             {
                 <span class="error">確定されていない不正な入力値（赤枠）があります。修正してください。</span>
             }
             @if (_exported)
             {
-                <span class="ok">master.json をダウンロードしました</span>
+                <span class="ok">master-export.zip をダウンロードしました</span>
             }
             @if (_exportError is { } exportError)
             {
@@ -199,10 +199,24 @@
 
         try
         {
-            using var stream = e.File.OpenReadStream(maxAllowedSize: 10_000_000);
-            using var reader = new StreamReader(stream);
-            string json = await reader.ReadToEndAsync();
-            Store.LoadJson(json, $"ファイル: {e.File.Name}");
+            using var stream = e.File.OpenReadStream(maxAllowedSize: 20_000_000);
+            if (e.File.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            {
+                using var buffer = new MemoryStream();
+                await stream.CopyToAsync(buffer);
+                if (!Store.LoadZip(buffer.ToArray(), $"ファイル: {e.File.Name}"))
+                {
+                    _fileError = Store.LoadFailure ?? "zip の読み込みに失敗しました";
+                    return;
+                }
+            }
+            else
+            {
+                using var reader = new StreamReader(stream);
+                string json = await reader.ReadToEndAsync();
+                Store.LoadJson(json, $"ファイル: {e.File.Name}");
+            }
+
             AfterLoad();
         }
         catch (Exception ex)
@@ -210,6 +224,12 @@
             _fileError = $"ファイルの読み取りに失敗しました: {ex.Message}";
         }
     }
+
+    /// <summary>マニフェストがある文書では取得できたアイコンファイル数を添える。</summary>
+    private string IconFetchNote =>
+        Store.Document is { } doc && doc.Icons.Count > 0
+            ? $"（ファイル取得 {Store.IconFilesLoaded}/{Store.IconFilesExpected}）"
+            : "";
 
     private void AfterLoad()
     {
@@ -222,9 +242,9 @@
 
     private void RunValidation() => Store.Validate();
 
-    private async Task ExportJson()
+    private async Task ExportZip()
     {
-        ExportOutcome outcome = Store.Export(_dataVersion);
+        ExportZipOutcome outcome = Store.ExportZip(_dataVersion);
         if (!outcome.Success)
         {
             return;
@@ -232,7 +252,8 @@
 
         try
         {
-            await JS.InvokeVoidAsync("downloadTextFile", "master.json", outcome.Json);
+            await JS.InvokeVoidAsync(
+                "downloadBlobFile", "master-export.zip", Convert.ToBase64String(outcome.ZipBytes!), "application/zip");
             Store.MarkExported();
             _exported = true;
             _exportError = null;

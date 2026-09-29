@@ -1,0 +1,25 @@
+@* エンティティアイコン（プレビュー表示用）。未解決は「?」のプレースホルダに落とす。 *@
+@inject AdminDocumentService Store
+
+<span class="icon-slot" title="@(Title ?? IconKey)">
+    @if (_url is not null)
+    {
+        <img src="@_url" alt="" />
+    }
+    else
+    {
+        <span class="icon-ph">?</span>
+    }
+</span>
+
+@code {
+    /// <summary>解決する IconKey（null・未登録・未取得はプレースホルダ表示）。</summary>
+    [Parameter] public string? IconKey { get; set; }
+
+    /// <summary>title 属性の上書き。未指定時は IconKey をそのまま出す。</summary>
+    [Parameter] public string? Title { get; set; }
+
+    private string? _url;
+
+    protected override void OnParametersSet() => _url = Store.IconDataUrl(IconKey);
+}

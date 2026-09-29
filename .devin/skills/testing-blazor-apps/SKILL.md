@@ -58,3 +58,12 @@ dotnet run --project src/EndfieldAicWeb.Admin --no-launch-profile --urls http://
 - `dotnet run` を rebuild・再起動した直後はブラウザ側に古い WASM/文書状態が残ることがある。**`ctrl+shift+r`（ハードリロード）してから測定開始**すること。アプリ内状態は WASM メモリ上だけなのでリロードで「未読み込み」に戻る。
 - 行削除・エンティティ削除で左ペインの行 y 座標が繰り上がる。**座標ではなく選択後にエディタの Id フィールド表示で対象を確認**してから編集する（誤って別エンティティを編集する事故を防げる）。
 - エクスポート成功時は Chrome 右上のダウンロードバブルに `master.json ... Done` が出る（DL 実証のスクリーンショットに使える）。連続 DL すると `master (1).json` 等にリネームされる。`~/Downloads/` に実ファイルが残るので内容検証はシェルで可能。
+
+## アイコン関連の検証（Phase 7 以降）
+
+- 読み込み成功の判定には「現在の文書」パネルの `アイコン: N 件（ファイル取得 X/Y）` を使う。X/Y が一致しない場合はアイコンファイル取得に失敗している（HTTP・sha256 不一致など）。X はマニフェストの Sha256/Bytes に一致するファイルだけを数えるため、`.json` 読み込みで温存したストアが新マニフェストと不一致なら X は下がる。
+- 画像取り込み（IconEditor「画像を選択」）の e2e 検証は、シェルで非正方形 PNG を生成（Python で 200×100 程度の RGB PNG を /tmp に書ける）→ file picker（ctrl+l + 絶対パス）→ プレビューと IconKey 自動補完を確認 → 再度 zip エクスポートし、zip 内 `data/icons/<Key>.png` の IHDR が 128×128 であることをシェルで確認、が確実。
+- IconKey の直接入力は `@onchange` なので type 後に **Tab** で確定させる。確定しないとプレビューが更新されない。
+- 「クリア」ボタンは IconKey 未設定時に disabled になる — disabled 状態自体も検証ポイントにできる。
+- エクスポートされた zip の検証は `unzip -o ~/Downloads/master-export*.zip -d <dir>` + Python で sha256/Bytes を `data/master.json` の Icons マニフェストと照合する。連続 DL すると `master-export (1).zip` 等にリネームされるので glob で拾う。
+- file input の `accept=".json,.zip"` 経路は両方テスト可能。`.json` 単体読み込みはアイコンストアを温存する（前回読み込みの zip 由来アイコンが残る）ため、X/Y が前回値を引き継ぐ表示になるのは仕様。
