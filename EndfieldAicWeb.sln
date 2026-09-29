@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EndfieldAicWeb.Domain.Tests
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EndfieldAicWeb.Infrastructure.Tests", "tests\EndfieldAicWeb.Infrastructure.Tests\EndfieldAicWeb.Infrastructure.Tests.csproj", "{A6CBF2A8-7CDF-4762-8F0D-713E89FB1692}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EndfieldAicWeb.Application.Tests", "tests\EndfieldAicWeb.Application.Tests\EndfieldAicWeb.Application.Tests.csproj", "{7815711E-706E-4973-861D-45BAA88D297A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -58,6 +60,10 @@ Global
 		{A6CBF2A8-7CDF-4762-8F0D-713E89FB1692}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A6CBF2A8-7CDF-4762-8F0D-713E89FB1692}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A6CBF2A8-7CDF-4762-8F0D-713E89FB1692}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7815711E-706E-4973-861D-45BAA88D297A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7815711E-706E-4973-861D-45BAA88D297A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7815711E-706E-4973-861D-45BAA88D297A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7815711E-706E-4973-861D-45BAA88D297A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{82FA6C60-E21E-4CA3-85E5-B3F98437836C} = {AAFB893C-FD71-47F3-BEB6-4EC0264B6EAF}
@@ -67,5 +73,6 @@ Global
 		{34905C99-E1C4-4FC0-AD26-6A63CBFD75A2} = {AAFB893C-FD71-47F3-BEB6-4EC0264B6EAF}
 		{6434ADF5-501E-47CA-A9E8-CBACC7E33206} = {28A69DA2-91B8-49EF-8E22-0A711C2263A7}
 		{A6CBF2A8-7CDF-4762-8F0D-713E89FB1692} = {28A69DA2-91B8-49EF-8E22-0A711C2263A7}
+		{7815711E-706E-4973-861D-45BAA88D297A} = {28A69DA2-91B8-49EF-8E22-0A711C2263A7}
 	EndGlobalSection
 EndGlobal
