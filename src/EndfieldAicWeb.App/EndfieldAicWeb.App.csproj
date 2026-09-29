@@ -17,9 +17,16 @@
   </ItemGroup>
 
   <!-- 正本マスタを wwwroot へコピーして静的アセットとして配信する（生成物なので gitignore 済み）。 -->
+  <!-- 暗黙の wwwroot アセット列挙は評価時に行われるため、クリーン環境の初回ビルドでは
+       コピー先ファイルが列挙に間に合わない。開発用の wwwroot コピーに加えて、
+       発行成果物へも直接コピーして publish の欠落を防ぐ。 -->
   <Target Name="CopyMasterJson" BeforeTargets="AssignTargetPaths">
     <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\data" />
     <Copy SourceFiles="..\..\data\master.json" DestinationFiles="$(MSBuildProjectDirectory)\wwwroot\data\master.json" SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="CopyMasterJsonToPublish" AfterTargets="Publish">
+    <MakeDir Directories="$(PublishDir)\wwwroot\data" />
+    <Copy SourceFiles="..\..\data\master.json" DestinationFiles="$(PublishDir)\wwwroot\data\master.json" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>

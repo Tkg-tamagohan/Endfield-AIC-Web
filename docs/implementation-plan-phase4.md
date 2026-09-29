@@ -31,7 +31,7 @@
 ## 2. レイヤー構成と参照
 
 - `App → Application`、`App → Infrastructure`（`MasterJsonLoader` を利用する合成根の参照）、`Application → Domain`、`Infrastructure → Domain`。
-- `data/master.json` と `data/icons/` は App の csproj で `wwwroot/data/` へリンクし、開発サーバー・発行成果物の双方へ同梱する（Phase 5 の配信条件の前倒し分）。
+- `data/master.json` は App の csproj で `wwwroot/data/` へコピーし、開発サーバー・発行成果物の双方へ同梱する（Phase 5 の配信条件の前倒し分）。アイコン実画像と `data/icons/` の同梱は Phase 7 で扱う。
 - マスタ読み込みは App 側サービス（`Services/MasterDataService`）が担い、HTTP 取得 → `MasterJsonLoader.Load` → `MasterDataSnapshot` 生成の経路を持つ。読み込み失敗時はエラー一覧を表示して計算 UI を出さない。
 
 ## 3. 画面構成（単一ページ）

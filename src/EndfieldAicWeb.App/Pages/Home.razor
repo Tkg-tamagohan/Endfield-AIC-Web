@@ -394,9 +394,9 @@ else
                 return;
             }
 
-            if (!double.TryParse(row.RateText, NumberStyles.Float, CultureInfo.InvariantCulture, out double rate) || rate < 0)
+            if (!double.TryParse(row.RateText, NumberStyles.Float, CultureInfo.InvariantCulture, out double rate) || !double.IsFinite(rate) || rate <= 0)
             {
-                _inputError = $"{ItemName(row.ItemId)} の数量を 0 以上の数値で入力してください。";
+                _inputError = $"{ItemName(row.ItemId)} の数量を 0 より大きい数値で入力してください。";
                 return;
             }
 
@@ -438,8 +438,8 @@ else
         if (!_viewTouched)
         {
             // 切上げ過剰が出る計画では調整済を既定とする（仕様決定 O）。
-            // 流量調整のない計画では両者の見え方が同じため未調整表示とする。
-            _unadjusted = _outcome.Plan.FlowAdjustments.Count == 0;
+            // 全設備が整数台数なら両者の見え方が同じため未調整表示とする。
+            _unadjusted = _outcome.Plan.FacilityRequirements.All(f => f.ExactCount == f.CeilCount);
         }
 
         // 散布機台数の入力は計算結果に登場する環境だけに出し、自動値（必要台数）を上限とする。
@@ -449,7 +449,11 @@ else
         _envInputs = _outcome.Plan.EnvironmentRequirements
             .Select(r => new EnvInput(
                 _snapshot.EnvironmentsById[r.EnvironmentId],
-                _outcome.Plan.PairSelections.Count(p => p.Pair.EnvironmentId == r.EnvironmentId))
+                _outcome.Plan.PairSelections
+                    .Where(p => p.Pair.EnvironmentId == r.EnvironmentId)
+                    .Select(p => p.RecipeId)
+                    .Distinct(StringComparer.Ordinal)
+                    .Count())
             {
                 CountText = prevCounts.GetValueOrDefault(r.EnvironmentId, ""),
             })

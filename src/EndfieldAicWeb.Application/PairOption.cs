@@ -23,21 +23,22 @@ public sealed record PairOption(
 }
 
 /// <summary>
-/// ペア行の一意キーを文字列化する。Id に区切り文字を含まれても衝突しないよう
-/// 制御文字（US）で連結する。
+/// ペア行の一意キーを文字列化する。各要素を「文字数:本文」の長さプレフィックスで連結し、
+/// Id に任意の文字が含まれていても衝突しない。
 /// </summary>
 public static class PairOptionKey
 {
-    private const char Separator = '';
+    private static string Encode(string value) =>
+        string.Concat(value.Length.ToString(CultureInfo.InvariantCulture), ":", value);
 
     public static string Create(string recipeId, RecipeFacility pair) =>
-        string.Join(Separator,
-            recipeId,
-            pair.FacilityId,
-            pair.CycleTime.ToString("G17", CultureInfo.InvariantCulture),
-            pair.EnvironmentId ?? "",
-            pair.FixedConsumption?.ItemId ?? "",
-            (pair.FixedConsumption?.RatePerSecond ?? 0).ToString("G17", CultureInfo.InvariantCulture));
+        string.Concat(
+            Encode(recipeId),
+            Encode(pair.FacilityId),
+            Encode(pair.CycleTime.ToString("G17", CultureInfo.InvariantCulture)),
+            Encode(pair.EnvironmentId ?? ""),
+            Encode(pair.FixedConsumption?.ItemId ?? ""),
+            Encode((pair.FixedConsumption?.RatePerSecond ?? 0).ToString("G17", CultureInfo.InvariantCulture)));
 
     public static string Create(Recipe recipe, RecipeFacility pair) => Create(recipe.Id, pair);
 
