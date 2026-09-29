@@ -100,7 +100,7 @@
 | MN-05 | 計算プレビューで編集中データの計算結果（素材・設備・環境・電力・余剰）が見える | OK（Devin 実機確認、ユーザー確認） |
 | MN-06 | エクスポートで全置換 JSON がダウンロードされ、DataVersion が更新される。違反時はブロックされる | OK（Devin 実機確認） |
 | MN-07 | URL 入力からデプロイ済み正本を読める（App 側の `Access-Control-Allow-Origin` 併用） | OK（Devin 実機確認。localhost・本番の両経路で成功） |
-| MN-08 | `endfield-aic-admin.pages.dev` へアクセスすると Cloudflare Access のメール OTP を要求され、非許可メールは入れない | 一部検証（未認証アクセスが `tkgtamagohan.cloudflareaccess.com` へ 302 されることは確認済み。OTP ログイン本体は管理者側で確認） |
+| MN-08 | `endfield-aic-admin.pages.dev` へアクセスすると Cloudflare Access のメール OTP を要求され、非許可メールは入れない | OK（302 リダイレクト・OTP 画面の表示を実機確認。非許可メール `not-an-admin@example.com` ではコードが送信されず先へ進めないことも確認。Cloudflare の仕様で非許可メールにも「送信済み」と出るため、実効拒否はコード非配信という形になる。管理者メールでの OTP 完了は管理者側で確認） |
 | MN-09 | 非公式ファンツール向け管理ツールの明記・非公開であることが見える | OK（ヘッダ・フッタ表示） |
 
 ## 6. 備考

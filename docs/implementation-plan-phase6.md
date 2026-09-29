@@ -90,9 +90,10 @@ Phase 4 と同じシェル（`site-header`・`site-main`・`site-footer`）と�
 - Access 設定は API で実施済み:
   - Self-hosted アプリケーション「Endfield AIC 管理ツール」（`endfield-aic-admin.pages.dev`、セッション 24h、アプリ ID `5a57a87c-dc1a-4073-9bbb-d882597febd2`）
   - ポリシー「管理者メールのみ」（Allow + Include: Emails = 管理者の Gmail アドレス 1 件、ポリシー ID `bdd6e282-31bf-4239-b88f-e06f2807a3e1`）。ログイン方式は既定の One-time PIN（メール OTP）
-- 未認証アクセスは `tkgtamagohan.cloudflareaccess.com` への 302 リダイレクトを確認済み（メール OTP 本体のログイン動作は管理者側で確認）。
+- ログイン方式は One-time PIN（メール OTP）を API で追加済み（IdP ID `4abccc65-1077-4b15-9b4f-b1a141cb685e`。新規組織は OTP が自動追加されないため IdP として別途作成が必要）。Cloudflare アカウント IdP も残置（どちらでも許可メールでのみ通過可）。
+- 未認証アクセスは `tkgtamagohan.cloudflareaccess.com` への 302 リダイレクト＋メール入力画面を確認済み。非許可メールは Cloudflare の仕様でコードが送信されず先へ進めない（画面は一律「送信済み」表示）ことを実機確認済み。管理者メールでの OTP 完了は管理者側で確認。
 
-メモ: Zero Trust 組織の初回有効化（チーム名決定・プラン選択）はダッシュボードからのみ可能。組織ができた後のアプリケーション・ポリシー作成は API トークン（Zero Trust 系 Edit 権限が必要）で実施した。
+メモ: Zero Trust 組織の初回有効化（チーム名決定・プラン選択）はダッシュボードからのみ可能。組織ができた後のアプリケーション・ポリシー・OTP IdP 作成は API トークン（Zero Trust 系 Edit 権限が必要）で実施した。
 
 ## 7. Application 層の構成
 
