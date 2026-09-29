@@ -1,12 +1,25 @@
-﻿@inherits LayoutComponentBase
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+@inherits LayoutComponentBase
 
-    <main>
-        <article class="content px-4">
-            @Body
-        </article>
+<div class="shell">
+    <header class="site-header">
+        <div class="site-header-inner">
+            <span class="site-title">Endfield AIC 管理ツール</span>
+            <span class="site-note">非公開・管理者用</span>
+        </div>
+        <nav class="site-nav">
+            <NavLink href="" Match="NavLinkMatch.All">データ管理</NavLink>
+            <NavLink href="items">アイテム</NavLink>
+            <NavLink href="facilities">設備</NavLink>
+            <NavLink href="environments">環境</NavLink>
+            <NavLink href="events">イベント</NavLink>
+            <NavLink href="recipes">レシピ</NavLink>
+            <NavLink href="preview">計算プレビュー</NavLink>
+        </nav>
+    </header>
+    <main class="site-main">
+        @Body
     </main>
+    <footer class="site-footer">
+        本ツールは『アークナイツ：エンドフィールド』の非公式ファンツール向け管理ツールです。
+    </footer>
 </div>

@@ -5,6 +5,7 @@
 
 Blazor WebAssembly ＋ Cloudflare Pages で構成し、Cloudflare 無料枠内で運用する。
 公開中の計算アプリ: https://endfield-aic.pages.dev（`main` への push で `.github/workflows/deploy-pages.yml` が自動デプロイ。詳細は [Phase 5 実装計画](docs/implementation-plan-phase5.md)）。
+管理ツール: https://endfield-aic-admin.pages.dev（Cloudflare Access のメール OTP で管理者のみに制限。詳細は [Phase 6 実装計画](docs/implementation-plan-phase6.md)）。
 
 ## ドキュメント
 

@@ -1,0 +1,150 @@
+@page "/items"
+@inject AdminDocumentService Store
+@inject IJSRuntime JS
+
+<PageTitle>アイテム - Endfield AIC 管理ツール</PageTitle>
+
+@if (!Store.IsLoaded)
+{
+    <section class="panel"><p class="muted">ホームで正本 JSON を読み込んでください。</p></section>
+}
+else
+{
+    <div class="admin-layout">
+        <ListPane TItem="Item" Items="Store.Document!.Items"
+                  KeyOf="i => i.Id" TextOf="i => i.Name" SubOf="i => i.Id"
+                  SelectedKey="@_selected?.Id"
+                  OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
+
+        <section class="panel">
+            @if (_selected is null)
+            {
+                <p class="muted">左の一覧からアイテムを選ぶか、新規追加してください。</p>
+            }
+            else
+            {
+                <h2 class="panel-title">アイテム編集</h2>
+                <CommonFieldsEditor Entity="_selected" OnChanged="Changed" />
+                <div class="form-grid">
+                    <label>カテゴリ</label>
+                    <input class="input" value="@_selected.Category" @onchange="e => ApplyText(v => _selected.Category = v, e)" />
+
+                    <label>基礎素材</label>
+                    <span class="check">
+                        <input type="checkbox" checked="@_selected.IsBaseMaterial"
+                               @onchange="e => ApplyBool(v => _selected.IsBaseMaterial = v, e)" />
+                        <span>外部調達扱い（需要展開の終端）</span>
+                    </span>
+
+                    <label>輸送種別</label>
+                    <select class="input" value="@_selected.TransportKind" @onchange="OnTransportChanged">
+                        @foreach (TransportKind kind in Enum.GetValues<TransportKind>())
+                        {
+                            <option value="@kind">@TransportLabel(kind)</option>
+                        }
+                    </select>
+
+                    <label>所属イベント</label>
+                    <RefSelect Value="@_selected.GameEventId" Options="_eventOptions" EmptyLabel="（常設）"
+                               ValueChanged="v => ApplyRef(v => _selected.GameEventId = v, v)" />
+                </div>
+                <p class="hint">変更は即時反映されます。ホームの「検証を実行」で整合性を確認してください。</p>
+            }
+        </section>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? Select { get; set; }
+
+    private Item? _selected;
+    private IReadOnlyList<SelectOption> _eventOptions = [];
+
+    protected override void OnParametersSet()
+    {
+        if (!Store.IsLoaded)
+        {
+            return;
+        }
+
+        _eventOptions = Store.Document!.GameEvents.Select(e => new SelectOption(e.Id, e.Name)).ToList();
+        if (Select is { } id)
+        {
+            _selected = Store.Document.Items.FirstOrDefault(i => i.Id == id);
+        }
+    }
+
+    private void SelectEntity(string id)
+    {
+        _selected = Store.Document!.Items.FirstOrDefault(i => i.Id == id);
+    }
+
+    private void New()
+    {
+        string id = EntityFactory.SuggestId(Store.Document!.Items.Select(i => i.Id), "item");
+        var item = EntityFactory.NewItem(id, Store.Document.DataVersion);
+        Store.Document.Items.Add(item);
+        Store.NotifyChanged();
+        _selected = item;
+    }
+
+    private async Task Delete(Item item)
+    {
+        IReadOnlyList<MasterReference> refs = MasterReferenceFinder.FindItemReferences(Store.Document!, item.Id);
+        string message = refs.Count == 0
+            ? $"{item.Name}（{item.Id}）を削除しますか？"
+            : $"{item.Name}（{item.Id}）は {refs.Count} 箇所から参照されています:\n"
+                + string.Join("\n", refs.Select(r => $"・{r.EntityKind} {r.EntityId} の {r.Field}"))
+                + "\n\n参照が残るため検証違反になります。削除しますか？";
+        if (!await JS.InvokeAsync<bool>("confirm", message))
+        {
+            return;
+        }
+
+        Store.Document!.Items.Remove(item);
+        if (_selected == item)
+        {
+            _selected = null;
+        }
+
+        Store.NotifyChanged();
+    }
+
+    private void OnTransportChanged(ChangeEventArgs e)
+    {
+        if (Enum.TryParse(e.Value?.ToString(), out TransportKind kind))
+        {
+            _selected!.TransportKind = kind;
+            Store.NotifyChanged();
+        }
+    }
+
+    private void ApplyText(Action<string> apply, ChangeEventArgs e)
+    {
+        apply(e.Value?.ToString() ?? "");
+        Store.NotifyChanged();
+    }
+
+    private void ApplyBool(Action<bool> apply, ChangeEventArgs e)
+    {
+        apply(e.Value is true);
+        Store.NotifyChanged();
+    }
+
+    private void ApplyRef(Action<string?> apply, string? value)
+    {
+        apply(value);
+        Store.NotifyChanged();
+    }
+
+    private void Changed(string? _) => Store.NotifyChanged();
+
+    private static string TransportLabel(TransportKind kind) => kind switch
+    {
+        TransportKind.None => "None（仮想アイテム）",
+        TransportKind.Belt => "Belt（ベルト）",
+        TransportKind.Pipe => "Pipe（パイプ）",
+        _ => kind.ToString(),
+    };
+}

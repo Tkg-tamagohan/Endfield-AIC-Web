@@ -1,7 +1,270 @@
 @page "/"
+@inject AdminDocumentService Store
+@inject IJSRuntime JS
+@inject NavigationManager Nav
 
-<PageTitle>Endfield AIC 管理ツール</PageTitle>
+<PageTitle>データ管理 - Endfield AIC 管理ツール</PageTitle>
 
-<h1>Endfield AIC 管理ツール</h1>
+<section class="panel">
+    <h2 class="panel-title">正本 JSON の読み込み</h2>
+    @if (Store.IsDirty)
+    {
+        <p class="error">未エクスポートの変更があります。読み込み直すと変更は失われます。</p>
+    }
+    <div class="load-grid">
+        <div class="load-row">
+            <button class="btn" @onclick="LoadBundled">同梱マスタを読み込む</button>
+            <span class="hint">このツールに同梱されているデプロイ時点の正本</span>
+        </div>
+        <div class="load-row">
+            <input class="input" @bind="_urlText" @bind:event="oninput" placeholder="https://…/master.json" />
+            <button class="btn" @onclick="LoadFromUrl" disabled="@_loading">URL から読み込む</button>
+        </div>
+        <div class="load-row">
+            <label class="file-pick">
+                <InputFile OnChange="OnFileSelected" accept=".json,application/json" />
+            </label>
+            <span class="hint">ローカルの JSON ファイルを選択</span>
+        </div>
+    </div>
+    @if (_loading)
+    {
+        <p class="muted">読み込み中…</p>
+    }
+    @if (_fileError is { } fileError)
+    {
+        <p class="error">@fileError</p>
+    }
+    @if (Store.LoadFailure is { } failure)
+    {
+        <p class="error">@failure</p>
+    }
+    @if (Store.LoadErrors.Count > 0)
+    {
+        <h3 class="panel-title">読み込みの違反（@Store.LoadErrors.Count 件）</h3>
+        <ul class="error-list">
+            @foreach (MasterValidationError err in Store.LoadErrors)
+            {
+                <li>@err.EntityKind @err.EntityId @err.Field — @err.Message</li>
+            }
+        </ul>
+    }
+</section>
 
-<p>マスタデータの読み込み・編集・検証・エクスポートを行う管理者向けツールです。</p>
+@if (Store.IsLoaded)
+{
+    <section class="panel">
+        <h2 class="panel-title">現在の文書</h2>
+        <div class="status-grid">
+            <span><span class="k">読み込み元:</span> @Store.SourceLabel</span>
+            <span><span class="k">DataVersion:</span> @Store.Document!.DataVersion</span>
+            <span><span class="k">アイテム:</span> @Store.Document.Items.Count</span>
+            <span><span class="k">設備:</span> @Store.Document.Facilities.Count</span>
+            <span><span class="k">環境:</span> @Store.Document.Environments.Count</span>
+            <span><span class="k">イベント:</span> @Store.Document.GameEvents.Count</span>
+            <span><span class="k">レシピ:</span> @Store.Document.Recipes.Count</span>
+            <span><span class="k">アイコン:</span> @Store.Document.Icons.Count</span>
+            @if (Store.IsDirty)
+            {
+                <span class="tag dirty">未エクスポートの変更あり</span>
+            }
+        </div>
+    </section>
+
+    <section class="panel">
+        <h2 class="panel-title">整合性検証</h2>
+        <div class="toolbar">
+            <button class="btn" @onclick="RunValidation">検証を実行</button>
+            @if (_validated)
+            {
+                @if (Store.ValidationErrors.Count == 0)
+                {
+                    <span class="ok">違反はありません</span>
+                }
+                else
+                {
+                    <span class="error">@Store.ValidationErrors.Count 件の違反</span>
+                }
+            }
+        </div>
+        @if (Store.ValidationErrors.Count > 0)
+        {
+            <ul class="error-list">
+                @foreach (MasterValidationError err in Store.ValidationErrors)
+                {
+                    <li>
+                        @if (EntityPage(err.EntityKind) is { } page && !string.IsNullOrEmpty(err.EntityId))
+                        {
+                            <button class="link" @onclick="() => GoToEntity(err)">
+                                @err.EntityKind @err.EntityId
+                            </button>
+                        }
+                        else
+                        {
+                            <span>@err.EntityKind @err.EntityId</span>
+                        }
+                        @if (!string.IsNullOrEmpty(err.Field))
+                        {
+                            <span> @err.Field</span>
+                        }
+                        — @err.Message
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    <section class="panel">
+        <h2 class="panel-title">エクスポート</h2>
+        <div class="load-row">
+            <label class="k muted">DataVersion</label>
+            <input class="input" style="max-width: 160px" @bind="_dataVersion" @bind:event="oninput" />
+            @if (DataVersionBumper.SuggestNext(Store.Document!.DataVersion) is { } suggested)
+            {
+                <button class="btn small" @onclick="() => _dataVersion = suggested">提案値 @suggested を使う</button>
+            }
+        </div>
+        <p class="hint">全置換形式で書き出します。違反があると書き出せません。出力後はリポジトリの data/master.json を差し替えて PR を作成してください。</p>
+        <div class="toolbar">
+            <button class="btn primary" style="width: auto" @onclick="ExportJson">JSON をエクスポート</button>
+            @if (_exported)
+            {
+                <span class="ok">master.json をダウンロードしました</span>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    private string _urlText = "https://endfield-aic.pages.dev/data/master.json";
+    private string _dataVersion = "";
+    private bool _loading;
+    private bool _validated;
+    private bool _exported;
+    private string? _fileError;
+
+    protected override void OnParametersSet()
+    {
+        if (Store.IsLoaded && _dataVersion == "")
+        {
+            _dataVersion = DataVersionBumper.SuggestNext(Store.Document!.DataVersion) ?? Store.Document.DataVersion;
+        }
+    }
+
+    private async Task<bool> ConfirmDiscard()
+    {
+        if (!Store.IsDirty)
+        {
+            return true;
+        }
+
+        return await JS.InvokeAsync<bool>(
+            "confirm", "未エクスポートの変更があります。読み込み直すと失われます。続行しますか？");
+    }
+
+    private async Task LoadBundled()
+    {
+        if (!await ConfirmDiscard())
+        {
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            await Store.LoadFromUrlAsync("data/master.json");
+            AfterLoad();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadFromUrl()
+    {
+        if (string.IsNullOrWhiteSpace(_urlText) || !await ConfirmDiscard())
+        {
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            await Store.LoadFromUrlAsync(_urlText.Trim());
+            AfterLoad();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        if (!await ConfirmDiscard())
+        {
+            return;
+        }
+
+        try
+        {
+            using var stream = e.File.OpenReadStream(maxAllowedSize: 10_000_000);
+            using var reader = new StreamReader(stream);
+            string json = await reader.ReadToEndAsync();
+            Store.LoadJson(json, $"ファイル: {e.File.Name}");
+            AfterLoad();
+        }
+        catch (Exception ex)
+        {
+            _fileError = $"ファイルの読み取りに失敗しました: {ex.Message}";
+        }
+    }
+
+    private void AfterLoad()
+    {
+        _validated = false;
+        _exported = false;
+        _fileError = null;
+        _dataVersion = Store.IsLoaded
+            ? DataVersionBumper.SuggestNext(Store.Document!.DataVersion) ?? Store.Document.DataVersion
+            : "";
+    }
+
+    private void RunValidation()
+    {
+        Store.Validate();
+        _validated = true;
+    }
+
+    private async Task ExportJson()
+    {
+        ExportOutcome outcome = Store.Export(_dataVersion);
+        if (!outcome.Success)
+        {
+            _validated = true;
+            return;
+        }
+
+        _exported = true;
+        await JS.InvokeVoidAsync("downloadTextFile", "master.json", outcome.Json);
+    }
+
+    private void GoToEntity(MasterValidationError err)
+    {
+        if (EntityPage(err.EntityKind) is { } page && !string.IsNullOrEmpty(err.EntityId))
+        {
+            Nav.NavigateTo($"{page}?select={Uri.EscapeDataString(err.EntityId)}");
+        }
+    }
+
+    private static string? EntityPage(string kind) => kind switch
+    {
+        "Item" => "items",
+        "Facility" => "facilities",
+        "Environment" => "environments",
+        "GameEvent" => "events",
+        "Recipe" => "recipes",
+        _ => null,
+    };
+}

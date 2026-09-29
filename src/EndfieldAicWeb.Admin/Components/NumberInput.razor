@@ -1,0 +1,46 @@
+<input class="@CssClass @(_invalid ? "invalid" : "")" value="@_text" @onchange="OnChange" inputmode="decimal" />
+
+@code {
+    /// <summary>確定済みの値。編集対象の double プロパティ。</summary>
+    [Parameter]
+    public double Value { get; set; }
+
+    [Parameter]
+    public EventCallback<double> ValueChanged { get; set; }
+
+    [Parameter]
+    public string CssClass { get; set; } = "input num";
+
+    private string _text = "";
+    private double _applied;
+    private bool _invalid;
+
+    protected override void OnParametersSet()
+    {
+        // 編集対象の切替・外部からの値変更では表示を作り直す。入力中の値は保つ。
+        if (Value != _applied || (!_invalid && _text == ""))
+        {
+            _text = Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+            _invalid = false;
+        }
+
+        _applied = Value;
+    }
+
+    private async Task OnChange(ChangeEventArgs e)
+    {
+        _text = e.Value?.ToString() ?? "";
+        if (double.TryParse(_text, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out double value) && double.IsFinite(value))
+        {
+            _invalid = false;
+            _applied = value;
+            await ValueChanged.InvokeAsync(value);
+        }
+        else
+        {
+            // 不正値は表示に残したまま文書へ確定しない。
+            _invalid = true;
+        }
+    }
+}

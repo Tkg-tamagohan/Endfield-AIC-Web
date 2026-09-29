@@ -1,4 +1,6 @@
 /data/*
   Cache-Control: public, max-age=0, must-revalidate
+  # 管理ツール（別ドメイン）からの正本 JSON 読み込み用。公開データのため * でよい。
+  Access-Control-Allow-Origin: *
 /_framework/*
   Cache-Control: public, max-age=0, must-revalidate

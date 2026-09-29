@@ -1,0 +1,44 @@
+<input class="@CssClass @(_invalid ? "invalid" : "")" value="@_text" @onchange="OnChange" inputmode="numeric" />
+
+@code {
+    /// <summary>確定済みの値。編集対象の int プロパティ。</summary>
+    [Parameter]
+    public int Value { get; set; }
+
+    [Parameter]
+    public EventCallback<int> ValueChanged { get; set; }
+
+    [Parameter]
+    public string CssClass { get; set; } = "input num";
+
+    private string _text = "";
+    private int _applied;
+    private bool _invalid;
+
+    protected override void OnParametersSet()
+    {
+        if (Value != _applied || (!_invalid && _text == ""))
+        {
+            _text = Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            _invalid = false;
+        }
+
+        _applied = Value;
+    }
+
+    private async Task OnChange(ChangeEventArgs e)
+    {
+        _text = e.Value?.ToString() ?? "";
+        if (int.TryParse(_text, System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out int value))
+        {
+            _invalid = false;
+            _applied = value;
+            await ValueChanged.InvokeAsync(value);
+        }
+        else
+        {
+            _invalid = true;
+        }
+    }
+}

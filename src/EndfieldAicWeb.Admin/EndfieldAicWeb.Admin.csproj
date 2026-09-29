@@ -13,6 +13,24 @@
 
   <ItemGroup>
     <ProjectReference Include="..\EndfieldAicWeb.Application\EndfieldAicWeb.Application.csproj" />
+    <ProjectReference Include="..\EndfieldAicWeb.Infrastructure\EndfieldAicWeb.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <!-- 正本マスタを wwwroot へコピーして「同梱マスタ」の読み込み元とする（生成物なので gitignore 済み）。
+       App と同じく、クリーン環境の初回ビルド欠落を防ぐため発行成果物へも直接コピーする。 -->
+  <Target Name="CopyMasterJson" BeforeTargets="AssignTargetPaths">
+    <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\data" />
+    <Copy SourceFiles="..\..\data\master.json" DestinationFiles="$(MSBuildProjectDirectory)\wwwroot\data\master.json" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(RepoIcons)" DestinationFolder="$(MSBuildProjectDirectory)\wwwroot\data\icons" SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="CopyMasterJsonToPublish" AfterTargets="Publish">
+    <MakeDir Directories="$(PublishDir)\wwwroot\data" />
+    <Copy SourceFiles="..\..\data\master.json" DestinationFiles="$(PublishDir)\wwwroot\data\master.json" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(RepoIcons)" DestinationFolder="$(PublishDir)\wwwroot\data\icons" SkipUnchangedFiles="true" />
+  </Target>
+
+  <ItemGroup>
+    <RepoIcons Include="..\..\data\icons\**\*.png" />
   </ItemGroup>
 
 </Project>
