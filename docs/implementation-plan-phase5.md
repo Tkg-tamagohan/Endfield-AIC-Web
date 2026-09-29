@@ -66,6 +66,10 @@ Pages の既定ヘッダはキャッシュ可能な応答に `Cache-Control: pub
 トリガは `push: main` と `workflow_dispatch`（コミットを伴わない再デプロイ用）。
 手順は CI と同じ検証を挟んでからデプロイし、検証を通らない成果物が公開されないようにする。
 
+`pages deploy` の `--branch` は実行対象 ref（`github.ref_name`）に揃える。
+main での実行は本番デプロイ、それ以外のブランチでの dispatch はプレビューデプロイとなり本番へ触れない。
+連続する push で新旧のジョブが重なったとき古い成果物が後勝ちしないよう、`concurrency` グループ（`cancel-in-progress: false`）で直列化する。
+
 1. `actions/checkout`
 2. `actions/setup-dotnet`（`8.0.x`）
 3. `dotnet test -c Release`
@@ -88,7 +92,7 @@ Pages の既定ヘッダはキャッシュ可能な応答に `Cache-Control: pub
 
 - `data/master.json`: 既存の `CopyMasterJson` / `CopyMasterJsonToPublish` ターゲットで `wwwroot/data/` と発行成果物へコピー済み（Phase 4）。
 - `data/icons/`: 同様の構成で `wwwroot/data/icons/` と発行成果物へコピーするターゲットを追加する。
-  現状ディレクトリは空であり、ワイルドカード項目が空のとき `Copy` タスクは何もしないため、実画像の追加を待たずに経路だけ整備できる。
+  対象は `*.png` に限定し、`.gitkeep` などの非画像は成果物へ載せない。画像がない間は `Copy` タスクが何もしないため、実画像の追加を待たずに経路だけ整備できる。
 
 ## 6. 検証手順
 

@@ -33,8 +33,8 @@
 
   <ItemGroup>
     <!-- data/icons/ の画像を wwwroot/data/icons へ同梱する（マニフェストの File 形式 icons/<Key>.png に対応）。
-         ディレクトリが空の間はコピー対象なしで通る。 -->
-    <RepoIcons Include="..\..\data\icons\**\*" />
+         *.png のみ対象とし、.gitkeep 等の非画像は載せない。ディレクトリに画像がない間はコピー対象なしで通る。 -->
+    <RepoIcons Include="..\..\data\icons\**\*.png" />
   </ItemGroup>
 
 </Project>
