@@ -1,3 +1,4 @@
+using EndfieldAicWeb.Application;
 using EndfieldAicWeb.Domain.Models;
 using EndfieldAicWeb.Domain.Validation;
 using EndfieldAicWeb.Infrastructure.Icons;
@@ -75,16 +76,10 @@ public sealed class IconCatalog
             return null;
         }
 
-        if (recipe.IconKey is not null)
-        {
-            return recipe.IconKey;
-        }
-
-        RecipeOutput? main = recipe.Outputs.OrderBy(o => o.SortOrder).FirstOrDefault();
-        return main is not null && _itemsById.TryGetValue(main.ItemId, out Item? item)
-            ? item.IconKey
-            : null;
+        return IconKeyFallback.EffectiveIconKey(recipe, FindItem);
     }
+
+    private Item? FindItem(string itemId) => _itemsById.GetValueOrDefault(itemId);
 
     private async Task FetchManifestEntry(IconEntry entry)
     {

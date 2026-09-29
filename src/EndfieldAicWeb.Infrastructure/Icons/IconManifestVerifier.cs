@@ -49,4 +49,26 @@ public static class IconManifestVerifier
 
         return errors;
     }
+
+    /// <summary>
+    /// マニフェスト各エントリについて、プロバイダ内の実体が Bytes・Sha256 一致するか数える。
+    /// .json 読み込みで温存したアイコンストアを新マニフェストへ再照合し、
+    /// 一致分だけを取得済みとして数える用途（不一致・欠落は未取得扱い）。
+    /// </summary>
+    public static int CountMatching(IReadOnlyList<IconEntry> manifest, IIconFileProvider files)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        ArgumentNullException.ThrowIfNull(files);
+
+        int count = 0;
+        foreach (IconEntry entry in manifest)
+        {
+            if (files.ReadAllBytes(entry.File) is { } content && IconFiles.Matches(content, entry))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
 }

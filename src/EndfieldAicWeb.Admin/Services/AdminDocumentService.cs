@@ -284,8 +284,7 @@ public sealed class AdminDocumentService
             // .json 単体の読み込みではアイコンストアは温存する（作業フォルダの合意）。
             // 温存分も新マニフェストの Sha256/Bytes で再照合し、一致分だけを取得済みに数える。
             IconFilesExpected = result.Document.Icons.Count;
-            IconFilesLoaded = result.Document.Icons
-                .Count(e => _iconStore.ReadAllBytes(e.File) is byte[] bytes && IconFiles.Matches(bytes, e));
+            IconFilesLoaded = IconManifestVerifier.CountMatching(result.Document.Icons, _iconStore);
             return true;
         }
         catch (Exception ex)
@@ -359,12 +358,14 @@ public sealed class AdminDocumentService
             return new ExportOutcome(null, blocked);
         }
 
-        // 書き出しに失敗したときは文書側の DataVersion を元に戻す（変更は確定させない）。
-        string previousVersion = Document.DataVersion;
-        Document.DataVersion = dataVersion;
         try
         {
-            string json = MasterExporter.Export(Document);
+            // 差し替え用引数で書き出すため、文書への一時上書き・復元は行わない。
+            // DataVersion の確定は書き出し成功後だけにする。
+            // null は「文書の現値を使う」意味になってしまうため空文字に丸め、必須違反として弾く。
+            string version = dataVersion ?? "";
+            string json = MasterExporter.Export(Document, dataVersion: version);
+            Document.DataVersion = version;
             _counterAtExport = _editCounter;
             ValidationErrors = [];
             ValidationRan = true;
@@ -373,7 +374,6 @@ public sealed class AdminDocumentService
         }
         catch (MasterValidationException ex)
         {
-            Document.DataVersion = previousVersion;
             ValidationErrors = ex.Errors;
             ValidationRan = true;
             ValidationStale = false;
@@ -418,21 +418,11 @@ public sealed class AdminDocumentService
     }
 
     /// <summary>レシピの実効 IconKey。未設定時は主出力（SortOrder 最小）アイテムのキーへフォールバックする。</summary>
-    public string? EffectiveIconKey(MasterEntity entity)
-    {
-        if (entity.IconKey is not null)
-        {
-            return entity.IconKey;
-        }
+    public string? EffectiveIconKey(MasterEntity entity) =>
+        IconKeyFallback.EffectiveIconKey(entity, FindItem);
 
-        if (entity is Recipe recipe && Document is not null)
-        {
-            RecipeOutput? main = recipe.Outputs.OrderBy(o => o.SortOrder).FirstOrDefault();
-            return main is null ? null : Document.Items.FirstOrDefault(i => i.Id == main.ItemId)?.IconKey;
-        }
-
-        return null;
-    }
+    private Item? FindItem(string itemId) =>
+        Document?.Items.FirstOrDefault(i => i.Id == itemId);
 
     /// <summary>128×128 PNG バイト列をエンティティのアイコンとして登録する。
     /// IconKey が未設定・文字種に合わない場合は <c>icon-&lt;Id&gt;</c> 形を補完する。</summary>
@@ -446,7 +436,7 @@ public sealed class AdminDocumentService
         // 明示した有効キーはそのまま使い、自動補完時だけ他エンティティとの衝突を避ける。
         string key = IconKeyRules.IsValid(entity.IconKey)
             ? entity.IconKey!
-            : UniqueSuggestedKey(entity);
+            : IconExportPlanner.UniqueSuggestedKey(entity, Document);
         IconEntry entry = IconExportPlanner.CreateEntry(key, pngBytes);
 
         entity.IconKey = key;
@@ -472,43 +462,6 @@ public sealed class AdminDocumentService
     {
         entity.IconKey = null;
         NotifyChanged();
-    }
-
-    /// <summary><c>icon-&lt;Id&gt;</c> の提案キーを、他エンティティが使用中なら連番を付けて一意にする。
-    /// Id はエンティティ種別をまたぐと一意でなく、置換・切詰めでも衝突し得るため。</summary>
-    private string UniqueSuggestedKey(MasterEntity entity)
-    {
-        string baseKey = IconExportPlanner.SuggestKey(entity.Id);
-        var used = new HashSet<string>(
-            EnumerateEntities()
-                .Where(e => !ReferenceEquals(e, entity))
-                .Select(e => e.IconKey)
-                .Where(k => k is not null)!,
-            StringComparer.Ordinal);
-        string key = baseKey;
-        for (int n = 2; used.Contains(key); n++)
-        {
-            string suffix = $"-{n}";
-            key = baseKey.Length + suffix.Length <= 64
-                ? baseKey + suffix
-                : baseKey[..(64 - suffix.Length)] + suffix;
-        }
-
-        return key;
-    }
-
-    private IEnumerable<MasterEntity> EnumerateEntities()
-    {
-        if (Document is null)
-        {
-            yield break;
-        }
-
-        foreach (Item e in Document.Items) yield return e;
-        foreach (Facility e in Document.Facilities) yield return e;
-        foreach (Domain.Models.Environment e in Document.Environments) yield return e;
-        foreach (GameEvent e in Document.GameEvents) yield return e;
-        foreach (Recipe e in Document.Recipes) yield return e;
     }
 
     /// <summary>DataVersion を載せて全置換 JSON＋アイコンを zip で書き出す。違反時は Errors を返して書き出さない。</summary>
@@ -551,15 +504,16 @@ public sealed class AdminDocumentService
             return new ExportZipOutcome(null, errors);
         }
 
-        // 書き出しに失敗したときは文書側の変更を元に戻す（変更は確定させない）。
-        string previousVersion = Document.DataVersion;
-        List<IconEntry> previousIcons = Document.Icons;
-        Document.DataVersion = dataVersion;
-        Document.Icons = manifest;
         try
         {
-            string json = MasterExporter.Export(Document);
+            // 差し替え用引数で書き出すため、文書への一時上書き・復元は行わない。
+            // 収録したバージョンとマニフェストの確定は書き出し成功後だけにする。
+            // null は「文書の現値を使う」意味になってしまうため空文字に丸め、必須違反として弾く。
+            string version = dataVersion ?? "";
+            string json = MasterExporter.Export(Document, dataVersion: version, icons: manifest);
             byte[] zip = IconArchive.CreateZip(json, manifest, _iconStore);
+            Document.DataVersion = version;
+            Document.Icons = manifest;
             _counterAtExport = _editCounter;
             ValidationErrors = [];
             ValidationRan = true;
@@ -568,8 +522,6 @@ public sealed class AdminDocumentService
         }
         catch (MasterValidationException ex)
         {
-            Document.DataVersion = previousVersion;
-            Document.Icons = previousIcons;
             ValidationErrors = ex.Errors;
             ValidationRan = true;
             ValidationStale = false;
