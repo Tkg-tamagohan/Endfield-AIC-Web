@@ -27,13 +27,13 @@ else
                 <CommonFieldsEditor Entity="_selected" OnChanged="Changed" />
                 <div class="form-grid">
                     <label>幅</label>
-                    <span><NumberInput Value="@_selected.Width" ValueChanged="v => ApplyNum(v => _selected.Width = v, v)" /></span>
+                    <span><NumberInput Value="@_selected.Width" Owner="_selected" Field="Width" ValueChanged="v => ApplyNum(v => _selected.Width = v, v)" /></span>
 
                     <label>高さ</label>
-                    <span><NumberInput Value="@_selected.Height" ValueChanged="v => ApplyNum(v => _selected.Height = v, v)" /></span>
+                    <span><NumberInput Value="@_selected.Height" Owner="_selected" Field="Height" ValueChanged="v => ApplyNum(v => _selected.Height = v, v)" /></span>
 
                     <label>消費電力</label>
-                    <span><NumberInput Value="@_selected.PowerConsumption" ValueChanged="v => ApplyNum(v => _selected.PowerConsumption = v, v)" /></span>
+                    <span><NumberInput Value="@_selected.PowerConsumption" Owner="_selected" Field="PowerConsumption" ValueChanged="v => ApplyNum(v => _selected.PowerConsumption = v, v)" /></span>
                 </div>
                 <p class="hint">変更は即時反映されます。ホームの「検証を実行」で整合性を確認してください。</p>
             }
@@ -83,6 +83,7 @@ else
         }
 
         Store.Document!.Facilities.Remove(facility);
+        Store.ClearInvalidOwner(facility);
         if (_selected == facility)
         {
             _selected = null;

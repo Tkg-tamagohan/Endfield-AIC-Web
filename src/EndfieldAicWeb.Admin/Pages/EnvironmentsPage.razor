@@ -35,7 +35,7 @@ else
                                ValueChanged="SetConsumeItem" />
 
                     <label>消費速度（個/s）</label>
-                    <span><NumberInput Value="@_selected.ConsumeRatePerSecond" ValueChanged="v => ApplyNum(v => _selected.ConsumeRatePerSecond = v, v)" /></span>
+                    <span><NumberInput Value="@_selected.ConsumeRatePerSecond" Owner="_selected" Field="ConsumeRatePerSecond" ValueChanged="v => ApplyNum(v => _selected.ConsumeRatePerSecond = v, v)" /></span>
 
                     <label>所属イベント</label>
                     <RefSelect Value="@_selected.GameEventId" Options="_eventOptions" EmptyLabel="（常設）"
@@ -104,6 +104,7 @@ else
         }
 
         Store.Document!.Environments.Remove(env);
+        Store.ClearInvalidOwner(env);
         if (_selected == env)
         {
             _selected = null;

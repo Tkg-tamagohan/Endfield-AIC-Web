@@ -51,15 +51,42 @@ public sealed class AdminDocumentService
     /// <summary>赤枠表示のまま確定されていない不正な入力値を持つエディタがあるか。</summary>
     public bool HasInvalidInput => _invalidEditors.Count > 0;
 
-    private readonly HashSet<object> _invalidEditors = [];
+    /// <summary>未確定の不正入力。キーは（対象オブジェクト, フィールド名）、値は拒否された入力文字列。
+    /// エディタの破棄（ページ遷移・エンティティ切替）では消さず、修正・対象削除・読み込み直しでのみ消える。</summary>
+    private readonly Dictionary<(object Owner, string Field), string> _invalidEditors = [];
 
-    /// <summary>エディタの不正入力状態を登録・解除する。キーはエディタコンポーネント自身。</summary>
-    public void SetEditorInvalid(object editor, bool invalid)
+    /// <summary>不正入力を登録する。text に null を渡すと解除する。</summary>
+    public void SetEditorInvalid(object owner, string field, string? text)
     {
-        bool changed = invalid ? _invalidEditors.Add(editor) : _invalidEditors.Remove(editor);
-        if (changed)
+        if (text is null)
         {
-            Changed?.Invoke();
+            _invalidEditors.Remove((owner, field));
+        }
+        else
+        {
+            _invalidEditors[(owner, field)] = text;
+        }
+    }
+
+    /// <summary>対象に未確定の不正入力が残っているか。残っていれば拒否された文字列を返す。</summary>
+    public bool TryGetInvalidText(object owner, string field, out string? text) =>
+        _invalidEditors.TryGetValue((owner, field), out text);
+
+    /// <summary>対象オブジェクト（削除されたエンティティ・行など）に紐づく不正入力をすべて破棄する。</summary>
+    public void ClearInvalidOwner(object owner)
+    {
+        foreach ((object Owner, string Field) key in _invalidEditors.Keys.Where(k => ReferenceEquals(k.Owner, owner)).ToList())
+        {
+            _invalidEditors.Remove(key);
+        }
+    }
+
+    /// <summary>複数の対象オブジェクトに紐づく不正入力をまとめて破棄する。</summary>
+    public void ClearInvalidOwners(IEnumerable<object> owners)
+    {
+        foreach (object owner in owners)
+        {
+            ClearInvalidOwner(owner);
         }
     }
 
@@ -106,6 +133,7 @@ public sealed class AdminDocumentService
             ValidationErrors = [];
             ValidationRan = false;
             ValidationStale = false;
+            _invalidEditors.Clear();
             return true;
         }
         catch (Exception ex)

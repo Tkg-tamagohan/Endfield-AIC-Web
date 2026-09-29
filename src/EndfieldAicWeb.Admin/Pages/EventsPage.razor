@@ -82,6 +82,7 @@ else
         }
 
         Store.Document!.GameEvents.Remove(gameEvent);
+        Store.ClearInvalidOwner(gameEvent);
         if (_selected == gameEvent)
         {
             _selected = null;

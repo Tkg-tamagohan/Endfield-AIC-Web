@@ -104,6 +104,7 @@ else
         }
 
         Store.Document!.Items.Remove(item);
+        Store.ClearInvalidOwner(item);
         if (_selected == item)
         {
             _selected = null;

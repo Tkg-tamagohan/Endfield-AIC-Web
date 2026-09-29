@@ -1,4 +1,3 @@
-@implements IDisposable
 @inject AdminDocumentService Store
 
 <input class="@CssClass @(_invalid ? "invalid" : "")" value="@_text" @onchange="OnChange" inputmode="numeric" />
@@ -14,12 +13,29 @@
     [Parameter]
     public string CssClass { get; set; } = "input num";
 
+    /// <summary>不正入力の記憶キー（対象オブジェクト）。Field とセットで指定する。</summary>
+    [Parameter]
+    public object? Owner { get; set; }
+
+    /// <summary>不正入力の記憶キー（フィールド名）。Owner とセットで指定する。</summary>
+    [Parameter]
+    public string? Field { get; set; }
+
     private string _text = "";
     private int _applied;
     private bool _invalid;
 
     protected override void OnParametersSet()
     {
+        if (Owner is not null && Field is not null
+            && Store.TryGetInvalidText(Owner, Field, out string? pending))
+        {
+            _text = pending!;
+            _invalid = true;
+            _applied = Value;
+            return;
+        }
+
         if (Value != _applied || (!_invalid && _text == ""))
         {
             _text = Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -37,15 +53,16 @@
         {
             _invalid = false;
             _applied = value;
-            Store.SetEditorInvalid(this, false);
+            Store.SetEditorInvalid(Owner!, Field!, null);
             await ValueChanged.InvokeAsync(value);
         }
         else
         {
             _invalid = true;
-            Store.SetEditorInvalid(this, true);
+            if (Owner is not null && Field is not null)
+            {
+                Store.SetEditorInvalid(Owner, Field, _text);
+            }
         }
     }
-
-    public void Dispose() => Store.SetEditorInvalid(this, false);
 }
