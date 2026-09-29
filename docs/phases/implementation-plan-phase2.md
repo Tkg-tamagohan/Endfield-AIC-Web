@@ -1,7 +1,7 @@
 # Phase 2 実装詳細計画
 
 **対象フェーズ**: Phase 2（Domain: モデル＋計算＋検証の移植適合＋単体テスト）
-**前提ドキュメント**: [implementation-plan.md](implementation-plan.md)、[requirements.md](requirements.md)、[decision-records.md](decision-records.md)
+**前提ドキュメント**: [implementation-plan.md](../implementation-plan.md)、[requirements.md](../requirements.md)、[decision-records.md](../decision-records.md)
 **関連ドキュメント**: [test-specification-phase2.md](test-specification-phase2.md)（本 Phase のテスト仕様）
 
 > 本書は Phase 2 のチェックリストを、作業者が追加の判断なしに実行できる粒度へ分解したものである。

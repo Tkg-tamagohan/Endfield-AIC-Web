@@ -5,7 +5,7 @@ using DomainEnvironment = EndfieldAicWeb.Domain.Models.Environment;
 namespace EndfieldAicWeb.Application.Tests;
 
 /// <summary>
-/// test-specification-phase4.md のフィクスチャ A-01〜A-05 に対応するマスタ構築。
+/// docs/phases/test-specification-phase4.md のフィクスチャ A-01〜A-05 に対応するマスタ構築。
 /// </summary>
 internal static class ApplicationFixtures
 {

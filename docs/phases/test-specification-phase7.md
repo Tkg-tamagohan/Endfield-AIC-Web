@@ -1,7 +1,7 @@
 # Phase 7 テスト仕様書
 
 **対象**: Phase 7 成果物（アイコン取り込み・マニフェスト出力のパイプライン、App の IconKey 表示）
-**前提ドキュメント**: [requirements.md](requirements.md)、[decision-records.md](decision-records.md)、[implementation-plan.md](implementation-plan.md)、[implementation-plan-phase7.md](implementation-plan-phase7.md)
+**前提ドキュメント**: [requirements.md](../requirements.md)、[decision-records.md](../decision-records.md)、[implementation-plan.md](../implementation-plan.md)、[implementation-plan-phase7.md](implementation-plan-phase7.md)
 
 > 本書は Phase 7 の受け入れ条件を検証するためのテスト項目と仕様を定める。
 > 項目 ID は `分類-連番` で採番し、要件との対応をトレースできるようにする。

@@ -1,7 +1,7 @@
 # Phase 5 実装詳細計画
 
 **対象フェーズ**: Phase 5（Cloudflare Pages デプロイ: 公開アプリの配信）
-**前提ドキュメント**: [implementation-plan.md](implementation-plan.md)、[requirements.md](requirements.md)、[decision-records.md](decision-records.md)
+**前提ドキュメント**: [implementation-plan.md](../implementation-plan.md)、[requirements.md](../requirements.md)、[decision-records.md](../decision-records.md)
 
 > 本書は Phase 5 のチェックリストを、作業者が追加の判断なしに実行できる粒度へ分解したものである。
 > 成果物は原則として 1 つの PR にまとめて main へマージする。

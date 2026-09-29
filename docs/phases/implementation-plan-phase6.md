@@ -1,7 +1,7 @@
 # Phase 6 実装詳細計画
 
 **対象フェーズ**: Phase 6（管理ツール UI: Admin Blazor WASM＋Access 公開）
-**前提ドキュメント**: [implementation-plan.md](implementation-plan.md)、[requirements.md](requirements.md)、[decision-records.md](decision-records.md)
+**前提ドキュメント**: [implementation-plan.md](../implementation-plan.md)、[requirements.md](../requirements.md)、[decision-records.md](../decision-records.md)
 **関連ドキュメント**: [test-specification-phase6.md](test-specification-phase6.md)（本 Phase のテスト仕様）
 
 > 本書は Phase 6 のチェックリストを、作業者が追加の判断なしに実行できる粒度へ分解したものである。

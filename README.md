@@ -4,14 +4,16 @@
 旧デスクトップ版（[Tkg-tamagohan/Endfield-AIC-Planner](https://github.com/Tkg-tamagohan/Endfield-AIC-Planner)）を参考に、新ドメインモデルで作り直す。
 
 Blazor WebAssembly ＋ Cloudflare Pages で構成し、Cloudflare 無料枠内で運用する。
-公開中の計算アプリ: https://endfield-aic.pages.dev（`main` への push で `.github/workflows/deploy-pages.yml` が自動デプロイ。詳細は [Phase 5 実装計画](docs/implementation-plan-phase5.md)）。
-管理ツール: https://endfield-aic-admin.pages.dev（Cloudflare Access のメール OTP で管理者のみに制限。詳細は [Phase 6 実装計画](docs/implementation-plan-phase6.md)）。
+公開中の計算アプリ: https://endfield-aic.pages.dev（`main` への push で `.github/workflows/deploy-pages.yml` が自動デプロイ。詳細は [Phase 5 実装計画](docs/phases/implementation-plan-phase5.md)）。
+管理ツール: https://endfield-aic-admin.pages.dev（Cloudflare Access のメール OTP で管理者のみに制限。詳細は [Phase 6 実装計画](docs/phases/implementation-plan-phase6.md)）。
 
 ## ドキュメント
 
 - [要件定義書](docs/requirements.md): スコープ・計算要件・データモデル・アーキテクチャ
 - [仕様決定記録](docs/decision-records.md): 確定した仕様上の判断事項
 - [実装計画](docs/implementation-plan.md): フェーズ別タスクと進捗の管理
+- [残課題](docs/remaining-issues.md): レビューで先送りした構造上の課題
+- [Phase 別文書](docs/phases/): 各 Phase の実装詳細計画とテスト仕様（実装済みの作業記録）
 
 ## 開発
 

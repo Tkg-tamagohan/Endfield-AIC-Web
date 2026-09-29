@@ -5,7 +5,7 @@ using Environment = EndfieldAicWeb.Domain.Models.Environment;
 namespace EndfieldAicWeb.Domain.Tests;
 
 /// <summary>
-/// test-specification-phase2 §2 のゴールデンフィクスチャ（F-01〜F-13）を構築するビルダー。
+/// docs/phases/test-specification-phase2.md §2 のゴールデンフィクスチャ（F-01〜F-13）を構築するビルダー。
 /// 各フィクスチャは独立した MasterDataSnapshot で、他フィクスチャとデータを共有しない。
 /// 記載のない共通属性は Description=""・IconKey=null・VersionAdded="1.0.0"・VersionRemoved=null・GameEventId=null。
 /// </summary>

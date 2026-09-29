@@ -5,7 +5,7 @@ namespace EndfieldAicWeb.Domain.Tests;
 /// <summary>ProductionPlan の検索・判定ヘルパー。</summary>
 internal static class PlanAssert
 {
-    /// <summary>数値比較の精度（test-specification-phase2 §1）。</summary>
+    /// <summary>数値比較の精度（docs/phases/test-specification-phase2.md §1）。</summary>
     public const int Precision = 6;
 
     public static ItemRequirement Req(ProductionPlan plan, string itemId) =>

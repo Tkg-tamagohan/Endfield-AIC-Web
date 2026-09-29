@@ -1,7 +1,7 @@
 # Phase 4 実装詳細計画
 
 **対象フェーズ**: Phase 4（計算アプリ UI: 公開 Blazor WASM）
-**前提ドキュメント**: [implementation-plan.md](implementation-plan.md)、[requirements.md](requirements.md)、[decision-records.md](decision-records.md)
+**前提ドキュメント**: [implementation-plan.md](../implementation-plan.md)、[requirements.md](../requirements.md)、[decision-records.md](../decision-records.md)
 **関連ドキュメント**: [test-specification-phase4.md](test-specification-phase4.md)（本 Phase のテスト仕様）
 
 > 本書は Phase 4 のチェックリストを、作業者が追加の判断なしに実行できる粒度へ分解したものである。

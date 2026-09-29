@@ -5,7 +5,7 @@ using DomainEnvironment = EndfieldAicWeb.Domain.Models.Environment;
 namespace EndfieldAicWeb.Application.Tests;
 
 /// <summary>
-/// test-specification-phase6.md §3 のテスト項目（IDF・ENT・VER・REF）に対応する。
+/// docs/phases/test-specification-phase6.md §3 のテスト項目（IDF・ENT・VER・REF）に対応する。
 /// </summary>
 public class AdminToolsTests
 {

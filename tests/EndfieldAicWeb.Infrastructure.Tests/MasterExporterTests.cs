@@ -6,7 +6,7 @@ using EndfieldAicWeb.Infrastructure.Transfer;
 namespace EndfieldAicWeb.Infrastructure.Tests;
 
 /// <summary>
-/// MasterExporter・往復の検証テスト。ケース ID は docs/test-specification-phase3.md に対応する。
+/// MasterExporter・往復の検証テスト。ケース ID は docs/phases/test-specification-phase3.md に対応する。
 /// </summary>
 public class MasterExporterTests
 {

@@ -1,7 +1,7 @@
 # Phase 3 テスト仕様書
 
 **対象**: Phase 3 成果物（Infrastructure のマスタ JSON 読み込み・エクスポート・アイコンマニフェスト解決）
-**前提ドキュメント**: [requirements.md](requirements.md)、[decision-records.md](decision-records.md)、[implementation-plan.md](implementation-plan.md)、[implementation-plan-phase3.md](implementation-plan-phase3.md)
+**前提ドキュメント**: [requirements.md](../requirements.md)、[decision-records.md](../decision-records.md)、[implementation-plan.md](../implementation-plan.md)、[implementation-plan-phase3.md](implementation-plan-phase3.md)
 
 > 本書は Phase 3 の受け入れ条件を検証するためのテスト項目と仕様を定める。
 > 項目 ID は `分類-連番` で採番し、要件との対応をトレースできるようにする。

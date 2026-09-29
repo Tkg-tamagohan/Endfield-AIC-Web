@@ -3,7 +3,7 @@ using static EndfieldAicWeb.Domain.Tests.PlanAssert;
 
 namespace EndfieldAicWeb.Domain.Tests;
 
-/// <summary>FIX: 固定消費（仕様決定 J/V、test-specification-phase2 §3）。</summary>
+/// <summary>FIX: 固定消費（仕様決定 J/V、docs/phases/test-specification-phase2.md §3）。</summary>
 public class FixedConsumptionTests
 {
     [Fact(DisplayName = "FIX-01: 固定消費が切上台数比例で需要へ")]

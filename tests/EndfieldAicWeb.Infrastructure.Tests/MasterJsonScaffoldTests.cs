@@ -4,7 +4,7 @@ namespace EndfieldAicWeb.Infrastructure.Tests;
 
 public class MasterJsonScaffoldTests
 {
-    // requirements §5.9 のルートキー定義が根拠
+    // docs/requirements.md §5.9 のルートキー定義が根拠
     private static readonly string[] RequiredRootKeys =
     [
         "SchemaVersion", "DataVersion", "Items", "Facilities",

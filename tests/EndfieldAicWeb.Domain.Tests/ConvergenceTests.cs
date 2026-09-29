@@ -3,7 +3,7 @@ using static EndfieldAicWeb.Domain.Tests.PlanAssert;
 
 namespace EndfieldAicWeb.Domain.Tests;
 
-/// <summary>CNV: 収束反復（implementation-plan §3-8、test-specification-phase2 §3）。</summary>
+/// <summary>CNV: 収束反復（docs/implementation-plan.md §3-8、docs/phases/test-specification-phase2.md §3）。</summary>
 public class ConvergenceTests
 {
     [Fact(DisplayName = "CNV-01: 環境消費が生産レシピへ展開して収束")]

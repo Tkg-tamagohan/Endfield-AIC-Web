@@ -5,7 +5,7 @@ using Environment = EndfieldAicWeb.Domain.Models.Environment;
 
 namespace EndfieldAicWeb.Domain.Tests;
 
-/// <summary>VAL: マスタ検証（test-specification-phase2 §3）。</summary>
+/// <summary>VAL: マスタ検証（docs/phases/test-specification-phase2.md §3）。</summary>
 public class ValidationTests
 {
     /// <summary>VAL-01 で使う最小構成の有効データ。</summary>

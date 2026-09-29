@@ -4,7 +4,7 @@ using static EndfieldAicWeb.Domain.Tests.PlanAssert;
 
 namespace EndfieldAicWeb.Domain.Tests;
 
-/// <summary>SEL: レシピとペアの選択（仕様決定 F/U、test-specification-phase2 §3）。</summary>
+/// <summary>SEL: レシピとペアの選択（仕様決定 F/U、docs/phases/test-specification-phase2.md §3）。</summary>
 public class SelectionTests
 {
     [Fact(DisplayName = "SEL-01: 既定は VersionAdded 最新のレシピ")]

@@ -3,7 +3,7 @@ using static EndfieldAicWeb.Domain.Tests.PlanAssert;
 
 namespace EndfieldAicWeb.Domain.Tests;
 
-/// <summary>TRN: 輸送容量（ベルト 30 個/s・パイプ 60 個/s、test-specification-phase2 §3）。</summary>
+/// <summary>TRN: 輸送容量（ベルト 30 個/s・パイプ 60 個/s、docs/phases/test-specification-phase2.md §3）。</summary>
 public class TransportCapacityTests
 {
     [Fact(DisplayName = "TRN-01: ベルト超過は警告（レーン数付き）")]

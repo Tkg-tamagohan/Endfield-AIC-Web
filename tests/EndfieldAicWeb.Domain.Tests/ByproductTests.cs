@@ -3,7 +3,7 @@ using static EndfieldAicWeb.Domain.Tests.PlanAssert;
 
 namespace EndfieldAicWeb.Domain.Tests;
 
-/// <summary>BYP: 副産物の充当と余剰（test-specification-phase2 §3）。</summary>
+/// <summary>BYP: 副産物の充当と余剰（docs/phases/test-specification-phase2.md §3）。</summary>
 public class ByproductTests
 {
     [Fact(DisplayName = "BYP-01: 需要のない副産物は余剰")]

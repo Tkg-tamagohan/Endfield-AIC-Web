@@ -5,7 +5,7 @@ using F = EndfieldAicWeb.Domain.Tests.CalculationFixtures;
 
 namespace EndfieldAicWeb.Domain.Tests;
 
-/// <summary>WRN: 警告と入力検証（test-specification-phase2 §3）。</summary>
+/// <summary>WRN: 警告と入力検証（docs/phases/test-specification-phase2.md §3）。</summary>
 public class WarningTests
 {
     [Fact(DisplayName = "WRN-01: レシピなし部品は未充足＋警告（例外ではない）")]

@@ -7,7 +7,7 @@ using Xunit;
 namespace EndfieldAicWeb.Infrastructure.Tests;
 
 /// <summary>
-/// テスト仕様書 docs/test-specification-phase3.md の J-01（最小有効 JSON）フィクスチャ。
+/// テスト仕様書 docs/phases/test-specification-phase3.md の J-01（最小有効 JSON）フィクスチャ。
 /// JsonNode で構築し、各ケースは Mutate で構造を変化させる。
 /// </summary>
 internal static class TestJson

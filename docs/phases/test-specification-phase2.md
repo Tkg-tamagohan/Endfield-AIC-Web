@@ -1,7 +1,7 @@
 # Phase 2 テスト仕様書
 
 **対象**: Phase 2 成果物（Domain のモデル・計算エンジン・検証）
-**前提ドキュメント**: [requirements.md](requirements.md)、[decision-records.md](decision-records.md)、[implementation-plan.md](implementation-plan.md)、[implementation-plan-phase2.md](implementation-plan-phase2.md)
+**前提ドキュメント**: [requirements.md](../requirements.md)、[decision-records.md](../decision-records.md)、[implementation-plan.md](../implementation-plan.md)、[implementation-plan-phase2.md](implementation-plan-phase2.md)
 
 > 本書は Phase 2 の受け入れ条件を検証するためのテスト項目と仕様を定める。
 > 項目 ID は `分類-連番` で採番し、要件との対応をトレースできるようにする。
