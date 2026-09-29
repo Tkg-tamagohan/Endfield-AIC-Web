@@ -5,9 +5,10 @@ on:
   workflow_dispatch:
 
 # 直列化して、重複実行で古いコミットの成果物が後勝ちしないようにする。
+# グループは ref 単位とし、プレビュー用 dispatch がキュー中の本番実行を押し出さないようにする。
 # 保留できるのは最新イベントの 1 実行のみのため、最後に完了する実行が必ず最新コミットのものになる。
 concurrency:
-  group: pages-deploy
+  group: pages-deploy-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:

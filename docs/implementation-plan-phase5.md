@@ -69,6 +69,7 @@ Pages の既定ヘッダはキャッシュ可能な応答に `Cache-Control: pub
 `pages deploy` の `--branch` は実行対象 ref（`github.ref_name`）に揃える。
 main での実行は本番デプロイ、それ以外のブランチでの dispatch はプレビューデプロイとなり本番へ触れない。
 連続する push で新旧のジョブが重なったとき古い成果物が後勝ちしないよう、`concurrency` グループ（`cancel-in-progress: false`）で直列化する。
+グループは ref 単位（`pages-deploy-${{ github.ref }}`）とし、プレビュー用 dispatch がキュー中の本番実行を押し出さないようにする。
 
 1. `actions/checkout`
 2. `actions/setup-dotnet`（`8.0.x`）
