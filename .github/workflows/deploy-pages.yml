@@ -12,7 +12,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy-app:
+  # 両デプロイ共通の品質ゲート。同梱する正本 JSON は両プロジェクトで共通のため
+  # 片側だけ検証を通すと、壊れたデータがもう一方へ配信されてしまう。
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +27,15 @@ jobs:
           python-version: '3.12'
       - run: pip install 'jsonschema[format]==4.25.1'
       - run: python tools/validate_master.py
+
+  deploy-app:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
       - run: dotnet publish src/EndfieldAicWeb.App -c Release -o artifacts/app
       - uses: cloudflare/wrangler-action@v3
         with:
@@ -38,6 +49,7 @@ jobs:
   # 管理ツール（Admin WASM）。別 Pages プロジェクトへデプロイし、
   # Cloudflare Access で公開側と切り離す（要件 §7、仕様決定 E）。
   deploy-admin:
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

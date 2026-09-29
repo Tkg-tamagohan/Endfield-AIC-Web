@@ -9,6 +9,13 @@
 {
     <section class="panel"><p class="muted">ホームで正本 JSON を読み込んでください。</p></section>
 }
+else if (_snapshotErrors.Count > 0)
+{
+    <section class="panel">
+        <h2 class="panel-title">文書に違反があるため計算できません（@_snapshotErrors.Count 件）</h2>
+        <ValidationErrorList Errors="_snapshotErrors" />
+    </section>
+}
 else
 {
     <div class="layout">
@@ -185,15 +192,18 @@ else
     private bool _unadjusted;
     private bool _viewTouched;
 
+    private MasterDataSnapshot? _snapshot;
+    private IReadOnlyList<MasterValidationError> _snapshotErrors = [];
+
     protected override void OnInitialized()
     {
-        if (Store.Snapshot is { } snapshot)
+        if (EnsureSnapshot())
         {
-            _itemOptions = snapshot.Items
+            _itemOptions = _snapshot!.Items
                 .Where(i => i.TransportKind != TransportKind.None)
                 .Select(i => new SelectOption(i.Id, i.Name))
                 .ToList();
-            _eventChecks = snapshot.GameEvents
+            _eventChecks = _snapshot.GameEvents
                 .Select(e => new EventCheck(e) { Checked = EventAutoActivation.IsActiveByDefault(e, _today) })
                 .ToList();
             _autoEventChecks = _eventChecks
@@ -201,6 +211,22 @@ else
                 .ToList();
             _outEventChecks = _eventChecks.Except(_autoEventChecks).ToList();
         }
+    }
+
+    /// <summary>違反があるとスナップショット構築で例外になるため、先に検証してから作る。</summary>
+    private bool EnsureSnapshot()
+    {
+        Store.Validate();
+        if (Store.ValidationErrors.Count > 0)
+        {
+            _snapshotErrors = Store.ValidationErrors;
+            _snapshot = null;
+            return false;
+        }
+
+        _snapshotErrors = [];
+        _snapshot = Store.Snapshot;
+        return true;
     }
 
     private void AddRow() => _targetRows.Add(new TargetRow());
@@ -230,8 +256,10 @@ else
     private void Recalculate()
     {
         _inputError = null;
-        if (Store.Snapshot is not { } snapshot)
+        if (!EnsureSnapshot() || _snapshot is not { } snapshot)
         {
+            _outcome = null;
+            _view = null;
             return;
         }
 
@@ -269,7 +297,18 @@ else
             ActiveGameEventIds = _eventChecks.Where(c => c.Checked).Select(c => c.Event.Id).ToList(),
         };
 
-        _outcome = Calculator.Calculate(snapshot, targets, _context, [], []);
+        try
+        {
+            _outcome = Calculator.Calculate(snapshot, targets, _context, [], []);
+        }
+        catch (Exception ex)
+        {
+            _outcome = null;
+            _view = null;
+            _inputError = $"計算に失敗しました: {ex.Message}";
+            return;
+        }
+
         if (!_viewTouched)
         {
             _unadjusted = _outcome.Plan.FacilityRequirements.All(f => f.ExactCount == f.CeilCount);
@@ -280,9 +319,9 @@ else
 
     private void RebuildView()
     {
-        if (_outcome is not null && Store.Snapshot is not null)
+        if (_outcome is not null && _snapshot is not null)
         {
-            _view = ResultViewBuilder.Build(_outcome.Plan, Store.Snapshot, _context, _unadjusted);
+            _view = ResultViewBuilder.Build(_outcome.Plan, _snapshot, _context, _unadjusted);
         }
     }
 
@@ -308,17 +347,17 @@ else
     }
 
     private bool IsEventItem(string itemId) =>
-        Store.Snapshot is not null && Store.Snapshot.ItemsById.TryGetValue(itemId, out Item? item) && item.GameEventId is not null;
+        _snapshot is not null && _snapshot.ItemsById.TryGetValue(itemId, out Item? item) && item.GameEventId is not null;
 
     private string ItemName(string id) =>
-        Store.Snapshot is not null && Store.Snapshot.ItemsById.TryGetValue(id, out Item? item) ? item.Name : id;
+        _snapshot is not null && _snapshot.ItemsById.TryGetValue(id, out Item? item) ? item.Name : id;
 
     private string FacilityName(string id) =>
-        Store.Snapshot is not null && Store.Snapshot.FacilitiesById.TryGetValue(id, out Facility? facility) ? facility.Name : id;
+        _snapshot is not null && _snapshot.FacilitiesById.TryGetValue(id, out Facility? facility) ? facility.Name : id;
 
     private string RecipeName(string id) =>
-        Store.Snapshot is not null && Store.Snapshot.RecipesById.TryGetValue(id, out Recipe? recipe) ? recipe.Name : id;
+        _snapshot is not null && _snapshot.RecipesById.TryGetValue(id, out Recipe? recipe) ? recipe.Name : id;
 
     private string EnvName(string id) =>
-        Store.Snapshot is not null && Store.Snapshot.EnvironmentsById.TryGetValue(id, out DomainEnv? env) ? env.Name : id;
+        _snapshot is not null && _snapshot.EnvironmentsById.TryGetValue(id, out DomainEnv? env) ? env.Name : id;
 }

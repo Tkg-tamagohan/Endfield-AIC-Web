@@ -42,6 +42,10 @@
     [Parameter]
     public Func<TItem, string?> SubOf { get; set; } = _ => null;
 
+    /// <summary>絞り込みの追加対象（カテゴリ等）。未指定時は Key と Text のみ。</summary>
+    [Parameter]
+    public Func<TItem, string?>? ExtraSearchOf { get; set; }
+
     [Parameter]
     public string? SelectedKey { get; set; }
 
@@ -69,6 +73,7 @@
         string q = _filter.Trim();
         return Items.Where(i =>
             KeyOf(i).Contains(q, StringComparison.OrdinalIgnoreCase)
-            || TextOf(i).Contains(q, StringComparison.OrdinalIgnoreCase));
+            || TextOf(i).Contains(q, StringComparison.OrdinalIgnoreCase)
+            || (ExtraSearchOf?.Invoke(i)?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false));
     }
 }

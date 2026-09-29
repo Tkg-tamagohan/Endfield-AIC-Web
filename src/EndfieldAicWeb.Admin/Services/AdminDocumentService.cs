@@ -36,8 +36,14 @@ public sealed class AdminDocumentService
     /// <summary>読み込み時の違反一覧（構文・構造・意味）。</summary>
     public IReadOnlyList<MasterValidationError> LoadErrors { get; private set; } = [];
 
-    /// <summary>「検証を実行」の結果一覧。</summary>
+    /// <summary>「検証を実行」の結果一覧。以後の編集でクリアされる。</summary>
     public IReadOnlyList<MasterValidationError> ValidationErrors { get; private set; } = [];
+
+    /// <summary>読み込み以降に検証（またはエクスポート内の検証）を実行したか。</summary>
+    public bool ValidationRan { get; private set; }
+
+    /// <summary>検証済みだが、以後の編集で結果が古くなっているか。</summary>
+    public bool ValidationStale { get; private set; }
 
     /// <summary>HTTP 取得・ファイル読取の致命的失敗メッセージ。</summary>
     public string? LoadFailure { get; private set; }
@@ -83,6 +89,8 @@ public sealed class AdminDocumentService
             SourceLabel = sourceLabel;
             IsDirty = false;
             ValidationErrors = [];
+            ValidationRan = false;
+            ValidationStale = false;
             return true;
         }
         catch (Exception ex)
@@ -93,10 +101,16 @@ public sealed class AdminDocumentService
         }
     }
 
-    /// <summary>編集ページからの変更通知。</summary>
+    /// <summary>編集ページからの変更通知。直前の検証結果は破棄し、要再検証の状態にする。</summary>
     public void NotifyChanged()
     {
         IsDirty = true;
+        ValidationErrors = [];
+        if (ValidationRan)
+        {
+            ValidationStale = true;
+        }
+
         Changed?.Invoke();
     }
 
@@ -118,6 +132,8 @@ public sealed class AdminDocumentService
             Document.Recipes,
             errors);
         ValidationErrors = errors;
+        ValidationRan = true;
+        ValidationStale = false;
         return ValidationErrors;
     }
 
@@ -135,11 +151,15 @@ public sealed class AdminDocumentService
             string json = MasterExporter.Export(Document);
             IsDirty = false;
             ValidationErrors = [];
+            ValidationRan = true;
+            ValidationStale = false;
             return new ExportOutcome(json, []);
         }
         catch (MasterValidationException ex)
         {
             ValidationErrors = ex.Errors;
+            ValidationRan = true;
+            ValidationStale = false;
             return new ExportOutcome(null, ex.Errors);
         }
     }

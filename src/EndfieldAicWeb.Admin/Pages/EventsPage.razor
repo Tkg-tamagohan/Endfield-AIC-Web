@@ -16,7 +16,7 @@ else
                   SelectedKey="@_selected?.Id"
                   OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
 
-        <section class="panel">
+        <section class="panel" @key="_selected">
             @if (_selected is null)
             {
                 <p class="muted">左の一覧からイベントを選ぶか、新規追加してください。</p>

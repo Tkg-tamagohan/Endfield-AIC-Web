@@ -13,10 +13,11 @@ else
     <div class="admin-layout">
         <ListPane TItem="Item" Items="Store.Document!.Items"
                   KeyOf="i => i.Id" TextOf="i => i.Name" SubOf="i => i.Id"
+                  ExtraSearchOf="i => i.Category"
                   SelectedKey="@_selected?.Id"
                   OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
 
-        <section class="panel">
+        <section class="panel" @key="_selected">
             @if (_selected is null)
             {
                 <p class="muted">左の一覧からアイテムを選ぶか、新規追加してください。</p>

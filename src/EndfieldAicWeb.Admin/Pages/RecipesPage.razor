@@ -16,7 +16,7 @@ else
                   SelectedKey="@_selected?.Id"
                   OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
 
-        <section class="panel">
+        <section class="panel" @key="_selected">
             @if (_selected is null)
             {
                 <p class="muted">左の一覧からレシピを選ぶか、新規追加してください。</p>
@@ -38,7 +38,7 @@ else
                         <tbody>
                             @foreach (RecipeInput input in _selected.Inputs)
                             {
-                                <tr>
+                                <tr @key="input">
                                     <td><RefSelect Value="@input.ItemId" Options="_itemOptions" EmptyLabel="（未選択）"
                                                    ValueChanged="v => SetInputItem(input, v)" /></td>
                                     <td><NumberInput Value="@input.Quantity" CssClass="input num"
@@ -58,7 +58,7 @@ else
                         <tbody>
                             @foreach (RecipeOutput output in _selected.Outputs)
                             {
-                                <tr>
+                                <tr @key="output">
                                     <td><RefSelect Value="@output.ItemId" Options="_itemOptions" EmptyLabel="（未選択）"
                                                    ValueChanged="v => SetOutputItem(output, v)" /></td>
                                     <td><NumberInput Value="@output.Quantity" CssClass="input num"
@@ -86,7 +86,7 @@ else
                         <tbody>
                             @foreach (RecipeFacility pair in _selected.Facilities)
                             {
-                                <tr>
+                                <tr @key="pair">
                                     <td><RefSelect Value="@pair.FacilityId" Options="_facilityOptions" EmptyLabel="（未選択）"
                                                    ValueChanged="v => SetPairFacility(pair, v)" /></td>
                                     <td><NumberInput Value="@pair.CycleTime" CssClass="input num"

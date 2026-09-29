@@ -20,7 +20,7 @@
         // 編集対象の切替・外部からの値変更では表示を作り直す。入力中の値は保つ。
         if (Value != _applied || (!_invalid && _text == ""))
         {
-            _text = Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+            _text = Value.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
             _invalid = false;
         }
 

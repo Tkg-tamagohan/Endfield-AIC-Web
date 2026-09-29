@@ -1,7 +1,6 @@
 @page "/"
 @inject AdminDocumentService Store
 @inject IJSRuntime JS
-@inject NavigationManager Nav
 
 <PageTitle>データ管理 - Endfield AIC 管理ツール</PageTitle>
 
@@ -75,7 +74,11 @@
         <h2 class="panel-title">整合性検証</h2>
         <div class="toolbar">
             <button class="btn" @onclick="RunValidation">検証を実行</button>
-            @if (_validated)
+            @if (Store.ValidationStale)
+            {
+                <span class="error">編集により検証結果が古くなっています。再検証してください。</span>
+            }
+            else if (Store.ValidationRan)
             {
                 @if (Store.ValidationErrors.Count == 0)
                 {
@@ -89,28 +92,7 @@
         </div>
         @if (Store.ValidationErrors.Count > 0)
         {
-            <ul class="error-list">
-                @foreach (MasterValidationError err in Store.ValidationErrors)
-                {
-                    <li>
-                        @if (EntityPage(err.EntityKind) is { } page && !string.IsNullOrEmpty(err.EntityId))
-                        {
-                            <button class="link" @onclick="() => GoToEntity(err)">
-                                @err.EntityKind @err.EntityId
-                            </button>
-                        }
-                        else
-                        {
-                            <span>@err.EntityKind @err.EntityId</span>
-                        }
-                        @if (!string.IsNullOrEmpty(err.Field))
-                        {
-                            <span> @err.Field</span>
-                        }
-                        — @err.Message
-                    </li>
-                }
-            </ul>
+            <ValidationErrorList Errors="Store.ValidationErrors" />
         }
     </section>
 
@@ -139,7 +121,6 @@
     private string _urlText = "https://endfield-aic.pages.dev/data/master.json";
     private string _dataVersion = "";
     private bool _loading;
-    private bool _validated;
     private bool _exported;
     private string? _fileError;
 
@@ -223,7 +204,6 @@
 
     private void AfterLoad()
     {
-        _validated = false;
         _exported = false;
         _fileError = null;
         _dataVersion = Store.IsLoaded
@@ -231,40 +211,17 @@
             : "";
     }
 
-    private void RunValidation()
-    {
-        Store.Validate();
-        _validated = true;
-    }
+    private void RunValidation() => Store.Validate();
 
     private async Task ExportJson()
     {
         ExportOutcome outcome = Store.Export(_dataVersion);
         if (!outcome.Success)
         {
-            _validated = true;
             return;
         }
 
         _exported = true;
         await JS.InvokeVoidAsync("downloadTextFile", "master.json", outcome.Json);
     }
-
-    private void GoToEntity(MasterValidationError err)
-    {
-        if (EntityPage(err.EntityKind) is { } page && !string.IsNullOrEmpty(err.EntityId))
-        {
-            Nav.NavigateTo($"{page}?select={Uri.EscapeDataString(err.EntityId)}");
-        }
-    }
-
-    private static string? EntityPage(string kind) => kind switch
-    {
-        "Item" => "items",
-        "Facility" => "facilities",
-        "Environment" => "environments",
-        "GameEvent" => "events",
-        "Recipe" => "recipes",
-        _ => null,
-    };
 }
