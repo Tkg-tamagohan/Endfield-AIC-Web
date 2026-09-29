@@ -1,3 +1,5 @@
+using EndfieldAicWeb.Domain.Models;
+
 namespace EndfieldAicWeb.Domain.Calculation;
 
 /// <summary>
@@ -14,6 +16,12 @@ public sealed class ProductionPlan
 
     /// <summary>稼働が確定したペアとそのサイクル数/分。選択結果の可視化に使う。</summary>
     public required IReadOnlyList<RecipeRun> RecipeRuns { get; init; }
+
+    /// <summary>
+    /// 需要アイテムごとの確定ペア（実際に稼働中のもののみ）。
+    /// UI がアイテム単位のペア代替選択で現在値を表示するために使う。
+    /// </summary>
+    public required IReadOnlyList<PairSelection> PairSelections { get; init; }
 
     /// <summary>稼働に必要となった環境ごとの散布機台数と消費流量。</summary>
     public required IReadOnlyList<EnvironmentRequirement> EnvironmentRequirements { get; init; }
@@ -90,3 +98,8 @@ public sealed record FlowAdjustment(
     string InputItemId,
     double RequiredPerSecond,
     double RecommendedLimitPerSecond);
+
+/// <summary>
+/// 需要アイテムに対して確定した（実際に稼働中の）ペア。
+/// </summary>
+public sealed record PairSelection(string ItemId, string RecipeId, RecipeFacility Pair);

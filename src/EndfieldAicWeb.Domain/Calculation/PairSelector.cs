@@ -63,6 +63,41 @@ public static class PairSelector
         return null;
     }
 
+    /// <summary>候補列挙の1要素。IsDefault は選択規則の既定ペアを示す。</summary>
+    public sealed record CandidatePair(Recipe Recipe, RecipeFacility Pair, bool IsDefault);
+
+    /// <summary>
+    /// itemId を出力する適格レシピ × 適格ペアの全候補を列挙する。
+    /// レシピは Select と同じ順序（VersionAdded 降順・Id 昇順）、ペアは既定選択規則の順序（U）。
+    /// 既定ペアには IsDefault を立てる。UI のペア代替選択の候補表示に使う。
+    /// バージョン文字列の警告は破棄する（計算実行時に Warnings として報告済みのため）。
+    /// </summary>
+    public static IReadOnlyList<CandidatePair> ListCandidates(
+        string itemId,
+        MasterDataSnapshot master,
+        ContextFilter context)
+    {
+        ArgumentNullException.ThrowIfNull(master);
+        ArgumentNullException.ThrowIfNull(context);
+
+        IEnumerable<Recipe> candidates = master.RecipesByOutputItemId.TryGetValue(itemId, out List<Recipe>? list)
+            ? list.Where(r => IsEventEligible(r.GameEventId, context))
+            : [];
+
+        List<Recipe> ordered = OrderCandidates(candidates, new List<CalculationWarning>());
+
+        List<(Recipe Recipe, List<RecipeFacility> Pairs)> eligible = ordered
+            .Select(r => (Recipe: r, Pairs: OrderPairs(EligiblePairs(r, master, context))))
+            .Where(t => t.Pairs.Count > 0)
+            .ToList();
+
+        RecipeFacility? defaultPair = eligible.Count > 0 ? eligible[0].Pairs[0] : null;
+
+        return eligible
+            .SelectMany(t => t.Pairs.Select(p => new CandidatePair(t.Recipe, p, ReferenceEquals(p, defaultPair))))
+            .ToList();
+    }
+
     /// <summary>適格なペア行（EnvironmentId が null、または環境が存在しイベントが有効）を返す。</summary>
     internal static List<RecipeFacility> EligiblePairs(
         Recipe recipe,
@@ -79,13 +114,19 @@ public static class PairSelector
     /// </summary>
     internal static RecipeFacility ChooseDefaultPair(IEnumerable<RecipeFacility> eligiblePairs)
     {
+        return OrderPairs(eligiblePairs).First();
+    }
+
+    /// <summary>既定選択規則（U）の順序: CycleTime 昇順 → 環境なし優先 → 固定消費なし/小 → FacilityId 昇順。</summary>
+    private static List<RecipeFacility> OrderPairs(IEnumerable<RecipeFacility> eligiblePairs)
+    {
         return eligiblePairs
             .OrderBy(p => p.CycleTime)
             .ThenBy(p => p.EnvironmentId is null ? 0 : 1)
             .ThenBy(p => p.FixedConsumption is null ? 0 : 1)
             .ThenBy(p => p.FixedConsumption?.RatePerSecond ?? 0)
             .ThenBy(p => p.FacilityId, StringComparer.Ordinal)
-            .First();
+            .ToList();
     }
 
     /// <summary>
