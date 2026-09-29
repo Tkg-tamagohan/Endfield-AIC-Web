@@ -78,7 +78,7 @@ Phase 4 と同じシェル（`site-header`・`site-main`・`site-footer`）と�
 
 ## 6. Cloudflare Access（仕様決定 E）
 
-`endfield-aic-admin.pages.dev` 全体を Access アプリケーション（`self_hosted`）として保護し、ポリシーは「許可メール = 管理者本人の Gmail 1 件」のみとする。認証方式は Zero Trust 既定の One-time PIN（メール OTP）で、追加の IdP 設定は不要。
+`endfield-aic-admin.pages.dev` 全体を Access アプリケーション（`self_hosted`）として保護し、ポリシーは「許可メール = 管理者本人の Gmail 1 件」のみとする。認証方式は One-time PIN（メール OTP）とする。新規組織では OTP が自動追加されないため、IdP（`type: onetimepin`）を別途作成する。
 
 - API トークンに `Zero Trust: Access` 権限があれば API でアプリケーションとポリシーを作成する。権限がない場合は、Cloudflare ダッシュボード（Zero Trust → Access → Applications）での手順をユーザーへ案内する。
 - 保護確認は、未認証で `https://endfield-aic-admin.pages.dev/` へアクセスした際に Access のログイン画面（メール OTP）へ誘導されること、および `curl` で 302/`401` 系応答になることで行う。
