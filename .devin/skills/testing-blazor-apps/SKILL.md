@@ -49,3 +49,12 @@ dotnet run --project src/EndfieldAicWeb.Admin --no-launch-profile --urls http://
 ## 環境
 
 `wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz` で最大化。狭幅化は `wmctrl -r :ACTIVE: -b remove,maximized_vert,maximized_horz` → `wmctrl -r :ACTIVE: -e 0,x,y,w,h`。
+
+## Admin ツール固有の操作注意（Phase 6 時点）
+
+- ネイティブ `confirm` ダイアログ（削除・ダーティ時の読み込み直し）は **Return=OK / Escape=キャンセル**。マウスクリックはボタンが小さく外れることがあるのでキー操作が確実。
+- ファイル読み込み（`<input type="file">` → GTK ファイルダイアログ）は **`ctrl+l` でロケーションバーが出るので絶対パスを type して Return**。フォルダを手繰るより速く確実。
+- URL 読み込みの既定 `https://endfield-aic.pages.dev/data/master.json` は、本番 `_headers` で `/data/*` に `Access-Control-Allow-Origin: *` が付いているため **localhost の dev server からでも成功する**（2026-09 時点で実測）。「ローカルでは CORS 失敗が仕様」という古い想定は成立しないので、失敗したらむしろ退行を疑う。
+- `dotnet run` を rebuild・再起動した直後はブラウザ側に古い WASM/文書状態が残ることがある。**`ctrl+shift+r`（ハードリロード）してから測定開始**すること。アプリ内状態は WASM メモリ上だけなのでリロードで「未読み込み」に戻る。
+- 行削除・エンティティ削除で左ペインの行 y 座標が繰り上がる。**座標ではなく選択後にエディタの Id フィールド表示で対象を確認**してから編集する（誤って別エンティティを編集する事故を防げる）。
+- エクスポート成功時は Chrome 右上のダウンロードバブルに `master.json ... Done` が出る（DL 実証のスクリーンショットに使える）。連続 DL すると `master (1).json` 等にリネームされる。`~/Downloads/` に実ファイルが残るので内容検証はシェルで可能。
