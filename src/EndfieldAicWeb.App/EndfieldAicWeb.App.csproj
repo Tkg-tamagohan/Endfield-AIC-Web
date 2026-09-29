@@ -23,10 +23,18 @@
   <Target Name="CopyMasterJson" BeforeTargets="AssignTargetPaths">
     <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\data" />
     <Copy SourceFiles="..\..\data\master.json" DestinationFiles="$(MSBuildProjectDirectory)\wwwroot\data\master.json" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(RepoIcons)" DestinationFolder="$(MSBuildProjectDirectory)\wwwroot\data\icons" SkipUnchangedFiles="true" />
   </Target>
   <Target Name="CopyMasterJsonToPublish" AfterTargets="Publish">
     <MakeDir Directories="$(PublishDir)\wwwroot\data" />
     <Copy SourceFiles="..\..\data\master.json" DestinationFiles="$(PublishDir)\wwwroot\data\master.json" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(RepoIcons)" DestinationFolder="$(PublishDir)\wwwroot\data\icons" SkipUnchangedFiles="true" />
   </Target>
+
+  <ItemGroup>
+    <!-- data/icons/ の画像を wwwroot/data/icons へ同梱する（マニフェストの File 形式 icons/<Key>.png に対応）。
+         ディレクトリが空の間はコピー対象なしで通る。 -->
+    <RepoIcons Include="..\..\data\icons\**\*" />
+  </ItemGroup>
 
 </Project>

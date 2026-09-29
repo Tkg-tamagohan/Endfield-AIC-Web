@@ -130,9 +130,9 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 
 ### Phase 5: Cloudflare Pages デプロイ（PR: 公開アプリの配信）
 
-- [ ] Cloudflare Pages プロジェクトを作成し、公開アプリのビルド成果物を配信する。SPA/WASM 向けにフォールバック（`_redirects` 等）と必要ヘッダを設定する
-- [ ] 自動デプロイを構成する（Pages の Git 連携、または GitHub Actions から `CLOUDFLARE_API_TOKEN` を使う wrangler デプロイのいずれか。方式は Phase 開始時に確定する）
-- [ ] `data/master.json` と `data/icons/` がビルド成果物へ同梱されて配信されることを確認する（仕様決定 B/D）
+- [x] Cloudflare Pages プロジェクトを作成し、公開アプリのビルド成果物を配信する。SPA/WASM 向けにフォールバック（`_redirects` 等）と必要ヘッダを設定する
+- [x] 自動デプロイを構成する（Pages の Git 連携、または GitHub Actions から `CLOUDFLARE_API_TOKEN` を使う wrangler デプロイのいずれか。方式は Phase 開始時に確定する）
+- [x] `data/master.json` と `data/icons/` がビルド成果物へ同梱されて配信されることを確認する（仕様決定 B/D）
 - **受け入れ条件**: 公開 URL で計算アプリが実データ同梱のまま動作する。Pages はエッジ分散のためリージョン指定は行わない。
 
 ### Phase 6: 管理ツール UI（PR: Admin Blazor WASM＋Access 公開）
