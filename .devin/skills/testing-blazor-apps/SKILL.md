@@ -58,6 +58,8 @@ dotnet run --project src/EndfieldAicWeb.Admin --no-launch-profile --urls http://
 - `dotnet run` を rebuild・再起動した直後はブラウザ側に古い WASM/文書状態が残ることがある。**`ctrl+shift+r`（ハードリロード）してから測定開始**すること。アプリ内状態は WASM メモリ上だけなのでリロードで「未読み込み」に戻る。
 - 行削除・エンティティ削除で左ペインの行 y 座標が繰り上がる。**座標ではなく選択後にエディタの Id フィールド表示で対象を確認**してから編集する（誤って別エンティティを編集する事故を防げる）。
 - エクスポート成功時は Chrome 右上のダウンロードバブルに `master.json ... Done` が出る（DL 実証のスクリーンショットに使える）。連続 DL すると `master (1).json` 等にリネームされる。`~/Downloads/` に実ファイルが残るので内容検証はシェルで可能。
+- エクスポート失敗で違反一覧が出るとエクスポートパネル全体が約 20px 下にずれる。違反表示中は事前の座標メモでボタンを押さず、スクリーンショットか zoom で現位置を取り直してからクリックする（「提案値を使う」「エクスポート」ボタンで 1px 外しやすい）。
+- DataVersion 空欄で zip エクスポートすると「DataVersion は必須です」違反で拒否されダウンロードも起きない（仕様）。検証パネルの違反表示で確認できる。
 
 ## アイコン関連の検証（Phase 7 以降）
 
@@ -67,3 +69,6 @@ dotnet run --project src/EndfieldAicWeb.Admin --no-launch-profile --urls http://
 - 「クリア」ボタンは IconKey 未設定時に disabled になる — disabled 状態自体も検証ポイントにできる。
 - エクスポートされた zip の検証は `unzip -o ~/Downloads/master-export*.zip -d <dir>` + Python で sha256/Bytes を `data/master.json` の Icons マニフェストと照合する。連続 DL すると `master-export (1).zip` 等にリネームされるので glob で拾う。
 - file input の `accept=".json,.zip"` 経路は両方テスト可能。`.json` 単体読み込みはアイコンストアを温存する（前回読み込みの zip 由来アイコンが残る）ため、X/Y が前回値を引き継ぐ表示になるのは仕様。
+- `Icons[].File` は `icons/<Key>.png` 形式がロード時の構造検証で強制される。再照合（ストア温存分を新マニフェストの Sha256/Bytes で数え直す処理）の不一致系をテストするために File を改名すると、読み込み自体が違反で失敗して再照合まで辿り着かない。読み込みは通るが再照合だけ落ちる JSON を作るには、File は正しい形のまま `Bytes`/`Sha256` を実体とずらす（例: Bytes を +1）。
+- 同梱マスタには IconKey 未設定のエンティティがいるためフォールバック検証に使える（例: recipe-part は主出力 item-part の icon-item-part にフォールバック、recipe-part-hp は主出力 item-part-hp が未設定なので「?」のまま）。エディタでヒント「主出力アイテムのアイコンが使われます。」の有無が判定材料。
+- 提案キー衝突（`icon-<Id>` の -n 連番）は種別またぎで作れる: 別エンティティの IconKey 欄に占有したいキー（例: icon-fac-dispenser）を手入力+Tab 確定 → 対象エンティティに画像登録 → icon-fac-dispenser-2 が補完される。後始末として占有側を「クリア」で null に戻さないと、エクスポートが未登録キー違反で止まる。
