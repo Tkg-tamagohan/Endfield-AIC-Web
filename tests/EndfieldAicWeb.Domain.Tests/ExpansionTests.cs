@@ -3,7 +3,7 @@ using static EndfieldAicWeb.Domain.Tests.PlanAssert;
 
 namespace EndfieldAicWeb.Domain.Tests;
 
-/// <summary>EXP: 需要展開と設備台数（test-specification-phase2 §3）。</summary>
+/// <summary>EXP: 需要展開と設備台数（docs/phases/test-specification-phase2.md §3）。</summary>
 public class ExpansionTests
 {
     [Fact(DisplayName = "EXP-01: 直線チェーンの展開")]

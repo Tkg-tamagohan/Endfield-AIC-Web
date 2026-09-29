@@ -4,7 +4,7 @@ using EndfieldAicWeb.Domain.Models;
 
 namespace EndfieldAicWeb.Application.Tests;
 
-/// <summary>TIN: 生産リスト行のパース（requirements 目標設定・test-specification-phase4 MN-09）。</summary>
+/// <summary>TIN: 生産リスト行のパース（docs/requirements.md 目標設定・docs/phases/test-specification-phase4.md MN-09）。</summary>
 public class CalculationInputBuilderTests
 {
     private static readonly MasterDataSnapshot Snapshot = ApplicationFixtures.A01();
@@ -82,7 +82,7 @@ public class CalculationInputBuilderTests
     }
 }
 
-/// <summary>EVI: イベントチェックの初期化（仕様決定 T の UI 既定・test-specification-phase4 EVT）。</summary>
+/// <summary>EVI: イベントチェックの初期化（仕様決定 T の UI 既定・docs/phases/test-specification-phase4.md EVT）。</summary>
 public class EventCheckInitializationTests
 {
     private static readonly DateOnly Today = new(2026, 9, 28);

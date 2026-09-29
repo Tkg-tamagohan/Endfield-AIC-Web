@@ -8,7 +8,7 @@ namespace EndfieldAicWeb.Domain.Calculation;
 /// レシピはコンテキスト適格候補から VersionAdded 最新（同率は Id 昇順）を先に選び、
 /// そのレシピの適格ペアから CycleTime 最小を既定とする（仕様決定 F）。
 /// 同 CycleTime は EnvironmentId=null → FixedConsumption なし/小 の順（仕様決定 U）。
-/// レシピの適格ペアが 0 件なら次点のレシピへ進む（implementation-plan-phase2 §3）。
+/// レシピの適格ペアが 0 件なら次点のレシピへ進む（docs/phases/implementation-plan-phase2.md §3）。
 /// </summary>
 public static class PairSelector
 {

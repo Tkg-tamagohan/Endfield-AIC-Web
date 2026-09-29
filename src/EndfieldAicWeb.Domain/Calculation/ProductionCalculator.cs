@@ -18,7 +18,7 @@ public sealed class ProductionCalculator
     /// <summary>パイプの輸送上限（個/s）。</summary>
     internal const double PipeCapacityPerSecond = 60.0;
 
-    /// <summary>環境消費・固定消費の追加需要が収束するまでの反復上限（implementation-plan §3-8）。</summary>
+    /// <summary>環境消費・固定消費の追加需要が収束するまでの反復上限（docs/implementation-plan.md §3-8）。</summary>
     internal const int MaxConvergenceIterations = 10;
 
     /// <summary>生産計画を計算する。</summary>

@@ -1,7 +1,7 @@
 namespace EndfieldAicWeb.Domain.Models;
 
 /// <summary>
-/// マスタ文書（requirements §5.9）。正本 JSON のルート構造に対応する。
+/// マスタ文書（docs/requirements.md §5.9）。正本 JSON のルート構造に対応する。
 /// </summary>
 public class MasterDocument
 {

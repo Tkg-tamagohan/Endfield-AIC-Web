@@ -3,7 +3,7 @@ using static EndfieldAicWeb.Domain.Tests.PlanAssert;
 
 namespace EndfieldAicWeb.Domain.Tests;
 
-/// <summary>EVT: イベント限定アイテム（仕様決定 T/X、test-specification-phase2 §3）。</summary>
+/// <summary>EVT: イベント限定アイテム（仕様決定 T/X、docs/phases/test-specification-phase2.md §3）。</summary>
 public class EventItemTests
 {
     [Fact(DisplayName = "EVT-01: イベント非有効アイテムの目標は未充足＋警告")]

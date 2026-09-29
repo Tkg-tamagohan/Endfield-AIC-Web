@@ -32,7 +32,7 @@ public sealed record ResultView(
 /// 調整済: 計画どおりの供給量（余剰は計算結果のもののみ、推奨流量制限を表示）。
 /// 未調整: 切上げ台数でフル稼働させた想定。設備ごとの倍率
 /// s(F) = (CeilCount(F) − 散布機台数(F)) / レシピ実数台数(F) をレシピ生産に掛け、
-/// 余剰は produced' − 需要で再計算する（推測 → implementation-plan-phase4 §5）。
+/// 余剰は produced' − 需要で再計算する（推測 → docs/phases/implementation-plan-phase4.md §5）。
 /// </summary>
 public static class ResultViewBuilder
 {

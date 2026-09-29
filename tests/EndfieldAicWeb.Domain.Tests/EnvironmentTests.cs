@@ -3,7 +3,7 @@ using static EndfieldAicWeb.Domain.Tests.PlanAssert;
 
 namespace EndfieldAicWeb.Domain.Tests;
 
-/// <summary>ENV: 環境の計上（仕様決定 I、test-specification-phase2 §3）。</summary>
+/// <summary>ENV: 環境の計上（仕様決定 I、docs/phases/test-specification-phase2.md §3）。</summary>
 public class EnvironmentTests
 {
     [Fact(DisplayName = "ENV-01: 環境必要ペアで散布機・ガス・電力を計上")]

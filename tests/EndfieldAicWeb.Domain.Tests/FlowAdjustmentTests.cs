@@ -4,7 +4,7 @@ using static EndfieldAicWeb.Domain.Tests.PlanAssert;
 
 namespace EndfieldAicWeb.Domain.Tests;
 
-/// <summary>FLW: 流量調整（仕様決定 O、test-specification-phase2 §3）。</summary>
+/// <summary>FLW: 流量調整（仕様決定 O、docs/phases/test-specification-phase2.md §3）。</summary>
 public class FlowAdjustmentTests
 {
     [Fact(DisplayName = "FLW-01: 推奨制限は要求流量の実数値")]

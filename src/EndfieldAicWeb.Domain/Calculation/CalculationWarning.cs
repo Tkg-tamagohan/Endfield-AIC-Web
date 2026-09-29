@@ -34,7 +34,7 @@ public enum WarningCode
     /// <summary>EnvironmentCountOverride が存在しない環境を指した。</summary>
     InvalidEnvironmentOverride,
 
-    /// <summary>追加需要の反復が上限回数内に収束しなかった（implementation-plan §3-8）。</summary>
+    /// <summary>追加需要の反復が上限回数内に収束しなかった（docs/implementation-plan.md §3-8）。</summary>
     ConvergenceNotReached,
 }
 

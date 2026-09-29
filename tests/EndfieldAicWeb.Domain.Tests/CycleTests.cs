@@ -3,7 +3,7 @@ using static EndfieldAicWeb.Domain.Tests.PlanAssert;
 
 namespace EndfieldAicWeb.Domain.Tests;
 
-/// <summary>CYC: 循環依存（test-specification-phase2 §3）。</summary>
+/// <summary>CYC: 循環依存（docs/phases/test-specification-phase2.md §3）。</summary>
 public class CycleTests
 {
     [Fact(DisplayName = "CYC-01: 相互循環は警告し残差を未充足へ")]
