@@ -88,7 +88,7 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 
 1. 目標から net demand マップを構築し、展開（選択ペアで仮実行し入力を需要へ加算）と引き戻し（後供給の副産物で過剰化した稼働の取り消し）を固定点まで反復する。骨格は旧 `ProductionCalculator` の Session を移植する。
 2. 需要アイテムごとの選択は「レシピ → ペア」の二段とする。レシピはコンテキスト適格候補から `VersionAdded` 最新（同率は Id 昇順）を選び、そのレシピのペアから `CycleTime` 最小を選ぶ（F）。同一 (RecipeId, FacilityId) で属性の異なるペア行が複数ある場合も `CycleTime` 最小を既定とし、同率は `EnvironmentId=null` → `FixedConsumption` なし/小の順（U）。ペア上書きはペア行単位で適用し、不適格な上書きは警告して既定へフォールバックする。
-3. 適格判定: レシピの `GameEventId` が非有効なら候補外。ペアの `EnvironmentId` が指す環境の `GameEventId` が非有効ならそのペアも候補外。アイテム自体の `GameEventId` が非有効なら生産・外部調達とも不可とし、需要は未充足＋警告とする（X）。
+3. 適格判定: レシピの `GameEventId` が非有効なら候補外。ペアの `EnvironmentId` が指す環境の `GameEventId` が非有効ならそのペアも候補外。アイテム自体の `GameEventId` が非有効なら生産・外部調達とも不可とし、需要は未充足＋警告とする（X）。選択したマップが非有効イベント所属の場合も同様に、全採取素材を採取不可（上限 0）として警告する（AD、X と同型）。
 4. 循環依存は展開スタック上の再要求で検出し、警告してその需要を未充足として打ち切る。副産物は他素材需要へ充当し、充当残は余剰として出力する。1 アイテムの需要を複数設備へ分割しない（R で旧 BE 継承）。
 5. 設備台数はレシピのペアごとに `需要レート ÷ (60/CycleTime × 出力数量)` の実数を求め、設備単位に合算して切上げ台数を併記する。
 6. 環境計上（I）: 稼働が確定したペアの `EnvironmentId` ごとに散布機台数を確定する。既定はその環境を必要とする稼働中レシピ数（レシピにつき 1 台）、ユーザー上書きを優先する。散布機は設備要件・消費電力に計上し、`ConsumeRatePerMinute × 台数` を環境の消費アイテム需要へ追加する（単位は AF）。
@@ -169,7 +169,7 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 ### Phase 9: 用語・単位の整理（PR: 基礎素材→採取素材の改称＋レート単位の毎分統一）
 
 - [ ] 「基礎素材」→「採取素材」の改称（仕様決定 AB）。`Item.IsBaseMaterial` → `IsGatherable`、`SupplyKind.RawMaterial` → `Gathered`、JSON フィールド名・`Category` 値・UI ラベル・テスト・フィクスチャを追従する
-- [ ] レート単位の毎分統一（仕様決定 AF）。`Environment.ConsumeRatePerSecond` → `ConsumeRatePerMinute`、`FixedConsumption.RatePerSecond` → `RatePerMinute`。`data/master.json` の値を換算（6 → 360）、計算内の ×60 換算を除去し、Admin 入力ラベルと App の表示を個/分へ追従する
+- [ ] レート単位の毎分統一（仕様決定 AF）。`Environment.ConsumeRatePerSecond` → `ConsumeRatePerMinute`、`FixedConsumption.RatePerSecond` → `RatePerMinute`。`data/master.json` の値を換算（6 → 360）、計算内の ×60 換算を除去する。出力側も `EnvironmentRequirement.ConsumeRatePerSecondTotal` → `ConsumeRatePerMinuteTotal` に改名して個/分へ統一し、Admin 入力ラベルと App の表示を個/分へ追従する
 - [ ] `SchemaVersion` は 1 のままとする（仕様決定 AF）
 - **受け入れ条件**: `dotnet test` 全緑、`tools/validate_master.py` 通過。挙動変更を伴わない改名・単位変換のみ。
 
@@ -182,7 +182,7 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 
 ### Phase 11: 採取上限の計算（PR: 上限・代替レシピ展開・警告・ユーザー上書き）
 
-- [ ] 計算入力に `ContextFilter.MapId` と `GatherRateOverride[]` を追加し、`ProductionCalculator` の採取素材終端処理を変更する（仕様決定 AD）。有効採取レート（上書き → マップ行 → 未定義は 0、無限行は上限なし、マップ未選択は無制限）までを採取とし、超過分を当該アイテムを産出するレシピへ展開、代替レシピなしなら未充足＋警告コード `GatherCapExceeded` とする
+- [ ] 計算入力に `ContextFilter.MapId` と `GatherRateOverride[]` を追加し、`ProductionCalculator` の採取素材終端処理を変更する（仕様決定 AD）。有効採取レート（上書き → マップ行 → 未定義は 0、無限行は上限なし、マップ未選択は無制限）までを採取とし、超過分を当該アイテムを産出するレシピへ展開、代替レシピなしなら未充足＋警告コード `GatherCapExceeded` とする。非有効イベント所属のマップが選択状態で残った場合は全採取素材を採取不可（上限 0）として警告する
 - [ ] 採取素材を上限まで採取し超過をレシピへ展開する採取優先へ変更する（従来のレシピ優先からの仕様変更。`FIX-03` 系の期待値を更新）
 - [ ] `CalculationService` の引数に採取上書きを追加し、入力ビルダ（`CalculationInputBuilder` への採取レート入力パース）を Application に追加する
 - [ ] Domain テストに ID 採番の新規ケースを追加する（上限内は採取、超過はレシピ、代替なしは未充足＋警告、ユーザー上書き、マップ未選択、未定義アイテム、無限行、連鎖展開・副産物・循環との相互作用）
