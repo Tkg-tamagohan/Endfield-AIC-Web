@@ -34,5 +34,6 @@ dotnet run --project src/EndfieldAicWeb.Admin   # 管理ツールを起動
 * ソースコードは [MIT License](LICENSE) で公開する。
 * `data/icons/` 配下のアイコン画像は作者の自作であり、MIT License の対象外とする（All rights reserved）。本アプリケーション外での複製・改変・再配布は許可しない。
 * 同梱のサードパーティ製ライブラリ（Bootstrap・UPNG.js・pako など）は、それぞれのライセンスに従う。
+* `src/*/wwwroot/` の `favicon.png`・`icon-192.png` は .NET の Blazor WebAssembly テンプレートの既定画像であり、.NET Foundation の MIT License に従う。
 * 本アプリケーションは『アークナイツ：エンドフィールド（Arknights: Endfield）』の非公式ファンツールであり、株式会社Hypergryphおよび関連会社とは一切関係ありません。
 * 本アプリケーション内で使用・参照されているゲーム内の名称、データ、および世界観等に関する著作権および知的財産権は、すべて原著作者（Hypergryph）に帰属します。
