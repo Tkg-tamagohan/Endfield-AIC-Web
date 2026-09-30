@@ -28,7 +28,7 @@ public class AdminToolsTests
         ],
         Environments =
         [
-            ApplicationFixtures.Env("env-gas", "ガス環境", "f-disp", "i-gas", 6, "ev-on"),
+            ApplicationFixtures.Env("env-gas", "ガス環境", "f-disp", "i-gas", 360, "ev-on"),
         ],
         GameEvents =
         [
