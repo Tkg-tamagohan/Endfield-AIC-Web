@@ -34,10 +34,10 @@
         { "$ref": "#/$defs/commonAttributes" },
         {
           "type": "object",
-          "required": ["Category", "IsBaseMaterial", "TransportKind", "GameEventId"],
+          "required": ["Category", "IsGatherable", "TransportKind", "GameEventId"],
           "properties": {
             "Category": { "type": "string", "minLength": 1, "description": "表示用の分類タグ（計算の判定には使わない）" },
-            "IsBaseMaterial": { "type": "boolean", "description": "需要展開の終端となる基礎素材か（true なら外部調達扱い）" },
+            "IsGatherable": { "type": "boolean", "description": "需要展開の終端となる採取素材か（true なら外部調達扱い）" },
             "TransportKind": { "enum": ["None", "Belt", "Pipe"], "description": "None は仮想アイテム（輸送容量対象外）" },
             "GameEventId": { "type": ["string", "null"], "description": "null=常設" }
           }
@@ -65,11 +65,11 @@
         { "$ref": "#/$defs/commonAttributes" },
         {
           "type": "object",
-          "required": ["ProviderFacilityId", "ConsumeItemId", "ConsumeRatePerSecond", "GameEventId"],
+          "required": ["ProviderFacilityId", "ConsumeItemId", "ConsumeRatePerMinute", "GameEventId"],
           "properties": {
             "ProviderFacilityId": { "type": "string", "minLength": 1 },
             "ConsumeItemId": { "type": "string", "minLength": 1 },
-            "ConsumeRatePerSecond": { "type": "number", "exclusiveMinimum": 0 },
+            "ConsumeRatePerMinute": { "type": "number", "exclusiveMinimum": 0 },
             "GameEventId": { "type": ["string", "null"] }
           }
         }
@@ -111,11 +111,11 @@
     },
     "fixedConsumption": {
       "type": "object",
-      "required": ["ItemId", "RatePerSecond"],
+      "required": ["ItemId", "RatePerMinute"],
       "additionalProperties": false,
       "properties": {
         "ItemId": { "type": "string", "minLength": 1 },
-        "RatePerSecond": { "type": "number", "exclusiveMinimum": 0 }
+        "RatePerMinute": { "type": "number", "exclusiveMinimum": 0 }
       }
     },
     "recipeFacility": {

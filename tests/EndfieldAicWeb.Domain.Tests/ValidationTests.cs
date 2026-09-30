@@ -15,9 +15,9 @@ public class ValidationTests
         List<Environment> Environments,
         List<GameEvent> GameEvents,
         List<Recipe> Recipes) ValidBaseline() => (
-        [F.Item("i-ore", "基礎素材", TransportKind.Belt, null, true), F.Item("i-p")],
+        [F.Item("i-ore", "採取素材", TransportKind.Belt, null, true), F.Item("i-p")],
         [F.Facility("f-a"), F.Facility("f-disp")],
-        [F.Env("env-g", "f-disp", "i-ore", 1.0)],
+        [F.Env("env-g", "f-disp", "i-ore", 60.0)],
         [F.GameEvent("ev-1")],
         [
             F.Recipe("r-p", [F.Pair("r-p", "f-a", 4.0, "env-g")],
@@ -83,7 +83,7 @@ public class ValidationTests
             List<GameEvent> gameEvents, List<Recipe> recipes) = ValidBaseline();
 
         items.Add(F.Item("i-ev", "部品", TransportKind.Belt, "ev-none"));
-        environments.Add(F.Env("env-bad", "f-none", "i-none", 1.0, "ev-none"));
+        environments.Add(F.Env("env-bad", "f-none", "i-none", 60.0, "ev-none"));
         recipes.Add(F.Recipe("r-bad", [
                 F.Pair("r-bad", "f-none", 4.0, "env-none", ("i-none3", 1.0)),
             ],
@@ -248,7 +248,7 @@ public class ValidationTests
     {
         (List<Item> items, List<Facility> facilities, List<Environment> environments,
             List<GameEvent> gameEvents, List<Recipe> recipes) = ValidBaseline();
-        items.Add(F.Item("i-ore", "基礎素材", TransportKind.Belt, null, true));
+        items.Add(F.Item("i-ore", "採取素材", TransportKind.Belt, null, true));
 
         List<MasterValidationError> errors = Errs(items, facilities, environments, gameEvents, recipes);
 
@@ -269,7 +269,7 @@ public class ValidationTests
             new Environment
             {
                 Id = "e-1", Name = "n", VersionAdded = "1.0.0",
-                ProviderFacilityId = "f-a", ConsumeItemId = "i-1", ConsumeRatePerSecond = 0,
+                ProviderFacilityId = "f-a", ConsumeItemId = "i-1", ConsumeRatePerMinute = 0,
             }, errors);
         MasterValidator.ValidateRecipe(
             F.Recipe("r-1", [F.Pair("r-1", "f-a", 0.0)],
@@ -284,10 +284,10 @@ public class ValidationTests
         Assert.Contains(errors, e => e.Field == "Width");
         Assert.Contains(errors, e => e.Field == "Height");
         Assert.Contains(errors, e => e.Field == "PowerConsumption");
-        Assert.Contains(errors, e => e.Field == "ConsumeRatePerSecond");
+        Assert.Contains(errors, e => e.Field == "ConsumeRatePerMinute");
         Assert.Contains(errors, e => e.Field == "Facilities[0].CycleTime");
         Assert.Contains(errors, e => e.Field == "Inputs[0].Quantity");
-        Assert.Contains(errors, e => e.Field == "Facilities[0].FixedConsumption.RatePerSecond");
+        Assert.Contains(errors, e => e.Field == "Facilities[0].FixedConsumption.RatePerMinute");
     }
 
     [Fact(DisplayName = "VAL-13: ペア 0 件のレシピはエラー")]

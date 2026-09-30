@@ -111,7 +111,7 @@ internal static class MasterJsonReader
                 VersionAdded = e.VersionAdded!,
                 VersionRemoved = e.VersionRemoved,
                 Category = e.Category!,
-                IsBaseMaterial = e.IsBaseMaterial!.Value,
+                IsGatherable = e.IsGatherable!.Value,
                 TransportKind = Enum.Parse<TransportKind>(e.TransportKind!),
                 GameEventId = e.GameEventId,
             }).ToList(),
@@ -137,7 +137,7 @@ internal static class MasterJsonReader
                 VersionRemoved = e.VersionRemoved,
                 ProviderFacilityId = e.ProviderFacilityId!,
                 ConsumeItemId = e.ConsumeItemId!,
-                ConsumeRatePerSecond = e.ConsumeRatePerSecond!.Value,
+                ConsumeRatePerMinute = e.ConsumeRatePerMinute!.Value,
                 GameEventId = e.GameEventId,
             }).ToList(),
             GameEvents = document.GameEvents!.Select(e => new GameEvent
@@ -182,7 +182,7 @@ internal static class MasterJsonReader
                         : new FixedConsumption
                         {
                             ItemId = p.FixedConsumption.ItemId!,
-                            RatePerSecond = p.FixedConsumption.RatePerSecond!.Value,
+                            RatePerMinute = p.FixedConsumption.RatePerMinute!.Value,
                         },
                 }).ToList(),
             }).ToList(),
@@ -279,10 +279,10 @@ internal static class MasterJsonReader
         RequireField(item!.Id, $"{location}.Id", "Item", item.Id ?? "", errors);
         RequireField(item.Name, $"{location}.Name", "Item", item.Id ?? "", errors);
         RequireField(item.Category, $"{location}.Category", "Item", item.Id ?? "", errors);
-        if (item.IsBaseMaterial is null)
+        if (item.IsGatherable is null)
         {
             errors.Add(new MasterValidationError(
-                "Item", item.Id ?? "", "IsBaseMaterial", $"{location}.IsBaseMaterial は必須です。"));
+                "Item", item.Id ?? "", "IsGatherable", $"{location}.IsGatherable は必須です。"));
         }
 
         RequireEnum<TransportKind>(item.TransportKind, $"{location}.TransportKind", "Item", item.Id ?? "", errors);
@@ -307,7 +307,7 @@ internal static class MasterJsonReader
         RequireField(environment.Name, $"{location}.Name", "Environment", environment.Id ?? "", errors);
         RequireField(environment.ProviderFacilityId, $"{location}.ProviderFacilityId", "Environment", environment.Id ?? "", errors);
         RequireField(environment.ConsumeItemId, $"{location}.ConsumeItemId", "Environment", environment.Id ?? "", errors);
-        RequireNumber(environment.ConsumeRatePerSecond, $"{location}.ConsumeRatePerSecond", "Environment", environment.Id ?? "", errors);
+        RequireNumber(environment.ConsumeRatePerMinute, $"{location}.ConsumeRatePerMinute", "Environment", environment.Id ?? "", errors);
         RequirePresent(environment.Description, $"{location}.Description", "Environment", environment.Id ?? "", errors);
         RejectUnknownProperties(environment.ExtensionData, location, "Environment", environment.Id ?? "", errors);
     }
@@ -407,8 +407,8 @@ internal static class MasterJsonReader
                     RequireField(
                         fixedConsumption.ItemId, $"{pairLocation}.FixedConsumption.ItemId", "Recipe", id, errors);
                     RequireNumber(
-                        fixedConsumption.RatePerSecond,
-                        $"{pairLocation}.FixedConsumption.RatePerSecond",
+                        fixedConsumption.RatePerMinute,
+                        $"{pairLocation}.FixedConsumption.RatePerMinute",
                         "Recipe",
                         id,
                         errors);

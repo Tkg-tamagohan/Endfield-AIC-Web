@@ -17,7 +17,7 @@ public class SnapshotFactoryTests
             DataVersion = "test",
             Items = [new Item { Id = "i-1", Name = "素材", Category = "", VersionAdded = "1.0.0" }],
             Facilities = [new Facility { Id = "f-1", Name = "設備", PowerConsumption = 10, VersionAdded = "1.0.0" }],
-            Environments = [new DomainEnvironment { Id = "env-1", Name = "環境", ProviderFacilityId = "f-1", ConsumeItemId = "i-1", ConsumeRatePerSecond = 1, VersionAdded = "1.0.0" }],
+            Environments = [new DomainEnvironment { Id = "env-1", Name = "環境", ProviderFacilityId = "f-1", ConsumeItemId = "i-1", ConsumeRatePerMinute = 60, VersionAdded = "1.0.0" }],
             GameEvents = [new GameEvent { Id = "ev-1", Name = "イベント", VersionAdded = "1.0.0" }],
             Recipes = [new Recipe { Id = "r-1", Name = "レシピ", VersionAdded = "1.0.0" }],
         };
@@ -40,7 +40,7 @@ public class SnapshotFactoryTests
             SchemaVersion = 1,
             DataVersion = "test",
             Items = [
-                new Item { Id = "i-u", Name = "上流素材", Category = "", IsBaseMaterial = true, VersionAdded = "1.0.0" },
+                new Item { Id = "i-u", Name = "上流素材", Category = "", IsGatherable = true, VersionAdded = "1.0.0" },
                 new Item { Id = "i-p", Name = "加工品", Category = "", VersionAdded = "1.0.0" },
             ],
             Facilities = [new Facility { Id = "f-1", Name = "加工機", PowerConsumption = 10, VersionAdded = "1.0.0" }],

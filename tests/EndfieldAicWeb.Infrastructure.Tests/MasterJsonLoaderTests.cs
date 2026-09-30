@@ -174,8 +174,8 @@ public class MasterJsonLoaderTests
     [Theory(DisplayName = "STR-08: 必須フィールド欠落はそれぞれエラー")]
     [InlineData("Width")]
     [InlineData("CycleTime")]
-    [InlineData("IsBaseMaterial")]
-    [InlineData("ConsumeRatePerSecond")]
+    [InlineData("IsGatherable")]
+    [InlineData("ConsumeRatePerMinute")]
     [InlineData("SortOrder")]
     public void MissingRequiredField_ReturnsError(string field)
     {
@@ -190,11 +190,11 @@ public class MasterJsonLoaderTests
                     root["Recipes"]!.AsArray()[0]!.AsObject()["Facilities"]!
                         .AsArray()[0]!.AsObject().Remove("CycleTime");
                     break;
-                case "IsBaseMaterial":
-                    root["Items"]!.AsArray()[0]!.AsObject().Remove("IsBaseMaterial");
+                case "IsGatherable":
+                    root["Items"]!.AsArray()[0]!.AsObject().Remove("IsGatherable");
                     break;
-                case "ConsumeRatePerSecond":
-                    root["Environments"]!.AsArray()[0]!.AsObject().Remove("ConsumeRatePerSecond");
+                case "ConsumeRatePerMinute":
+                    root["Environments"]!.AsArray()[0]!.AsObject().Remove("ConsumeRatePerMinute");
                     break;
                 case "SortOrder":
                     root["Recipes"]!.AsArray()[0]!.AsObject()["Outputs"]!
@@ -222,9 +222,9 @@ public class MasterJsonLoaderTests
         Assert.Contains(result.Errors, e => e.Message.Contains("SortOrder"));
     }
 
-    [Theory(DisplayName = "STR-10: FixedConsumption の ItemId・RatePerSecond 欠落はそれぞれエラー")]
+    [Theory(DisplayName = "STR-10: FixedConsumption の ItemId・RatePerMinute 欠落はそれぞれエラー")]
     [InlineData("ItemId")]
-    [InlineData("RatePerSecond")]
+    [InlineData("RatePerMinute")]
     public void MissingFixedConsumptionField_ReturnsError(string field)
     {
         string json = TestJson.Mutate(root =>
@@ -406,8 +406,8 @@ public class MasterJsonLoaderTests
     [InlineData("CycleTime", 0.0)]
     [InlineData("Width", -1.0)]
     [InlineData("Quantity", 0.0)]
-    [InlineData("ConsumeRatePerSecond", 0.0)]
-    [InlineData("RatePerSecond", -0.5)]
+    [InlineData("ConsumeRatePerMinute", 0.0)]
+    [InlineData("RatePerMinute", -0.5)]
     [InlineData("PowerConsumption", -1.0)]
     public void OutOfRangeNumber_ReturnsError(string field, double value)
     {
@@ -426,13 +426,13 @@ public class MasterJsonLoaderTests
                     root["Recipes"]!.AsArray()[0]!.AsObject()["Inputs"]!
                         .AsArray()[0]!.AsObject()["Quantity"] = value;
                     break;
-                case "ConsumeRatePerSecond":
-                    root["Environments"]!.AsArray()[0]!.AsObject()["ConsumeRatePerSecond"] = value;
+                case "ConsumeRatePerMinute":
+                    root["Environments"]!.AsArray()[0]!.AsObject()["ConsumeRatePerMinute"] = value;
                     break;
-                case "RatePerSecond":
+                case "RatePerMinute":
                     root["Recipes"]!.AsArray()[0]!.AsObject()["Facilities"]!
                         .AsArray()[1]!.AsObject()["FixedConsumption"]!
-                        .AsObject()["RatePerSecond"] = value;
+                        .AsObject()["RatePerMinute"] = value;
                     break;
                 case "PowerConsumption":
                     root["Facilities"]!.AsArray()[0]!.AsObject()["PowerConsumption"] = value;
@@ -485,5 +485,32 @@ public class MasterJsonLoaderTests
         Assert.False(result.Success);
         Assert.NotEmpty(result.Errors);
         Assert.NotNull(result.Document);
+    }
+
+    // ---------- REN: Phase 9 改称の I/O 契約 ----------
+
+    [Fact(DisplayName = "REN-01: 旧フィールド名の JSON は読み込み失敗")]
+    public void LegacyFieldNames_ReturnsErrors()
+    {
+        string json = TestJson.Mutate(root =>
+        {
+            JsonObject item = root["Items"]!.AsArray()[0]!.AsObject();
+            item.Remove("IsGatherable");
+            item["IsBaseMaterial"] = true;
+
+            JsonObject environment = root["Environments"]!.AsArray()[0]!.AsObject();
+            environment.Remove("ConsumeRatePerMinute");
+            environment["ConsumeRatePerSecond"] = 360.0;
+
+            JsonObject fixedConsumption = root["Recipes"]!.AsArray()[0]!.AsObject()["Facilities"]!
+                .AsArray()[1]!.AsObject()["FixedConsumption"]!.AsObject();
+            fixedConsumption.Remove("RatePerMinute");
+            fixedConsumption["RatePerSecond"] = 30.0;
+        });
+
+        MasterJsonLoadResult result = MasterJsonLoader.Load(json);
+
+        Assert.False(result.Success);
+        Assert.NotEmpty(result.Errors);
     }
 }

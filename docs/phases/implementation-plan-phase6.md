@@ -49,11 +49,11 @@ Phase 4 と同じシェル（`site-header`・`site-main`・`site-footer`）と�
 | ページ | 内容 |
 |---|---|
 | `/` | 読み込みブロック（同梱/URL/ファイル）、現在の文書情報（DataVersion・件数）、検証実行・結果一覧、DataVersion 入力とエクスポートボタン |
-| `/items` | 一覧（名前・Id・カテゴリで部分一致検索、新規、削除）＋編集フォーム（共通属性・Category・IsBaseMaterial・TransportKind・GameEventId） |
+| `/items` | 一覧（名前・Id・カテゴリで部分一致検索、新規、削除）＋編集フォーム（共通属性・Category・IsGatherable・TransportKind・GameEventId） |
 | `/facilities` | 同上＋編集フォーム（共通属性・Width・Height・PowerConsumption） |
-| `/environments` | 同上＋編集フォーム（共通属性・ProviderFacilityId・ConsumeItemId・ConsumeRatePerSecond・GameEventId） |
+| `/environments` | 同上＋編集フォーム（共通属性・ProviderFacilityId・ConsumeItemId・ConsumeRatePerMinute・GameEventId） |
 | `/events` | 同上＋編集フォーム（共通属性・ActiveFrom・ActiveTo。空欄は期間なし・常設） |
-| `/recipes` | 同上＋編集フォーム（共通属性・GameEventId・Inputs・Outputs（SortOrder つき）・Facilities ペア（FacilityId・CycleTime・EnvironmentId・FixedConsumption の有無と ItemId/RatePerSecond）） |
+| `/recipes` | 同上＋編集フォーム（共通属性・GameEventId・Inputs・Outputs（SortOrder つき）・Facilities ペア（FacilityId・CycleTime・EnvironmentId・FixedConsumption の有無と ItemId/RatePerMinute）） |
 | `/preview` | 目標行（アイテム＋個/分）・有効イベントの切替・計算ボタン、素材・設備・環境（dispenser 台数付き）・電力・余剰・警告の表示（`ResultViewBuilder`、調整済/未調整の表示切替は公開アプリと同じ構成） |
 
 ### 編集フォームの規則

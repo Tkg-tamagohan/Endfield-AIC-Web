@@ -128,7 +128,7 @@ public static class PairSelector
             .OrderBy(p => p.CycleTime)
             .ThenBy(p => p.EnvironmentId is null ? 0 : 1)
             .ThenBy(p => p.FixedConsumption is null ? 0 : 1)
-            .ThenBy(p => p.FixedConsumption?.RatePerSecond ?? 0)
+            .ThenBy(p => p.FixedConsumption?.RatePerMinute ?? 0)
             .ThenBy(p => p.FacilityId, StringComparer.Ordinal)
             .ToList();
     }
@@ -218,7 +218,7 @@ public static class PairSelector
             return a is null && b is null;
         }
 
-        return a.ItemId == b.ItemId && a.RatePerSecond == b.RatePerSecond;
+        return a.ItemId == b.ItemId && a.RatePerMinute == b.RatePerMinute;
     }
 
     private static bool IsPairEligible(

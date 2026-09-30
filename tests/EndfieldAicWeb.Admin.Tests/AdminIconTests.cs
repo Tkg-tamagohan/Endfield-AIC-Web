@@ -38,7 +38,7 @@ public class AdminIconTests
                 new DomainEnvironment
                 {
                     Id = "env-gas", Name = "ガス環境", ProviderFacilityId = "f-asm",
-                    ConsumeItemId = "i-ore", ConsumeRatePerSecond = 1, VersionAdded = "1.0.0",
+                    ConsumeItemId = "i-ore", ConsumeRatePerMinute = 60, VersionAdded = "1.0.0",
                 },
             ],
             GameEvents =

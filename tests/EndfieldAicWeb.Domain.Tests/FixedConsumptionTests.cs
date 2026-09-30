@@ -15,7 +15,7 @@ public class FixedConsumptionTests
         Assert.Equal(5.0, Fac(plan, "f-fc").ExactCount, Precision);
         Assert.Equal(5, Fac(plan, "f-fc").CeilCount);
         Assert.Equal(30.0, Req(plan, "i-fuel").RequiredPerMinute, Precision);
-        Assert.Equal(30.0, Supplied(plan, "i-fuel", SupplyKind.RawMaterial), Precision);
+        Assert.Equal(30.0, Supplied(plan, "i-fuel", SupplyKind.Gathered), Precision);
     }
 
     [Fact(DisplayName = "FIX-02: 基準は実数でなく切上台数")]

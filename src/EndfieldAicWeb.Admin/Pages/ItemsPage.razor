@@ -30,10 +30,10 @@ else
                     <label>カテゴリ</label>
                     <input class="input" value="@_selected.Category" @onchange="e => ApplyText(v => _selected.Category = v, e)" />
 
-                    <label>基礎素材</label>
+                    <label>採取素材</label>
                     <span class="check">
-                        <input type="checkbox" checked="@_selected.IsBaseMaterial"
-                               @onchange="e => ApplyBool(v => _selected.IsBaseMaterial = v, e)" />
+                        <input type="checkbox" checked="@_selected.IsGatherable"
+                               @onchange="e => ApplyBool(v => _selected.IsGatherable = v, e)" />
                         <span>外部調達扱い（需要展開の終端）</span>
                     </span>
 

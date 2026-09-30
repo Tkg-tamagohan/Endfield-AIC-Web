@@ -13,7 +13,7 @@ public enum WarningCode
     /// <summary>需要展開で循環依存を検出し打ち切った。</summary>
     CycleDetected,
 
-    /// <summary>選択可能なレシピが存在しないアイテム（基礎素材以外）。</summary>
+    /// <summary>選択可能なレシピが存在しないアイテム（採取素材以外）。</summary>
     NoRecipeAvailable,
 
     /// <summary>アイテム流量が輸送媒体（ベルト30個/s、パイプ60個/s）の容量を超過。</summary>

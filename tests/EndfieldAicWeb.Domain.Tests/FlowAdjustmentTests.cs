@@ -61,7 +61,7 @@ public class FlowAdjustmentTests
             [
                 CalculationFixtures.Item("i-a"),
                 CalculationFixtures.Item("i-b"),
-                CalculationFixtures.Item("i-ore", "基礎素材", TransportKind.Belt, null, true),
+                CalculationFixtures.Item("i-ore", "採取素材", TransportKind.Belt, null, true),
             ],
             [CalculationFixtures.Facility("f-sh")],
             [
@@ -86,7 +86,7 @@ public class FlowAdjustmentTests
             [
                 CalculationFixtures.Item("i-a"),
                 CalculationFixtures.Item("i-b"),
-                CalculationFixtures.Item("i-ore", "基礎素材", TransportKind.Belt, null, true),
+                CalculationFixtures.Item("i-ore", "採取素材", TransportKind.Belt, null, true),
             ],
             [CalculationFixtures.Facility("f-sh")],
             [

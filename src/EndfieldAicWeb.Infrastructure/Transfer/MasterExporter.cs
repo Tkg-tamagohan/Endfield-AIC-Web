@@ -213,7 +213,7 @@ public static class MasterExporter
         VersionAdded = e.VersionAdded,
         VersionRemoved = e.VersionRemoved,
         Category = e.Category,
-        IsBaseMaterial = e.IsBaseMaterial,
+        IsGatherable = e.IsGatherable,
         TransportKind = e.TransportKind.ToString(),
         GameEventId = e.GameEventId,
     };
@@ -241,7 +241,7 @@ public static class MasterExporter
         VersionRemoved = e.VersionRemoved,
         ProviderFacilityId = e.ProviderFacilityId,
         ConsumeItemId = e.ConsumeItemId,
-        ConsumeRatePerSecond = e.ConsumeRatePerSecond,
+        ConsumeRatePerMinute = e.ConsumeRatePerMinute,
         GameEventId = e.GameEventId,
     };
 
@@ -287,7 +287,7 @@ public static class MasterExporter
                 : new FixedConsumptionJson
                 {
                     ItemId = p.FixedConsumption.ItemId,
-                    RatePerSecond = p.FixedConsumption.RatePerSecond,
+                    RatePerMinute = p.FixedConsumption.RatePerMinute,
                 },
         }).ToList(),
     };

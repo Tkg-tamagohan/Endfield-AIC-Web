@@ -43,7 +43,7 @@ internal abstract class EntityJson
 internal sealed class ItemJson : EntityJson
 {
     public required string? Category { get; set; }
-    public required bool? IsBaseMaterial { get; set; }
+    public required bool? IsGatherable { get; set; }
     public required string? TransportKind { get; set; }
     public required string? GameEventId { get; set; }
 }
@@ -59,7 +59,7 @@ internal sealed class EnvironmentJson : EntityJson
 {
     public required string? ProviderFacilityId { get; set; }
     public required string? ConsumeItemId { get; set; }
-    public required double? ConsumeRatePerSecond { get; set; }
+    public required double? ConsumeRatePerMinute { get; set; }
     public required string? GameEventId { get; set; }
 }
 
@@ -111,7 +111,7 @@ internal sealed class RecipeFacilityJson
 internal sealed class FixedConsumptionJson
 {
     public required string? ItemId { get; set; }
-    public required double? RatePerSecond { get; set; }
+    public required double? RatePerMinute { get; set; }
 
     [JsonExtensionData]
     public IDictionary<string, JsonElement>? ExtensionData { get; set; }

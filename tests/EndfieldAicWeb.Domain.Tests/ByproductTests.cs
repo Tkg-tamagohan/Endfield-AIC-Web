@@ -71,7 +71,7 @@ public class ByproductTests
             CalculationFixtures.F05WithPartialByproduct(), [("i-q", 20.0), ("i-p", 15.0)]);
 
         Assert.Equal(5.0, RunOf(plan, "r-q")!.CyclesPerMinute, Precision);
-        Assert.Equal(15.0, Supplied(plan, "i-oreq", SupplyKind.RawMaterial), Precision);
+        Assert.Equal(15.0, Supplied(plan, "i-oreq", SupplyKind.Gathered), Precision);
         Assert.Equal(0.0, Req(plan, "i-q").UnmetPerMinute, Precision);
     }
 

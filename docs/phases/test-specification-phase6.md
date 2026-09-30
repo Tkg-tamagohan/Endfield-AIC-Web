@@ -25,7 +25,7 @@
 
 削除前の参照列挙を試すための `MasterDocument`（要件 §7 の編集対象と同じ構造）。
 
-- アイテム: `i-ore`（基礎素材）、`i-gas`（Pipe）、`i-part`（イベント `ev-on` 所属）、`i-fc`（固定消費用）
+- アイテム: `i-ore`（採取素材）、`i-gas`（Pipe）、`i-part`（イベント `ev-on` 所属）、`i-fc`（固定消費用）
 - 設備: `f-asm`、`f-disp`
 - 環境: `env-gas`（供給設備 `f-disp`、消費アイテム `i-gas`、イベント `ev-on` 所属）
 - イベント: `ev-on`

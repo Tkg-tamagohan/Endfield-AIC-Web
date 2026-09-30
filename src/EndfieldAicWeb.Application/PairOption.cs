@@ -38,7 +38,7 @@ public static class PairOptionKey
             Encode(pair.CycleTime.ToString("G17", CultureInfo.InvariantCulture)),
             Encode(pair.EnvironmentId ?? ""),
             Encode(pair.FixedConsumption?.ItemId ?? ""),
-            Encode((pair.FixedConsumption?.RatePerSecond ?? 0).ToString("G17", CultureInfo.InvariantCulture)));
+            Encode((pair.FixedConsumption?.RatePerMinute ?? 0).ToString("G17", CultureInfo.InvariantCulture)));
 
     public static string Create(Recipe recipe, RecipeFacility pair) => Create(recipe.Id, pair);
 

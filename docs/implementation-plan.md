@@ -168,9 +168,9 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 
 ### Phase 9: 用語・単位の整理（PR: 基礎素材→採取素材の改称＋レート単位の毎分統一）
 
-- [ ] 「基礎素材」→「採取素材」の改称（仕様決定 AB）。`Item.IsBaseMaterial` → `IsGatherable`、`SupplyKind.RawMaterial` → `Gathered`、JSON フィールド名・`Category` 値・UI ラベル・テスト・フィクスチャを追従する
-- [ ] レート単位の毎分統一（仕様決定 AF）。`Environment.ConsumeRatePerSecond` → `ConsumeRatePerMinute`、`FixedConsumption.RatePerSecond` → `RatePerMinute`。`data/master.json` の値を換算（6 → 360）、計算内の ×60 換算を除去する。出力側も `EnvironmentRequirement.ConsumeRatePerSecondTotal` → `ConsumeRatePerMinuteTotal` に改名して個/分へ統一し、Admin 入力ラベルと App の表示を個/分へ追従する
-- [ ] `SchemaVersion` は 1 のままとする（仕様決定 AF）
+- [x] 「基礎素材」→「採取素材」の改称（仕様決定 AB）。`Item.IsBaseMaterial` → `IsGatherable`、`SupplyKind.RawMaterial` → `Gathered`、JSON フィールド名・`Category` 値・UI ラベル・テスト・フィクスチャを追従する
+- [x] レート単位の毎分統一（仕様決定 AF）。`Environment.ConsumeRatePerSecond` → `ConsumeRatePerMinute`、`FixedConsumption.RatePerSecond` → `RatePerMinute`。`data/master.json` の値を換算（6 → 360）、計算内の ×60 換算を除去する。出力側も `EnvironmentRequirement.ConsumeRatePerSecondTotal` → `ConsumeRatePerMinuteTotal` に改名して個/分へ統一し、Admin 入力ラベルと App の表示を個/分へ追従する
+- [x] `SchemaVersion` は 1 のままとする（仕様決定 AF）
 - **受け入れ条件**: `dotnet test` 全緑、`tools/validate_master.py` 通過。挙動変更を伴わない改名・単位変換のみ。
 
 ### Phase 10: マップモデル（PR: GameMap＋スキーマ＋管理ツールのマップ編集）

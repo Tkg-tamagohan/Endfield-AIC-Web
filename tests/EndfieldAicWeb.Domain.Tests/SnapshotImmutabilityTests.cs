@@ -14,7 +14,7 @@ public class SnapshotImmutabilityTests
     {
         var items = new List<Item> { F.Item("i-1") };
         var facilities = new List<Facility> { F.Facility("f-1") };
-        var environments = new List<Environment> { F.Env("env-1", "f-1", "i-1", 1.0) };
+        var environments = new List<Environment> { F.Env("env-1", "f-1", "i-1", 60.0) };
         var gameEvents = new List<GameEvent> { F.GameEvent("ev-1") };
         var recipes = new List<Recipe>
         {

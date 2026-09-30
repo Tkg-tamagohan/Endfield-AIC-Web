@@ -367,7 +367,7 @@ public static class ProductionCalculator
 
             if (selection is null)
             {
-                if (IsRawMaterial(itemId))
+                if (IsGatherable(itemId))
                 {
                     Raw[itemId] = Get(Raw, itemId) + net;
                 }
@@ -424,8 +424,8 @@ public static class ProductionCalculator
             _stackSet.Remove(itemId);
         }
 
-        private bool IsRawMaterial(string itemId) =>
-            _master.ItemsById.TryGetValue(itemId, out Item? item) && item.IsBaseMaterial;
+        private bool IsGatherable(string itemId) =>
+            _master.ItemsById.TryGetValue(itemId, out Item? item) && item.IsGatherable;
 
         /// <summary>アイテムの所属イベントがコンテキスト上で非有効か（仕様決定 X）。</summary>
         internal bool IsItemInactive(string itemId) =>
@@ -486,8 +486,8 @@ public static class ProductionCalculator
         }
 
         /// <summary>
-        /// 環境の消費アイテム需要（ConsumeRatePerSecond×60×台数）と
-        /// 固定消費需要（RatePerSecond×60×設備の切上げ台数）の合計（個/分）。
+        /// 環境の消費アイテム需要（ConsumeRatePerMinute×台数）と
+        /// 固定消費需要（RatePerMinute×設備の切上げ台数）の合計（個/分）。
         /// </summary>
         private Dictionary<string, double> ComputeExtraDemand(FacilityCounts counts)
         {
@@ -500,7 +500,7 @@ public static class ProductionCalculator
                 }
 
                 extra[env.ConsumeItemId] = extra.GetValueOrDefault(env.ConsumeItemId)
-                    + env.ConsumeRatePerSecond * 60.0 * count;
+                    + env.ConsumeRatePerMinute * count;
             }
 
             // 固定消費の乗数は Aggregate の FacilityRequirement と同じ「最終切上台数」。
@@ -528,7 +528,7 @@ public static class ProductionCalculator
                 int ceilCount = Ceil(counts.ExactByFacility.GetValueOrDefault(run.Pair.FacilityId)
                     + dispenserCountByFacility.GetValueOrDefault(run.Pair.FacilityId));
                 extra[fixedConsumption.ItemId] = extra.GetValueOrDefault(fixedConsumption.ItemId)
-                    + fixedConsumption.RatePerSecond * 60.0 * ceilCount;
+                    + fixedConsumption.RatePerMinute * ceilCount;
             }
 
             return extra;
@@ -583,7 +583,7 @@ public static class ProductionCalculator
             double raw = itemInactive ? 0 : GetFrom(session.Raw, itemId);
             if (raw > Epsilon)
             {
-                supplies.Add(new SupplyPortion(SupplyKind.RawMaterial, null, raw));
+                supplies.Add(new SupplyPortion(SupplyKind.Gathered, null, raw));
             }
 
             itemRequirements.Add(new ItemRequirement(
@@ -608,7 +608,7 @@ public static class ProductionCalculator
                 env.ProviderFacilityId,
                 dispenserCount,
                 env.ConsumeItemId,
-                env.ConsumeRatePerSecond * dispenserCount));
+                env.ConsumeRatePerMinute * dispenserCount));
 
             // 散布機は設備要件・消費電力に計上する（実数=切上げの指定台数）。
             exactByFacility[env.ProviderFacilityId] =

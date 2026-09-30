@@ -80,7 +80,7 @@ public class PairOptionTests
     [Fact]
     public void ToOverrideCarriesFullPairIdentity()
     {
-        var fc = new FixedConsumption { ItemId = "i-fuel", RatePerSecond = 0.5 };
+        var fc = new FixedConsumption { ItemId = "i-fuel", RatePerMinute = 30 };
         var option = new PairOption("key", "r-1", "f-1", 3.0, "env-1", fc, false);
 
         PairOverride actual = option.ToOverride("i-t");

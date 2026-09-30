@@ -57,7 +57,7 @@ public class PlanViewDefaultsTests
                 ApplicationFixtures.Item("i-gas", "活性ガス", TransportKind.Pipe),
             ],
             [ApplicationFixtures.Facility("f-a", "機A", 10), ApplicationFixtures.Facility("f-d", "散布機", 5)],
-            [ApplicationFixtures.Env("env-1", "環境1", "f-d", "i-gas", 1)],
+            [ApplicationFixtures.Env("env-1", "環境1", "f-d", "i-gas", 60)],
             [],
             [
                 ApplicationFixtures.Recipe("r-x", "中間品X", [("i-u", 1)], [("i-x", 1)],

@@ -18,20 +18,20 @@ internal static class ApplicationFixtures
             TransportKind = kind,
             VersionAdded = "1.0.0",
             GameEventId = eventId,
-            IsBaseMaterial = kind is TransportKind.Belt or TransportKind.Pipe,
+            IsGatherable = kind is TransportKind.Belt or TransportKind.Pipe,
         };
 
     public static Facility Facility(string id, string name, double power) =>
         new() { Id = id, Name = name, PowerConsumption = power, VersionAdded = "1.0.0" };
 
-    public static DomainEnvironment Env(string id, string name, string providerFacilityId, string consumeItemId, double ratePerSecond, string? eventId = null) =>
+    public static DomainEnvironment Env(string id, string name, string providerFacilityId, string consumeItemId, double ratePerMinute, string? eventId = null) =>
         new()
         {
             Id = id,
             Name = name,
             ProviderFacilityId = providerFacilityId,
             ConsumeItemId = consumeItemId,
-            ConsumeRatePerSecond = ratePerSecond,
+            ConsumeRatePerMinute = ratePerMinute,
             VersionAdded = "1.0.0",
             GameEventId = eventId,
         };
@@ -87,7 +87,7 @@ internal static class ApplicationFixtures
         return Snapshot(
             [Item("i-ore", "鉄鉱石"), Item("i-gas", "活性ガス", TransportKind.Pipe), Item("i-part", "汎用部品")],
             [Facility("f-asm", "加工機", 50), Facility("f-disp", "ガス散布機", 20)],
-            [Env("env-gas", "ガス散布", "f-disp", "i-gas", 6)],
+            [Env("env-gas", "ガス散布", "f-disp", "i-gas", 360)],
             [],
             [
                 Recipe("r-part", "汎用部品", [("i-ore", 2)], [("i-part", 1)],
@@ -136,7 +136,7 @@ internal static class ApplicationFixtures
         return Snapshot(
             [Item("i-u", "上流素材"), Item("i-x", "中間品X")],
             [Facility("f-a", "機A", 10), Facility("f-b", "機B", 10), Facility("f-disp", "散布機", 5)],
-            [Env("env-ltd", "限定環境", "f-disp", "i-u", 1, "ev-off")],
+            [Env("env-ltd", "限定環境", "f-disp", "i-u", 60, "ev-off")],
             [Event("ev-off", "終了イベント")],
             [
                 Recipe("r-x-main", "中間品X", [("i-u", 1)], [("i-x", 1)],

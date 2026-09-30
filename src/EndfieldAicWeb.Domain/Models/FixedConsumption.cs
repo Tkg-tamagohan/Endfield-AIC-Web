@@ -7,6 +7,6 @@ public class FixedConsumption
 {
     public required string ItemId { get; set; }
 
-    /// <summary>消費速度（個/s）。台数に比例して需要へ追加する。</summary>
-    public double RatePerSecond { get; set; }
+    /// <summary>消費速度（個/分）。台数に比例して需要へ追加する。</summary>
+    public double RatePerMinute { get; set; }
 }

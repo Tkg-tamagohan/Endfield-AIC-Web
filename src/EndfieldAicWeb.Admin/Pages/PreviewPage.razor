@@ -145,7 +145,7 @@ else
                         <div class="result-line">
                             <EntityIcon IconKey="@EnvIconKey(e.EnvironmentId)" />
                             <strong>@EnvName(e.EnvironmentId)</strong>
-                            <span class="muted"> @FacilityName(e.ProviderFacilityId) @e.DispenserCount 台 ・ @ItemName(e.ConsumeItemId) @e.ConsumeRatePerSecondTotal.ToString("0.##", CultureInfo.InvariantCulture) 個/s</span>
+                            <span class="muted"> @FacilityName(e.ProviderFacilityId) @e.DispenserCount 台 ・ @ItemName(e.ConsumeItemId) @e.ConsumeRatePerMinuteTotal.ToString("0.##", CultureInfo.InvariantCulture) 個/分</span>
                         </div>
                     }
                 }
@@ -330,7 +330,7 @@ else
     {
         SupplyKind.Recipe => $"レシピ {RecipeName(portion.RecipeId!)} {Fmt(portion.AmountPerMinute)} 個/分",
         SupplyKind.Byproduct => $"副産物 {RecipeName(portion.RecipeId!)} {Fmt(portion.AmountPerMinute)} 個/分",
-        _ => $"基礎素材 {Fmt(portion.AmountPerMinute)} 個/分",
+        _ => $"採取素材 {Fmt(portion.AmountPerMinute)} 個/分",
     };
 
     private string EventPeriod(GameEvent gameEvent)

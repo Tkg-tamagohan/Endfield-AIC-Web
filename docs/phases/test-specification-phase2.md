@@ -30,7 +30,7 @@
 
 | 種別 | Id | パラメータ |
 |---|---|---|
-| Item | `i-ore` | IsBaseMaterial=true、TransportKind=Belt |
+| Item | `i-ore` | IsGatherable=true、TransportKind=Belt |
 | Item | `i-part` | Category=部品、TransportKind=Belt |
 | Facility | `f-asm` | Width=3、Height=3、PowerConsumption=0 |
 | Recipe | `r-part` | ペア (f-asm, CycleTime=4秒)、入力 `i-ore`×2、出力 `i-part`×1 |
@@ -42,7 +42,7 @@
 | 種別 | Id | パラメータ |
 |---|---|---|
 | Item | `i-a` `i-b` `i-c` | Category=部品、TransportKind=Belt |
-| Item | `i-d` | IsBaseMaterial=true、TransportKind=Belt |
+| Item | `i-d` | IsGatherable=true、TransportKind=Belt |
 | Facility | `f-a` `f-b` `f-c` | PowerConsumption=0 |
 | Recipe | `r-a` | ペア (f-a, 5秒)、入力 `i-b`×2、出力 `i-a`×1 |
 | Recipe | `r-b` | ペア (f-b, 10秒)、入力 `i-c`×3、出力 `i-b`×1 |
@@ -55,11 +55,11 @@
 | 種別 | Id | パラメータ |
 |---|---|---|
 | Item | `i-x` `i-y` `i-z` `i-w` `i-v` | Category=部品、TransportKind=Belt |
-| Item | `i-ore-x` `i-gas-w` | IsBaseMaterial=true、TransportKind=Belt（`i-gas-w` のみ Pipe） |
-| Item | `i-fuel-w` | IsBaseMaterial=true、TransportKind=Belt |
+| Item | `i-ore-x` `i-gas-w` | IsGatherable=true、TransportKind=Belt（`i-gas-w` のみ Pipe） |
+| Item | `i-fuel-w` | IsGatherable=true、TransportKind=Belt |
 | Facility | `f-a` `f-b` `f-c` `f-disp` | PowerConsumption=0 |
-| Environment | `env-w` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-gas-w`、ConsumeRatePerSecond=1 |
-| Environment | `env-ltd` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-gas-w`、ConsumeRatePerSecond=1、GameEventId=`ev-off` |
+| Environment | `env-w` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-gas-w`、ConsumeRatePerMinute=60 |
+| Environment | `env-ltd` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-gas-w`、ConsumeRatePerMinute=60、GameEventId=`ev-off` |
 | GameEvent | `ev-limited` `ev-off` | ActiveFrom/ActiveTo=null |
 | Recipe | `r-x-old` | ペア (f-a, 6秒)、`i-ore-x`×1 → `i-x`×1、VersionAdded=`"1.0.0"` |
 | Recipe | `r-x-new` | ペア (f-a, 6秒)・(f-b, 3秒)、`i-ore-x`×1 → `i-x`×2、VersionAdded=`"1.2.0"`、VersionRemoved=`"2.0.0"` |
@@ -67,7 +67,7 @@
 | Recipe | `r-y-a` `r-y-b` | ともにペア (f-a, 6秒)、`i-ore-x`×1 → `i-y`×1、VersionAdded=`"1.0.0"`（同バージョン tie-break 用） |
 | Recipe | `r-z-badver` | ペア (f-a, 6秒)、`i-ore-x`×1 → `i-z`×1、VersionAdded=`"latest"`（パース不能） |
 | Recipe | `r-z` | ペア (f-a, 6秒)、`i-ore-x`×1 → `i-z`×1、VersionAdded=`"0.9.0"` |
-| Recipe | `r-w` | ペア (f-a, 6秒, env=`env-w`)・(f-b, 6秒, FixedConsumption=`i-fuel-w`×0.5/s)・(f-c, 6秒)、`i-ore-x`×1 → `i-w`×1（同サイクルのタイブレーク用） |
+| Recipe | `r-w` | ペア (f-a, 6秒, env=`env-w`)・(f-b, 6秒, FixedConsumption=`i-fuel-w`×30/分)・(f-c, 6秒)、`i-ore-x`×1 → `i-w`×1（同サイクルのタイブレーク用） |
 | Recipe | `r-v-new` | ペア (f-a, 3秒, env=`env-ltd`)、`i-ore-x`×1 → `i-v`×1、VersionAdded=`"1.5.0"`（全ペア不適格ケース） |
 | Recipe | `r-v-old` | ペア (f-a, 6秒)、`i-ore-x`×1 → `i-v`×1、VersionAdded=`"1.0.0"` |
 
@@ -88,7 +88,7 @@
 | 種別 | Id | パラメータ |
 |---|---|---|
 | Item | `i-p` `i-q` | Category=部品、TransportKind=Belt |
-| Item | `i-orem` `i-oreq` | IsBaseMaterial=true、TransportKind=Belt |
+| Item | `i-orem` `i-oreq` | IsGatherable=true、TransportKind=Belt |
 | Facility | `f-m` `f-q` | PowerConsumption=0 |
 | Recipe | `r-m` | ペア (f-m, 4秒)、`i-orem`×1 → `i-p`×1+`i-q`×2、VersionAdded=`"0.9.0"` |
 | Recipe | `r-q` | ペア (f-q, 6秒)、`i-oreq`×3 → `i-q`×1 |
@@ -100,7 +100,7 @@
 | 種別 | Id | パラメータ |
 |---|---|---|
 | Item | `i-t` | Category=部品、TransportKind=Belt |
-| Item | `i-u` | IsBaseMaterial=true、TransportKind=Belt |
+| Item | `i-u` | IsGatherable=true、TransportKind=Belt |
 | Facility | `f-t` | PowerConsumption=0 |
 | Recipe | `r-t` | ペア (f-t, 2秒)、`i-u`×4 → `i-t`×1 |
 
@@ -109,7 +109,7 @@
 | 種別 | Id | パラメータ |
 |---|---|---|
 | Item | `i-belt-item` `i-pipe-item` `i-none-item` | Category=部品、TransportKind=Belt/Pipe/None |
-| Item | `i-belt-src` `i-pipe-src` | IsBaseMaterial=true、TransportKind=Belt/Pipe |
+| Item | `i-belt-src` `i-pipe-src` | IsGatherable=true、TransportKind=Belt/Pipe |
 | Facility | `f-tr` | PowerConsumption=0 |
 | Recipe | `r-belt` `r-pipe` | 各ペア (f-tr, 6秒)、src×1 → item×1 |
 | Recipe | `r-none` | ペア (f-tr, 6秒)、`i-belt-src`×0.01 → `i-none-item`×1（仮想アイテムは入力に使えないため微量の通常素材を入力） |
@@ -118,11 +118,11 @@
 
 | 種別 | Id | パラメータ |
 |---|---|---|
-| Item | `i-ore` `i-gas` | IsBaseMaterial=true、TransportKind=Belt/Pipe |
+| Item | `i-ore` `i-gas` | IsGatherable=true、TransportKind=Belt/Pipe |
 | Item | `i-hp` `i-std` | Category=部品、TransportKind=Belt |
 | Facility | `f-asm` | PowerConsumption=50 |
 | Facility | `f-disp` | PowerConsumption=20 |
-| Environment | `env-gas` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-gas`、ConsumeRatePerSecond=6 |
+| Environment | `env-gas` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-gas`、ConsumeRatePerMinute=360 |
 | Recipe | `r-hp` | ペア (f-asm, 8秒)・(f-asm, 4秒, env=`env-gas`)、`i-ore`×1 → `i-hp`×1 |
 | Recipe | `r-std` | ペア (f-asm, 5秒, env=`env-gas`)、`i-ore`×1 → `i-std`×1 |
 
@@ -130,10 +130,10 @@
 
 | 種別 | Id | パラメータ |
 |---|---|---|
-| Item | `i-ore` `i-fuel` | IsBaseMaterial=true、TransportKind=Belt |
+| Item | `i-ore` `i-fuel` | IsGatherable=true、TransportKind=Belt |
 | Item | `i-fc` | Category=部品、TransportKind=Belt |
 | Facility | `f-fc` `f-fuel` | PowerConsumption=0 |
-| Recipe | `r-fc` | ペア (f-fc, 30秒, FixedConsumption=`i-fuel`×0.1/s)、`i-ore`×1 → `i-fc`×1 |
+| Recipe | `r-fc` | ペア (f-fc, 30秒, FixedConsumption=`i-fuel`×6/分)、`i-ore`×1 → `i-fc`×1 |
 | Recipe | `r-fuel` | ペア (f-fuel, 3秒)、`i-ore`×2 → `i-fuel`×1（燃料が自産できる派生用） |
 
 ### F-12: イベント限定アイテム
@@ -141,8 +141,8 @@
 | 種別 | Id | パラメータ |
 |---|---|---|
 | Item | `i-ltd` | Category=部品、TransportKind=Belt、GameEventId=`ev-ltd` |
-| Item | `i-ltd-raw` | IsBaseMaterial=true、TransportKind=Belt、GameEventId=`ev-ltd`（レシピなし） |
-| Item | `i-ore` | IsBaseMaterial=true、TransportKind=Belt |
+| Item | `i-ltd-raw` | IsGatherable=true、TransportKind=Belt、GameEventId=`ev-ltd`（レシピなし） |
+| Item | `i-ore` | IsGatherable=true、TransportKind=Belt |
 | Item | `i-fin` | Category=部品、TransportKind=Belt |
 | Facility | `f-asm` | PowerConsumption=0 |
 | GameEvent | `ev-ltd` | ActiveFrom/ActiveTo=null |
@@ -153,23 +153,23 @@
 
 | 種別 | Id | パラメータ |
 |---|---|---|
-| Item | `i-ore` `i-gasp` | IsBaseMaterial=true、TransportKind=Belt/Pipe |
+| Item | `i-ore` `i-gasp` | IsGatherable=true、TransportKind=Belt/Pipe |
 | Item | `i-xp` `i-fuelself` | Category=部品、TransportKind=Belt |
 | Facility | `f-xp` `f-mix` `f-disp` `f-self` | PowerConsumption=0 |
-| Environment | `env-gasp` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-gasp`、ConsumeRatePerSecond=6 |
+| Environment | `env-gasp` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-gasp`、ConsumeRatePerMinute=360 |
 | Recipe | `r-xp` | ペア (f-xp, 4秒, env=`env-gasp`)、`i-ore`×1 → `i-xp`×1 |
 | Recipe | `r-gasp` | ペア (f-mix, 6秒)、`i-ore`×1 → `i-gasp`×10（環境消費が生産へ展開する収束ケース） |
-| Recipe | `r-self` | ペア (f-self, 60秒, FixedConsumption=`i-fuelself`×2/s)、`i-ore`×1 → `i-fuelself`×1（1台あたり生産 1個/分 < 消費 120個/分 で発散する作為的ケース） |
+| Recipe | `r-self` | ペア (f-self, 60秒, FixedConsumption=`i-fuelself`×120/分)、`i-ore`×1 → `i-fuelself`×1（1台あたり生産 1個/分 < 消費 120個/分 で発散する作為的ケース） |
 
 ### F-14: 休眠ペアの競合
 
 | 種別 | Id | パラメータ |
 |---|---|---|
-| Item | `i-ore` | IsBaseMaterial=true、TransportKind=Belt |
+| Item | `i-ore` | IsGatherable=true、TransportKind=Belt |
 | Item | `i-y` `i-z` `i-m` `i-w` | Category=部品、TransportKind=Belt |
 | Facility | `f-a` `f-b` `f-m` `f-disp` `f-w` | PowerConsumption=0 |
-| Environment | `env-x` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-z`、ConsumeRatePerSecond=2 |
-| Environment | `env-y` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-y`、ConsumeRatePerSecond=4 |
+| Environment | `env-x` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-z`、ConsumeRatePerMinute=120 |
+| Environment | `env-y` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-y`、ConsumeRatePerMinute=240 |
 | Recipe | `r-m` | VersionAdded=`1.0.0`、ペア (f-m, 6秒)、`i-ore`×1 → `i-m`×1+`i-y`×1 |
 | Recipe | `r-yz` | VersionAdded=`2.0.0`、ペア A (f-a, 4秒)・ペア B (f-b, 8秒, env=`env-y`)、`i-ore`×1 → `i-y`×1+`i-z`×1 |
 | Recipe | `r-w` | ペア (f-w, 6秒, env=`env-x`)、`i-ore`×1 → `i-w`×1 |
@@ -182,7 +182,7 @@
 
 | ID | 内容 | フィクスチャ・入力 | 期待 |
 |---|---|---|---|
-| EXP-01 | 直線チェーンの展開 | F-01、`i-part` 30/分 | `i-ore` 需要 60/分・供給 RawMaterial、`i-part` 供給 Recipe、レシピ稼働 30サイクル/分、f-asm 実数 2・切上 2、警告なし |
+| EXP-01 | 直線チェーンの展開 | F-01、`i-part` 30/分 | `i-ore` 需要 60/分・供給 Gathered、`i-part` 供給 Recipe、レシピ稼働 30サイクル/分、f-asm 実数 2・切上 2、警告なし |
 | EXP-02 | 多段依存の展開 | F-02、`i-a` 12/分 | `i-b` 24、`i-c` 72、`i-d` 144 個/分。f-a 1、f-b 4、f-c 実数 7.2・切上 8 |
 | EXP-03 | 同一アイテムの複数目標は合算 | F-01、`i-part` 20+10/分 | 需要 30/分、稼働 30 サイクル/分 |
 | EXP-04 | 設備台数の実数と切上 | F-02、`i-a` 12/分 | f-c 実数 7.2・切上 8 |
@@ -261,10 +261,10 @@
 
 | ID | 内容 | 期待 |
 |---|---|---|
-| FIX-01 | 固定消費が切上台数比例で需要へ | F-11、`i-fc` 10/分 → f-fc 実数 5・切上 5、`i-fuel` 需要 30/分（0.1/s×5台） |
-| FIX-02 | 基準は実数でなく切上台数（V） | F-11、`i-fc` 5.1/分 → f-fc 実数 2.55・切上 3、`i-fuel` 需要 18/分（0.1/s×3台） |
+| FIX-01 | 固定消費が切上台数比例で需要へ | F-11、`i-fc` 10/分 → f-fc 実数 5・切上 5、`i-fuel` 需要 30/分（6/分×5台） |
+| FIX-02 | 基準は実数でなく切上台数（V） | F-11、`i-fc` 5.1/分 → f-fc 実数 2.55・切上 3、`i-fuel` 需要 18/分（6/分×3台） |
 | FIX-03 | 固定消費素材の生産が展開され収束する | F-11 に r-fuel を加えた変形、`i-fc` 10/分 → `i-fuel` 供給は Recipe `r-fuel`、収束して全充足 |
-| FIX-04 | 提供設備とレシピ設備が兼用なら散布機込みの切上台数が乗数 | F-11 変形（`env-fcx` の ProviderFacilityId=`f-fc`、r-fcx ペア (f-fc, 30秒, env, FixedConsumption=`i-fuel`×0.5/s)）、`i-fcx` 10/分 → f-fc 切上 6、`i-fuel` 需要 180/分 |
+| FIX-04 | 提供設備とレシピ設備が兼用なら散布機込みの切上台数が乗数 | F-11 変形（`env-fcx` の ProviderFacilityId=`f-fc`、r-fcx ペア (f-fc, 30秒, env, FixedConsumption=`i-fuel`×30/分)）、`i-fcx` 10/分 → f-fc 切上 6、`i-fuel` 需要 180/分 |
 
 ### EVT: イベント限定アイテム（T/X）
 
@@ -273,7 +273,7 @@
 | EVT-01 | イベント非有効アイテムの目標は未充足＋警告 | F-12、`i-ltd` 10/分（`ev-ltd` 無効） → `EventItemUnavailable`、未充足 10 |
 | EVT-02 | 中間素材としても不可（生産も調達も不可） | F-12、`i-fin` 10/分（無効） → `i-ltd` 未充足 20、`i-fin` は帳簿上生産 10・未充足 0（需要の未充足はイベント不可アイテム側へ計上）、`EventItemUnavailable` |
 | EVT-03 | イベント有効なら通常どおり生産 | F-12、`i-ltd` 10/分（`ev-ltd` 有効） → 全充足 |
-| EVT-04 | 基礎素材でもイベント非有効なら外部調達不可 | F-12、`i-ltd-raw` 10/分（無効） → 未充足 10、`EventItemUnavailable` |
+| EVT-04 | 採取素材でもイベント非有効なら外部調達不可 | F-12、`i-ltd-raw` 10/分（無効） → 未充足 10、`EventItemUnavailable` |
 | EVT-05 | 副産物でイベント不可アイテムが生産されても需要は未充足 | F-12 変形（常設レシピ `r-side` が `i-side`×1+`i-ltd`×1 を生産）、`i-side` 10+`i-ltd` 10/分（無効） → `i-ltd` 未充足 10・供給内訳なし・余剰 10、`EventItemUnavailable` |
 
 ### CNV: 収束反復
@@ -288,11 +288,11 @@
 | ID | 内容 | 期待 |
 |---|---|---|
 | WRN-01 | レシピなし部品は未充足＋警告（例外ではない） | `i-x` のみのスナップショット、`i-x` 10/分 → `NoRecipeAvailable`、未充足 10 |
-| WRN-02 | レシピなし基礎素材は外部調達（警告なし） | `i-ore` のみ、10/分 → RawMaterial 10、警告なし |
+| WRN-02 | レシピなし採取素材は外部調達（警告なし） | `i-ore` のみ、10/分 → Gathered 10、警告なし |
 | WRN-03 | 複数警告が同時に返る | F-04 + レシピなしアイテム、`i-a` 10 + `i-miss` 5 → `CycleDetected` と `NoRecipeAvailable` |
 | WRN-04 | 不正な目標は ArgumentException | レート 0/負/非有限、アイテム未登録 → 例外 |
 | WRN-05 | 未知環境への台数上書きは警告 | `EnvironmentCountOverride(env-none, 2)` → `InvalidEnvironmentOverride` |
-| WRN-06 | Category タグだけでは外部調達扱いにならない | `Category="基礎素材"` かつ `IsBaseMaterial=false`・レシピなし → `NoRecipeAvailable`＋未充足。RawMaterial 供給にならない |
+| WRN-06 | Category タグだけでは外部調達扱いにならない | `Category="採取素材"` かつ `IsGatherable=false`・レシピなし → `NoRecipeAvailable`＋未充足。Gathered 供給にならない |
 
 ### VAL: マスタ検証
 
@@ -309,7 +309,7 @@
 | VAL-09 | イベント期間の値域 | `ActiveFrom`>=`ActiveTo` → エラー |
 | VAL-10 | IconKey 文字種 | 英数字・ハイフン・アンダースコア 1〜64 文字以外 → エラー。null/空/予約キーは許容 |
 | VAL-11 | ID の一意性 | 同一コレクション内で Id 重複 → エラー |
-| VAL-12 | 数値域 | `CycleTime`/`Quantity`/`ConsumeRatePerSecond`/`RatePerSecond` が 0 以下・`Width`/`Height` 0 以下・`PowerConsumption` 負 → エラー |
+| VAL-12 | 数値域 | `CycleTime`/`Quantity`/`ConsumeRatePerMinute`/`RatePerMinute` が 0 以下・`Width`/`Height` 0 以下・`PowerConsumption` 負 → エラー |
 | VAL-13 | ペア 0 件のレシピはエラー | `Facilities` が空のレシピ → エラー（スキーマ `minItems: 1` と同規則） |
 | VAL-14 | 空 ItemId の入力でも検証は例外にならない | `Inputs` に空 `ItemId` の行を含むレシピ → エラー一覧として返る（例外を投げない）。行の数量エラーも ItemId 欠落と独立に集計される |
 | VAL-15 | VersionAdded は semver 形式 | `1.2.0-beta.1+build.7`（prerelease/build 付き）・`1.0`（2 要素）・`01.0.0`（先頭ゼロ） | prerelease/build 付きは有効。2 要素・先頭ゼロは `VersionAdded` エラー |

@@ -25,15 +25,15 @@
 
 | 種別 | Id | 内容 |
 |---|---|---|
-| Item | `i-ore` | 基礎素材、TransportKind=Belt |
+| Item | `i-ore` | 採取素材、TransportKind=Belt |
 | Item | `i-part` | Category=部品、TransportKind=Belt |
-| Item | `i-gas` | 基礎素材、TransportKind=Pipe |
+| Item | `i-gas` | 採取素材、TransportKind=Pipe |
 | Item | `i-power` | Category=エネルギー、TransportKind=None |
 | Facility | `f-asm` | Width=3、Height=3、PowerConsumption=50 |
 | Facility | `f-disp` | Width=2、Height=2、PowerConsumption=20 |
-| Environment | `env-gas` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-gas`、ConsumeRatePerSecond=6 |
+| Environment | `env-gas` | ProviderFacilityId=`f-disp`、ConsumeItemId=`i-gas`、ConsumeRatePerMinute=360 |
 | GameEvent | `ev-first` | ActiveFrom/ActiveTo=null |
-| Recipe | `r-part` | 入力 `i-ore`×2、出力 `i-part`×1（SortOrder=0）、ペア (f-asm, 4秒, env=null, FixedConsumption=null)・(f-asm, 3秒, env=`env-gas`, FixedConsumption=`i-gas`×0.5/s) |
+| Recipe | `r-part` | 入力 `i-ore`×2、出力 `i-part`×1（SortOrder=0）、ペア (f-asm, 4秒, env=null, FixedConsumption=null)・(f-asm, 3秒, env=`env-gas`, FixedConsumption=`i-gas`×30/分) |
 | Icons | `icon-ore` | Key=`icon-ore`、File=`icons/icon-ore.png`、Sha256・Bytes はフィクスチャバイト列から算出 |
 
 各ケースはこのひな形を改変して作る。改変方法は JSON テキストのプロパティ操作（削除・置換・追記）とする。
@@ -64,9 +64,9 @@
 | STR-05 | 配列に null 要素 | `Items: [null]` | エラー |
 | STR-06 | Id・Name の欠落・空 | Item の `Id` 削除・`Name=""` | それぞれエラー |
 | STR-07 | enum 定義値外 | `TransportKind: "Rocket"`・`"belt"`・`"1"` | それぞれエラー |
-| STR-08 | 必須フィールド欠落 | `Width` なし・`CycleTime` なし・`IsBaseMaterial` なし・`ConsumeRatePerSecond` なし・`SortOrder` なし | それぞれエラー |
+| STR-08 | 必須フィールド欠落 | `Width` なし・`CycleTime` なし・`IsGatherable` なし・`ConsumeRatePerMinute` なし・`SortOrder` なし | それぞれエラー |
 | STR-09 | SortOrder が負 | `SortOrder: -1` | エラー |
-| STR-10 | FixedConsumption 要素欠落 | `ItemId` なし・`RatePerSecond` なし | それぞれエラー |
+| STR-10 | FixedConsumption 要素欠落 | `ItemId` なし・`RatePerMinute` なし | それぞれエラー |
 | STR-11 | Icons 節の構造違反 | Key 重複・Key 文字種違反・Key 末尾改行・`File` が `icons/<Key>.png` 以外・`Sha256` が 64 桁でない・大文字 hex・末尾改行・`Bytes` が 0・Key 欠落 | それぞれエラー |
 | STR-12 | 正当な最小 JSON | J-01 | `Success`=true、`Document` 非 null、`Errors` 0 件 |
 | STR-13 | スキーマ必須の nullable キー欠落 | `VersionRemoved`・`IconKey`・`GameEventId`・`EnvironmentId` 削除 | それぞれエラー |
@@ -79,7 +79,7 @@
 |---|---|---|---|
 | SEM-01 | 参照不整合の集約 | 入力 ItemId・ペア FacilityId・ペア EnvironmentId・FixedConsumption.ItemId・環境 ProviderFacilityId・環境 ConsumeItemId・各 GameEventId を未知 Id へ | すべてエラー一覧に集約される |
 | SEM-02 | ペア重複（P） | 同一レシピ内に全要素同一のペア 2 行 | エラー |
-| SEM-03 | 範囲外数値 | `CycleTime: 0`・`Width: -1`・`Quantity: 0`・`ConsumeRatePerSecond: 0`・`RatePerSecond: -0.5`・`PowerConsumption: -1` | それぞれエラー |
+| SEM-03 | 範囲外数値 | `CycleTime: 0`・`Width: -1`・`Quantity: 0`・`ConsumeRatePerMinute: 0`・`RatePerMinute: -0.5`・`PowerConsumption: -1` | それぞれエラー |
 | SEM-04 | ID の重複 | Items に同一 Id 2 件 | エラー |
 | SEM-05 | 仮想アイテム規則 | `i-power` をレシピ入力に追加 | エラー |
 | SEM-06 | 構造は正しいが意味違反を含む文書 | SEM-02 のペア重複文書 | `Success`=false、`Errors` に集約。例外は投げない |

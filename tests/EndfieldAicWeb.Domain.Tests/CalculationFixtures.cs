@@ -16,7 +16,7 @@ internal static class CalculationFixtures
         string category = "部品",
         TransportKind kind = TransportKind.Belt,
         string? gameEventId = null,
-        bool isBaseMaterial = false) => new()
+        bool isGatherable = false) => new()
     {
         Id = id,
         Name = id,
@@ -24,7 +24,7 @@ internal static class CalculationFixtures
         TransportKind = kind,
         VersionAdded = "1.0.0",
         GameEventId = gameEventId,
-        IsBaseMaterial = isBaseMaterial,
+        IsGatherable = isGatherable,
     };
 
     public static Facility Facility(string id, double powerConsumption = 0.0) => new()
@@ -41,14 +41,14 @@ internal static class CalculationFixtures
         string id,
         string providerFacilityId,
         string consumeItemId,
-        double ratePerSecond,
+        double ratePerMinute,
         string? gameEventId = null) => new()
     {
         Id = id,
         Name = id,
         ProviderFacilityId = providerFacilityId,
         ConsumeItemId = consumeItemId,
-        ConsumeRatePerSecond = ratePerSecond,
+        ConsumeRatePerMinute = ratePerMinute,
         VersionAdded = "1.0.0",
         GameEventId = gameEventId,
     };
@@ -66,7 +66,7 @@ internal static class CalculationFixtures
         CycleTime = cycleTime,
         EnvironmentId = environmentId,
         FixedConsumption = fixedConsumption is { } fc
-            ? new FixedConsumption { ItemId = fc.ItemId, RatePerSecond = fc.Rate }
+            ? new FixedConsumption { ItemId = fc.ItemId, RatePerMinute = fc.Rate }
             : null,
     };
 
@@ -152,7 +152,7 @@ internal static class CalculationFixtures
             cycleTime,
             environmentId,
             fixedConsumption is { } fc
-                ? new FixedConsumption { ItemId = fc.ItemId, RatePerSecond = fc.Rate }
+                ? new FixedConsumption { ItemId = fc.ItemId, RatePerMinute = fc.Rate }
                 : null);
 
     public static ProductionPlan Run(
@@ -172,13 +172,13 @@ internal static class CalculationFixtures
 
     /// <summary>F-01: 直線チェーン（i-ore×2 → i-part、4秒）。</summary>
     public static MasterDataSnapshot F01() => Snapshot(
-        [Item("i-ore", "基礎素材", TransportKind.Belt, null, true), Item("i-part")],
+        [Item("i-ore", "採取素材", TransportKind.Belt, null, true), Item("i-part")],
         [Facility("f-asm")],
         [Recipe("r-part", "f-asm", 4.0, [("i-ore", 2.0)], [("i-part", 1.0)])]);
 
     /// <summary>F-02: 3段依存（i-a ← i-b ← i-c ← i-d）。</summary>
     public static MasterDataSnapshot F02() => Snapshot(
-        [Item("i-a"), Item("i-b"), Item("i-c"), Item("i-d", "基礎素材", TransportKind.Belt, null, true)],
+        [Item("i-a"), Item("i-b"), Item("i-c"), Item("i-d", "採取素材", TransportKind.Belt, null, true)],
         [Facility("f-a"), Facility("f-b"), Facility("f-c")],
         [
             Recipe("r-a", "f-a", 5.0, [("i-b", 2.0)], [("i-a", 1.0)]),
@@ -190,9 +190,9 @@ internal static class CalculationFixtures
     public static MasterDataSnapshot F03() => Snapshot(
         [
             Item("i-x"), Item("i-y"), Item("i-z"), Item("i-w"), Item("i-v"),
-            Item("i-ore-x", "基礎素材", TransportKind.Belt, null, true),
-            Item("i-gas-w", "基礎素材", TransportKind.Pipe, null, true),
-            Item("i-fuel-w", "基礎素材", TransportKind.Belt, null, true),
+            Item("i-ore-x", "採取素材", TransportKind.Belt, null, true),
+            Item("i-gas-w", "採取素材", TransportKind.Pipe, null, true),
+            Item("i-fuel-w", "採取素材", TransportKind.Belt, null, true),
         ],
         [Facility("f-a"), Facility("f-b"), Facility("f-c"), Facility("f-disp")],
         [
@@ -208,7 +208,7 @@ internal static class CalculationFixtures
             Recipe("r-z", "f-a", 6.0, [("i-ore-x", 1.0)], [("i-z", 1.0)], "0.9.0"),
             Recipe("r-w", [
                     Pair("r-w", "f-a", 6.0, "env-w"),
-                    Pair("r-w", "f-b", 6.0, null, ("i-fuel-w", 0.5)),
+                    Pair("r-w", "f-b", 6.0, null, ("i-fuel-w", 30.0)),
                     Pair("r-w", "f-c", 6.0),
                 ],
                 [("i-ore-x", 1.0)], [("i-w", 1.0)]),
@@ -217,8 +217,8 @@ internal static class CalculationFixtures
             Recipe("r-v-old", "f-a", 6.0, [("i-ore-x", 1.0)], [("i-v", 1.0)], "1.0.0"),
         ],
         [
-            Env("env-w", "f-disp", "i-gas-w", 1.0),
-            Env("env-ltd", "f-disp", "i-gas-w", 1.0, "ev-off"),
+            Env("env-w", "f-disp", "i-gas-w", 60.0),
+            Env("env-ltd", "f-disp", "i-gas-w", 60.0, "ev-off"),
         ],
         [GameEvent("ev-limited"), GameEvent("ev-off")]);
 
@@ -237,7 +237,7 @@ internal static class CalculationFixtures
     {
         MasterDataSnapshot base_ = F04();
         return Snapshot(
-            [.. base_.Items, Item("i-ore", "基礎素材", TransportKind.Belt, null, true), Item("i-part")],
+            [.. base_.Items, Item("i-ore", "採取素材", TransportKind.Belt, null, true), Item("i-part")],
             [.. base_.Facilities, Facility("f-asm")],
             [.. base_.Recipes, Recipe("r-part", "f-asm", 4.0, [("i-ore", 2.0)], [("i-part", 1.0)])]);
     }
@@ -247,7 +247,7 @@ internal static class CalculationFixtures
     {
         MasterDataSnapshot base_ = F04();
         return Snapshot(
-            [.. base_.Items, Item("i-x"), Item("i-ore", "基礎素材", TransportKind.Belt, null, true)],
+            [.. base_.Items, Item("i-x"), Item("i-ore", "採取素材", TransportKind.Belt, null, true)],
             [.. base_.Facilities, Facility("f-x")],
             [.. base_.Recipes, Recipe("r-x", "f-x", 4.0, [("i-ore", 1.0)], [("i-x", 1.0), ("i-a", 1.0)])]);
     }
@@ -256,7 +256,7 @@ internal static class CalculationFixtures
     public static MasterDataSnapshot F05() => Snapshot(
         [
             Item("i-p"), Item("i-q"),
-            Item("i-orem", "基礎素材", TransportKind.Belt, null, true), Item("i-oreq", "基礎素材", TransportKind.Belt, null, true),
+            Item("i-orem", "採取素材", TransportKind.Belt, null, true), Item("i-oreq", "採取素材", TransportKind.Belt, null, true),
         ],
         [Facility("f-m"), Facility("f-q")],
         [
@@ -268,7 +268,7 @@ internal static class CalculationFixtures
     public static MasterDataSnapshot F05WithPartialByproduct() => Snapshot(
         [
             Item("i-p"), Item("i-q"),
-            Item("i-orem", "基礎素材", TransportKind.Belt, null, true), Item("i-oreq", "基礎素材", TransportKind.Belt, null, true),
+            Item("i-orem", "採取素材", TransportKind.Belt, null, true), Item("i-oreq", "採取素材", TransportKind.Belt, null, true),
         ],
         [Facility("f-m"), Facility("f-q")],
         [
@@ -278,7 +278,7 @@ internal static class CalculationFixtures
 
     /// <summary>F-06: 切上げ過剰生産と流量調整（i-u×4 → i-t、2秒）。</summary>
     public static MasterDataSnapshot F06() => Snapshot(
-        [Item("i-t"), Item("i-u", "基礎素材", TransportKind.Belt, null, true)],
+        [Item("i-t"), Item("i-u", "採取素材", TransportKind.Belt, null, true)],
         [Facility("f-t")],
         [Recipe("r-t", "f-t", 2.0, [("i-u", 4.0)], [("i-t", 1.0)])]);
 
@@ -288,8 +288,8 @@ internal static class CalculationFixtures
             Item("i-belt-item", "部品", TransportKind.Belt),
             Item("i-pipe-item", "部品", TransportKind.Pipe),
             Item("i-none-item", "部品", TransportKind.None),
-            Item("i-belt-src", "基礎素材", TransportKind.Belt, null, true),
-            Item("i-pipe-src", "基礎素材", TransportKind.Pipe, null, true),
+            Item("i-belt-src", "採取素材", TransportKind.Belt, null, true),
+            Item("i-pipe-src", "採取素材", TransportKind.Pipe, null, true),
         ],
         [Facility("f-tr")],
         [
@@ -302,8 +302,8 @@ internal static class CalculationFixtures
     /// <summary>F-10: 環境（env-gas を要するペアと、不要ペアの両方を持つ r-hp）。</summary>
     public static MasterDataSnapshot F10() => Snapshot(
         [
-            Item("i-ore", "基礎素材", TransportKind.Belt, null, true),
-            Item("i-gas", "基礎素材", TransportKind.Pipe, null, true),
+            Item("i-ore", "採取素材", TransportKind.Belt, null, true),
+            Item("i-gas", "採取素材", TransportKind.Pipe, null, true),
             Item("i-hp"), Item("i-std"),
         ],
         [Facility("f-asm", 50.0), Facility("f-disp", 20.0)],
@@ -313,7 +313,7 @@ internal static class CalculationFixtures
             Recipe("r-std", [Pair("r-std", "f-asm", 5.0, "env-gas")],
                 [("i-ore", 1.0)], [("i-std", 1.0)]),
         ],
-        [Env("env-gas", "f-disp", "i-gas", 6.0)]);
+        [Env("env-gas", "f-disp", "i-gas", 360.0)]);
 
     /// <summary>F-10 変形: env-gas が非有効イベント ev-off 所属（ENV-05 用）。</summary>
     public static MasterDataSnapshot F10WithInactiveEnv()
@@ -323,15 +323,15 @@ internal static class CalculationFixtures
             base_.Items,
             base_.Facilities,
             base_.Recipes,
-            [Env("env-gas", "f-disp", "i-gas", 6.0, "ev-off")],
+            [Env("env-gas", "f-disp", "i-gas", 360.0, "ev-off")],
             [GameEvent("ev-off")]);
     }
 
-    /// <summary>F-11: 固定消費（r-fc のペアが i-fuel を 0.1/s 消費）。r-fuel は派生のみ。</summary>
+    /// <summary>F-11: 固定消費（r-fc のペアが i-fuel を 6 個/分 消費）。r-fuel は派生のみ。</summary>
     public static MasterDataSnapshot F11() => Snapshot(
-        [Item("i-ore", "基礎素材", TransportKind.Belt, null, true), Item("i-fuel", "基礎素材", TransportKind.Belt, null, true), Item("i-fc")],
+        [Item("i-ore", "採取素材", TransportKind.Belt, null, true), Item("i-fuel", "採取素材", TransportKind.Belt, null, true), Item("i-fc")],
         [Facility("f-fc"), Facility("f-fuel")],
-        [Recipe("r-fc", [Pair("r-fc", "f-fc", 30.0, null, ("i-fuel", 0.1))],
+        [Recipe("r-fc", [Pair("r-fc", "f-fc", 30.0, null, ("i-fuel", 6.0))],
             [("i-ore", 1.0)], [("i-fc", 1.0)])]);
 
     /// <summary>F-11 派生: 燃料を自産できる r-fuel を追加（FIX-03 用）。</summary>
@@ -351,7 +351,7 @@ internal static class CalculationFixtures
     public static MasterDataSnapshot F12WithInactiveByproduct() => Snapshot(
         [
             Item("i-ltd", "部品", TransportKind.Belt, "ev-ltd"),
-            Item("i-ore", "基礎素材", TransportKind.Belt, null, true),
+            Item("i-ore", "採取素材", TransportKind.Belt, null, true),
             Item("i-side"),
         ],
         [Facility("f-asm")],
@@ -360,11 +360,11 @@ internal static class CalculationFixtures
 
     /// <summary>F-11 派生: 提供設備とレシピ設備が兼用（FIX-04 用）。</summary>
     public static MasterDataSnapshot F11WithSharedProvider() => Snapshot(
-        [Item("i-ore", "基礎素材", TransportKind.Belt, null, true), Item("i-fuel", "基礎素材", TransportKind.Belt, null, true), Item("i-fcx")],
+        [Item("i-ore", "採取素材", TransportKind.Belt, null, true), Item("i-fuel", "採取素材", TransportKind.Belt, null, true), Item("i-fcx")],
         [Facility("f-fc")],
-        [Recipe("r-fcx", [Pair("r-fcx", "f-fc", 30.0, "env-fcx", ("i-fuel", 0.5))],
+        [Recipe("r-fcx", [Pair("r-fcx", "f-fc", 30.0, "env-fcx", ("i-fuel", 30.0))],
             [("i-ore", 1.0)], [("i-fcx", 1.0)])],
-        [Env("env-fcx", "f-fc", "i-ore", 1.0)]);
+        [Env("env-fcx", "f-fc", "i-ore", 60.0)]);
 
     /// <summary>F-14: 引き戻しで休眠したペアと、別ペア稼働の競合（SEL-11 用）。</summary>
     /// <remarks>
@@ -374,7 +374,7 @@ internal static class CalculationFixtures
     /// </remarks>
     public static MasterDataSnapshot F14() => Snapshot(
         [
-            Item("i-ore", "基礎素材", TransportKind.Belt, null, true),
+            Item("i-ore", "採取素材", TransportKind.Belt, null, true),
             Item("i-y"), Item("i-z"), Item("i-m"), Item("i-w"),
         ],
         [Facility("f-a"), Facility("f-b"), Facility("f-m"), Facility("f-disp"), Facility("f-w")],
@@ -386,16 +386,16 @@ internal static class CalculationFixtures
             Recipe("r-w", "f-w", 6.0, [("i-ore", 1.0)], [("i-w", 1.0)], environmentId: "env-x"),
         ],
         [
-            Env("env-x", "f-disp", "i-z", 2.0),
-            Env("env-y", "f-disp", "i-y", 4.0),
+            Env("env-x", "f-disp", "i-z", 120.0),
+            Env("env-y", "f-disp", "i-y", 240.0),
         ]);
 
     /// <summary>F-12: イベント限定アイテム（i-ltd・i-ltd-raw が ev-ltd 所属）。</summary>
     public static MasterDataSnapshot F12() => Snapshot(
         [
             Item("i-ltd", "部品", TransportKind.Belt, "ev-ltd"),
-            Item("i-ltd-raw", "基礎素材", TransportKind.Belt, "ev-ltd", true),
-            Item("i-ore", "基礎素材", TransportKind.Belt, null, true),
+            Item("i-ltd-raw", "採取素材", TransportKind.Belt, "ev-ltd", true),
+            Item("i-ore", "採取素材", TransportKind.Belt, null, true),
             Item("i-fin"),
         ],
         [Facility("f-asm")],
@@ -408,8 +408,8 @@ internal static class CalculationFixtures
     /// <summary>F-13: 収束（環境消費が生産へ展開するケースと、発散する固定消費ケース）。</summary>
     public static MasterDataSnapshot F13() => Snapshot(
         [
-            Item("i-ore", "基礎素材", TransportKind.Belt, null, true),
-            Item("i-gasp", "基礎素材", TransportKind.Pipe, null, true),
+            Item("i-ore", "採取素材", TransportKind.Belt, null, true),
+            Item("i-gasp", "採取素材", TransportKind.Pipe, null, true),
             Item("i-xp"), Item("i-fuelself"),
         ],
         [Facility("f-xp"), Facility("f-mix"), Facility("f-disp"), Facility("f-self")],
@@ -417,8 +417,8 @@ internal static class CalculationFixtures
             Recipe("r-xp", [Pair("r-xp", "f-xp", 4.0, "env-gasp")],
                 [("i-ore", 1.0)], [("i-xp", 1.0)]),
             Recipe("r-gasp", "f-mix", 6.0, [("i-ore", 1.0)], [("i-gasp", 10.0)]),
-            Recipe("r-self", [Pair("r-self", "f-self", 60.0, null, ("i-fuelself", 2.0))],
+            Recipe("r-self", [Pair("r-self", "f-self", 60.0, null, ("i-fuelself", 120.0))],
                 [("i-ore", 1.0)], [("i-fuelself", 1.0)]),
         ],
-        [Env("env-gasp", "f-disp", "i-gasp", 6.0)]);
+        [Env("env-gasp", "f-disp", "i-gasp", 360.0)]);
 }
