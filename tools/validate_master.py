@@ -25,7 +25,7 @@ ICONS_DIR = ROOT / "data" / "icons"
 ICON_KEY_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}\Z")
 PLACEHOLDER_KEY = "icon-placeholder"
 
-ENTITY_SECTIONS = ("Items", "Facilities", "Environments", "GameEvents", "Recipes")
+ENTITY_SECTIONS = ("Items", "Facilities", "Environments", "GameEvents", "Recipes", "Maps")
 
 
 def referenced_icon_keys(master: dict) -> list[str]:

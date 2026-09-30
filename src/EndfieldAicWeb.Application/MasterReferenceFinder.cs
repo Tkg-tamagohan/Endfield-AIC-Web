@@ -54,6 +54,17 @@ public static class MasterReferenceFinder
             }
         }
 
+        foreach (GameMap map in document.Maps)
+        {
+            for (int i = 0; i < map.GatherRates.Count; i++)
+            {
+                if (map.GatherRates[i].ItemId == itemId)
+                {
+                    refs.Add(new MasterReference("GameMap", map.Id, $"GatherRates[{i}].ItemId"));
+                }
+            }
+        }
+
         return refs;
     }
 
@@ -135,6 +146,14 @@ public static class MasterReferenceFinder
             if (recipe.GameEventId == gameEventId)
             {
                 refs.Add(new MasterReference("Recipe", recipe.Id, "GameEventId"));
+            }
+        }
+
+        foreach (GameMap map in document.Maps)
+        {
+            if (map.GameEventId == gameEventId)
+            {
+                refs.Add(new MasterReference("GameMap", map.Id, "GameEventId"));
             }
         }
 

@@ -18,6 +18,7 @@ public static class MasterSnapshotFactory
             Environments = document.Environments,
             GameEvents = document.GameEvents,
             Recipes = document.Recipes,
+            Maps = document.Maps,
         };
     }
 }

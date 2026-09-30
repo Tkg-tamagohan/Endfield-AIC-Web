@@ -133,6 +133,7 @@ internal static class CalculationFixtures
         Recipes = recipes,
         Environments = environments ?? [],
         GameEvents = gameEvents ?? [],
+        Maps = [],
     };
 
     public static ContextFilter Context(params string[] activeEventIds) =>

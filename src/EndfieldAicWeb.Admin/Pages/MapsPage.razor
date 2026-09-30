@@ -1,0 +1,187 @@
+@page "/maps"
+@inject AdminDocumentService Store
+@inject IJSRuntime JS
+
+<PageTitle>マップ - Endfield AIC 管理ツール</PageTitle>
+
+@if (!Store.IsLoaded)
+{
+    <section class="panel"><p class="muted">ホームで正本 JSON を読み込んでください。</p></section>
+}
+else
+{
+    <div class="admin-layout">
+        <ListPane TItem="GameMap" Items="Store.Document!.Maps"
+                  KeyOf="map => map.Id" TextOf="map => map.Name" SubOf="map => map.Id"
+                  SelectedKey="@_selected?.Id"
+                  OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
+
+        <section class="panel" @key="_selected">
+            @if (_selected is null)
+            {
+                <p class="muted">左の一覧からマップを選ぶか、新規追加してください。</p>
+            }
+            else
+            {
+                <h2 class="panel-title">マップ編集</h2>
+                <CommonFieldsEditor Entity="_selected" OnChanged="Changed" />
+                <div class="form-grid">
+                    <label>所属イベント</label>
+                    <RefSelect Value="@_selected.GameEventId" Options="_eventOptions" EmptyLabel="（常設）"
+                               ValueChanged="SetGameEvent" />
+                </div>
+
+                <h3 class="panel-title">採取レート</h3>
+                <div class="sub-block">
+                    <table class="sub-table">
+                        <thead><tr><th>アイテム</th><th>無限</th><th>上限（個/分）</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (GatherRate rate in _selected.GatherRates)
+                            {
+                                <tr @key="rate">
+                                    <td>
+                                        <RefSelect Value="@rate.ItemId" Options="_gatherableItemOptions"
+                                                   EmptyLabel="（未選択）" ValueChanged="value => SetItem(rate, value)" />
+                                    </td>
+                                    <td>
+                                        <input type="checkbox" checked="@rate.IsUnlimited"
+                                               @onchange="e => ToggleUnlimited(rate, e)" />
+                                    </td>
+                                    <td>
+                                        @if (rate.IsUnlimited)
+                                        {
+                                            <span>—</span>
+                                        }
+                                        else
+                                        {
+                                            <NumberInput Value="@(rate.RatePerMinute ?? 0)"
+                                                         ValueChanged="value => SetRate(rate, value)"
+                                                         Owner="rate" Field="@nameof(GatherRate.RatePerMinute)" />
+                                        }
+                                    </td>
+                                    <td><button class="btn ghost" @onclick="() => RemoveRate(rate)">×</button></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    <button class="btn" @onclick="AddRate">＋ 採取レートを追加</button>
+                </div>
+                <p class="hint">行のない採取素材は、このマップでは採取できません（上限 0）。候補は採取素材のアイテムだけです。</p>
+                <p class="hint">変更は即時反映されます。ホームの「検証を実行」で整合性を確認してください。</p>
+            }
+        </section>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? Select { get; set; }
+
+    private GameMap? _selected;
+    private IReadOnlyList<SelectOption> _eventOptions = [];
+    private IReadOnlyList<SelectOption> _gatherableItemOptions = [];
+
+    protected override void OnParametersSet()
+    {
+        if (!Store.IsLoaded)
+        {
+            return;
+        }
+
+        MasterDocument document = Store.Document!;
+        _eventOptions = document.GameEvents.Select(e => new SelectOption(e.Id, e.Name)).ToList();
+        _gatherableItemOptions = document.Items
+            .Where(item => item.IsGatherable)
+            .Select(item => new SelectOption(item.Id, item.Name))
+            .ToList();
+        if (Select is { } id)
+        {
+            _selected = document.Maps.FirstOrDefault(map => map.Id == id);
+        }
+    }
+
+    private void SelectEntity(string id)
+    {
+        _selected = Store.Document!.Maps.FirstOrDefault(map => map.Id == id);
+    }
+
+    private void New()
+    {
+        MasterDocument document = Store.Document!;
+        string id = EntityFactory.SuggestId(document.Maps.Select(map => map.Id), "map");
+        var map = EntityFactory.NewGameMap(id, document.DataVersion);
+        document.Maps.Add(map);
+        Store.NotifyChanged();
+        _selected = map;
+    }
+
+    private async Task Delete(GameMap map)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", $"{map.Name}（{map.Id}）を削除しますか？"))
+        {
+            return;
+        }
+
+        Store.Document!.Maps.Remove(map);
+        Store.ClearInvalidOwners([map, ..map.GatherRates]);
+        if (_selected == map)
+        {
+            _selected = null;
+        }
+
+        Store.NotifyChanged();
+    }
+
+    private void AddRate()
+    {
+        GameMap map = _selected!;
+        HashSet<string> usedItemIds = map.GatherRates
+            .Select(rate => rate.ItemId)
+            .ToHashSet(StringComparer.Ordinal);
+        string itemId = Store.Document!.Items
+            .FirstOrDefault(item => item.IsGatherable && !usedItemIds.Contains(item.Id))?.Id ?? "";
+        map.GatherRates.Add(new GatherRate
+        {
+            ItemId = itemId,
+            IsUnlimited = false,
+            RatePerMinute = 60,
+        });
+        Store.NotifyChanged();
+    }
+
+    private void RemoveRate(GatherRate rate)
+    {
+        _selected!.GatherRates.Remove(rate);
+        Store.ClearInvalidOwner(rate);
+        Store.NotifyChanged();
+    }
+
+    private void SetGameEvent(string? value)
+    {
+        _selected!.GameEventId = value;
+        Store.NotifyChanged();
+    }
+
+    private void SetItem(GatherRate rate, string? value)
+    {
+        rate.ItemId = value ?? "";
+        Store.NotifyChanged();
+    }
+
+    private void ToggleUnlimited(GatherRate rate, ChangeEventArgs e)
+    {
+        bool isUnlimited = bool.TryParse(e.Value?.ToString(), out bool value) && value;
+        Store.ClearInvalidOwner(rate);
+        rate.IsUnlimited = isUnlimited;
+        rate.RatePerMinute = isUnlimited ? null : 60;
+        Store.NotifyChanged();
+    }
+
+    private void SetRate(GatherRate rate, double value)
+    {
+        rate.RatePerMinute = value;
+        Store.NotifyChanged();
+    }
+
+    private void Changed(string? _) => Store.NotifyChanged();
+}

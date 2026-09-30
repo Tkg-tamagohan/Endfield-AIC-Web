@@ -109,6 +109,11 @@ internal static class TestJson
                 {
                     GameEventId = (string?)null,
                 }).CloneWithRecipe()),
+            ["Maps"] = new JsonArray(
+                Entity("m-01", "テスト採取地").CloneWith(new
+                {
+                    GameEventId = (string?)null,
+                }).CloneWithGatherRates()),
             ["Icons"] = new JsonArray(
                 new JsonObject
                 {
@@ -196,5 +201,14 @@ internal static class TestJsonExtensions
                 },
             });
         return recipe;
+    }
+
+    /// <summary>マップの採取レート節を追加して返す。</summary>
+    public static JsonObject CloneWithGatherRates(this JsonObject map)
+    {
+        map["GatherRates"] = new JsonArray(
+            new JsonObject { ["ItemId"] = "i-ore", ["IsUnlimited"] = false, ["RatePerMinute"] = 60.0 },
+            new JsonObject { ["ItemId"] = "i-gas", ["IsUnlimited"] = true, ["RatePerMinute"] = null });
+        return map;
     }
 }

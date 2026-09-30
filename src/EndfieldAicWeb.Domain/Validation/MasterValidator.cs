@@ -193,6 +193,61 @@ public static class MasterValidator
         }
     }
 
+    /// <summary>単一 GameMap のフィールド内規則を検査する（参照整合性は ValidateAll）。</summary>
+    public static void ValidateGameMap(GameMap map, ICollection<MasterValidationError> errors)
+    {
+        ArgumentNullException.ThrowIfNull(map);
+        ArgumentNullException.ThrowIfNull(errors);
+
+        CheckCommonFields(map, "GameMap", errors);
+
+        if (map.GatherRates is null)
+        {
+            errors.Add(new MasterValidationError(
+                "GameMap", map.Id, "GatherRates", "GatherRates は必須です。"));
+            return;
+        }
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        for (int i = 0; i < map.GatherRates.Count; i++)
+        {
+            GatherRate? rate = map.GatherRates[i];
+            string field = $"GatherRates[{i}]";
+            if (rate is null)
+            {
+                errors.Add(new MasterValidationError(
+                    "GameMap", map.Id, "GatherRates", $"{field} が null です。"));
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(rate.ItemId))
+            {
+                errors.Add(new MasterValidationError(
+                    "GameMap", map.Id, $"{field}.ItemId", $"{field}.ItemId は必須です。"));
+            }
+            else if (!seen.Add(rate.ItemId))
+            {
+                errors.Add(new MasterValidationError(
+                    "GameMap", map.Id, "GatherRates",
+                    $"GatherRates に同一アイテムが重複しています: {rate.ItemId}"));
+            }
+
+            if (!rate.IsUnlimited && (rate.RatePerMinute is not { } boundedRate
+                || !double.IsFinite(boundedRate) || boundedRate <= 0))
+            {
+                errors.Add(new MasterValidationError(
+                    "GameMap", map.Id, $"{field}.RatePerMinute",
+                    $"{field}.RatePerMinute は 0 より大きい有限値である必要があります: {rate.RatePerMinute}"));
+            }
+            else if (rate.IsUnlimited && rate.RatePerMinute is not null)
+            {
+                errors.Add(new MasterValidationError(
+                    "GameMap", map.Id, $"{field}.RatePerMinute",
+                    $"{field}.RatePerMinute は無限の場合 null である必要があります: {rate.RatePerMinute}"));
+            }
+        }
+    }
+
     private static void ValidateRecipeItems<T>(
         IReadOnlyList<T>? items,
         Func<T, string?> itemIdOf,
@@ -243,6 +298,7 @@ public static class MasterValidator
         IReadOnlyList<Environment> environments,
         IReadOnlyList<GameEvent> gameEvents,
         IReadOnlyList<Recipe> recipes,
+        IReadOnlyList<GameMap> maps,
         ICollection<MasterValidationError> errors)
     {
         ArgumentNullException.ThrowIfNull(items);
@@ -250,6 +306,7 @@ public static class MasterValidator
         ArgumentNullException.ThrowIfNull(environments);
         ArgumentNullException.ThrowIfNull(gameEvents);
         ArgumentNullException.ThrowIfNull(recipes);
+        ArgumentNullException.ThrowIfNull(maps);
         ArgumentNullException.ThrowIfNull(errors);
 
         foreach (Item item in items)
@@ -277,11 +334,17 @@ public static class MasterValidator
             ValidateRecipe(recipe, errors);
         }
 
+        foreach (GameMap map in maps)
+        {
+            ValidateGameMap(map, errors);
+        }
+
         EnsureUniqueIds(items.Select(i => i.Id), "Items", errors);
         EnsureUniqueIds(facilities.Select(f => f.Id), "Facilities", errors);
         EnsureUniqueIds(environments.Select(e => e.Id), "Environments", errors);
         EnsureUniqueIds(gameEvents.Select(e => e.Id), "GameEvents", errors);
         EnsureUniqueIds(recipes.Select(r => r.Id), "Recipes", errors);
+        EnsureUniqueIds(maps.Select(m => m.Id), "Maps", errors);
 
         var itemsById = new Dictionary<string, Item>(StringComparer.Ordinal);
         var facilityIds = new HashSet<string>(StringComparer.Ordinal);
@@ -348,6 +411,48 @@ public static class MasterValidator
         foreach (Recipe recipe in recipes)
         {
             ValidateRecipeInContext(recipe, itemsById, facilityIds, environmentIds, gameEventIds, errors);
+        }
+
+        foreach (GameMap map in maps)
+        {
+            ValidateGameMapInContext(map, itemsById, gameEventIds, errors);
+        }
+    }
+
+    private static void ValidateGameMapInContext(
+        GameMap map,
+        IReadOnlyDictionary<string, Item> itemsById,
+        IReadOnlyCollection<string> gameEventIds,
+        ICollection<MasterValidationError> errors)
+    {
+        CheckGameEventRef("GameMap", map.Id, map.GameEventId, gameEventIds, errors);
+
+        if (map.GatherRates is null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < map.GatherRates.Count; i++)
+        {
+            GatherRate? rate = map.GatherRates[i];
+            if (rate is null || string.IsNullOrEmpty(rate.ItemId))
+            {
+                continue;
+            }
+
+            string field = $"GatherRates[{i}].ItemId";
+            if (!itemsById.TryGetValue(rate.ItemId, out Item? item))
+            {
+                errors.Add(new MasterValidationError(
+                    "GameMap", map.Id, field,
+                    $"GatherRates が参照するアイテムが存在しません: {rate.ItemId}"));
+            }
+            else if (!item.IsGatherable)
+            {
+                errors.Add(new MasterValidationError(
+                    "GameMap", map.Id, field,
+                    $"GatherRates が参照するアイテムは採取素材ではありません: {rate.ItemId}"));
+            }
         }
     }
 

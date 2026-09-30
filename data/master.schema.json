@@ -4,7 +4,7 @@
   "title": "AIC マスタ JSON（SchemaVersion=1）",
   "description": "正本マスタデータの構造定義。エンティティのフィールド構成のみを定める。参照整合性・ペア一意性・enum 定義値の意味検証など、文書をまたいだ規則は Domain の検証（requirements §5、仕様決定 P/R）で扱い、本スキーマの対象外とする。",
   "type": "object",
-  "required": ["SchemaVersion", "DataVersion", "Items", "Facilities", "Environments", "GameEvents", "Recipes", "Icons"],
+  "required": ["SchemaVersion", "DataVersion", "Items", "Facilities", "Environments", "GameEvents", "Recipes", "Maps", "Icons"],
   "additionalProperties": false,
   "properties": {
     "SchemaVersion": { "const": 1 },
@@ -14,6 +14,7 @@
     "Environments": { "type": "array", "items": { "$ref": "#/$defs/environment" } },
     "GameEvents": { "type": "array", "items": { "$ref": "#/$defs/gameEvent" } },
     "Recipes": { "type": "array", "items": { "$ref": "#/$defs/recipe" } },
+    "Maps": { "type": "array", "items": { "$ref": "#/$defs/gameMap" } },
     "Icons": { "type": "array", "items": { "$ref": "#/$defs/icon" } }
   },
   "$defs": {
@@ -141,6 +142,40 @@
             "Outputs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/recipeOutput" } },
             "Facilities": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/recipeFacility" } },
             "GameEventId": { "type": ["string", "null"] }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "gatherRate": {
+      "type": "object",
+      "required": ["ItemId", "IsUnlimited", "RatePerMinute"],
+      "additionalProperties": false,
+      "properties": {
+        "ItemId": { "type": "string", "minLength": 1 },
+        "IsUnlimited": { "type": "boolean" },
+        "RatePerMinute": { "type": ["number", "null"], "exclusiveMinimum": 0 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "IsUnlimited": { "const": false } }, "required": ["IsUnlimited"] },
+          "then": { "properties": { "RatePerMinute": { "type": "number", "exclusiveMinimum": 0 } } }
+        },
+        {
+          "if": { "properties": { "IsUnlimited": { "const": true } }, "required": ["IsUnlimited"] },
+          "then": { "properties": { "RatePerMinute": { "type": "null" } } }
+        }
+      ]
+    },
+    "gameMap": {
+      "allOf": [
+        { "$ref": "#/$defs/commonAttributes" },
+        {
+          "type": "object",
+          "required": ["GameEventId", "GatherRates"],
+          "properties": {
+            "GameEventId": { "type": ["string", "null"], "description": "null=常設" },
+            "GatherRates": { "type": "array", "items": { "$ref": "#/$defs/gatherRate" } }
           }
         }
       ],

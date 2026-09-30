@@ -28,6 +28,7 @@ public class SnapshotImmutabilityTests
             Environments = environments,
             GameEvents = gameEvents,
             Recipes = recipes,
+            Maps = [],
         };
 
         // 構築後に元リストを入れ替える（削除＋新規追加）。

@@ -50,11 +50,13 @@ public sealed class MasterDataSnapshot
     private readonly IReadOnlyList<Environment> _environments = [];
     private readonly IReadOnlyList<GameEvent> _gameEvents = [];
     private readonly IReadOnlyList<Recipe> _recipes = [];
+    private readonly IReadOnlyList<GameMap> _maps = [];
 
     private readonly IReadOnlyDictionary<string, Item> _itemsById = new Dictionary<string, Item>(StringComparer.Ordinal);
     private readonly IReadOnlyDictionary<string, Facility> _facilitiesById = new Dictionary<string, Facility>(StringComparer.Ordinal);
     private readonly IReadOnlyDictionary<string, Environment> _environmentsById = new Dictionary<string, Environment>(StringComparer.Ordinal);
     private readonly IReadOnlyDictionary<string, Recipe> _recipesById = new Dictionary<string, Recipe>(StringComparer.Ordinal);
+    private readonly IReadOnlyDictionary<string, GameMap> _mapsById = new Dictionary<string, GameMap>(StringComparer.Ordinal);
     private readonly IReadOnlyDictionary<string, IReadOnlyList<Recipe>> _recipesByOutputItemId = new Dictionary<string, IReadOnlyList<Recipe>>(StringComparer.Ordinal);
 
     public required IReadOnlyList<Item> Items
@@ -116,6 +118,18 @@ public sealed class MasterDataSnapshot
         }
     }
 
+    public required IReadOnlyList<GameMap> Maps
+    {
+        get => _maps;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            _maps = Array.AsReadOnly(value.ToArray());
+            _mapsById = new ReadOnlyDictionary<string, GameMap>(
+                _maps.ToDictionary(m => m.Id, StringComparer.Ordinal));
+        }
+    }
+
     /// <summary>ItemId → Item。</summary>
     public IReadOnlyDictionary<string, Item> ItemsById => _itemsById;
 
@@ -127,6 +141,9 @@ public sealed class MasterDataSnapshot
 
     /// <summary>RecipeId → Recipe。</summary>
     public IReadOnlyDictionary<string, Recipe> RecipesById => _recipesById;
+
+    /// <summary>MapId → GameMap。</summary>
+    public IReadOnlyDictionary<string, GameMap> MapsById => _mapsById;
 
     /// <summary>出力アイテム Id → そのアイテムを出力するレシピ一覧。</summary>
     public IReadOnlyDictionary<string, IReadOnlyList<Recipe>> RecipesByOutputItemId => _recipesByOutputItemId;

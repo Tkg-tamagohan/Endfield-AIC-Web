@@ -81,6 +81,18 @@ public static class EntityFactory
         ActiveTo = null,
     };
 
+    public static GameMap NewGameMap(string id, string versionAdded) => new()
+    {
+        Id = id,
+        Name = "新規マップ",
+        Description = "",
+        IconKey = null,
+        VersionAdded = versionAdded,
+        VersionRemoved = null,
+        GatherRates = [],
+        GameEventId = null,
+    };
+
     /// <summary>Outputs と Facilities は各 1 件必要なため、候補があれば 1 行ずつ入れて返す。</summary>
     public static Recipe NewRecipe(
         string id,

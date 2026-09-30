@@ -18,6 +18,7 @@ internal sealed class MasterJsonDocument
     public required List<EnvironmentJson?>? Environments { get; set; }
     public required List<GameEventJson?>? GameEvents { get; set; }
     public required List<RecipeJson?>? Recipes { get; set; }
+    public required List<GameMapJson?>? Maps { get; set; }
     public required List<IconJson?>? Icons { get; set; }
 
     /// <summary>スキーマ外プロパティの捕捉用（additionalProperties:false 準拠で構造検証が拒否する）。</summary>
@@ -75,6 +76,22 @@ internal sealed class RecipeJson : EntityJson
     public required List<RecipeIoJson?>? Inputs { get; set; }
     public required List<RecipeOutputJson?>? Outputs { get; set; }
     public required List<RecipeFacilityJson?>? Facilities { get; set; }
+}
+
+internal sealed class GameMapJson : EntityJson
+{
+    public required string? GameEventId { get; set; }
+    public required List<GatherRateJson?>? GatherRates { get; set; }
+}
+
+internal sealed class GatherRateJson
+{
+    public required string? ItemId { get; set; }
+    public required bool? IsUnlimited { get; set; }
+    public required double? RatePerMinute { get; set; }
+
+    [JsonExtensionData]
+    public IDictionary<string, JsonElement>? ExtensionData { get; set; }
 }
 
 internal sealed class RecipeIoJson

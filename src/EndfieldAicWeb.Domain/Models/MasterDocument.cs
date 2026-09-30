@@ -16,5 +16,6 @@ public class MasterDocument
     public List<Environment> Environments { get; set; } = [];
     public List<GameEvent> GameEvents { get; set; } = [];
     public List<Recipe> Recipes { get; set; } = [];
+    public List<GameMap> Maps { get; set; } = [];
     public List<IconEntry> Icons { get; set; } = [];
 }

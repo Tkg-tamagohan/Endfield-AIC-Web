@@ -79,6 +79,7 @@ internal static class MasterJsonReader
         RequireArray(document.Environments, nameof(document.Environments), errors);
         RequireArray(document.GameEvents, nameof(document.GameEvents), errors);
         RequireArray(document.Recipes, nameof(document.Recipes), errors);
+        RequireArray(document.Maps, nameof(document.Maps), errors);
         RequireArray(document.Icons, nameof(document.Icons), errors);
 
         ValidateEntityElements(document.Items, "Items", ValidateItemElement, errors);
@@ -86,6 +87,7 @@ internal static class MasterJsonReader
         ValidateEntityElements(document.Environments, "Environments", ValidateEnvironmentElement, errors);
         ValidateEntityElements(document.GameEvents, "GameEvents", ValidateGameEventElement, errors);
         ValidateEntityElements(document.Recipes, "Recipes", ValidateRecipeElement, errors);
+        ValidateEntityElements(document.Maps, "Maps", ValidateGameMapElement, errors);
         ValidateIconElements(document.Icons, errors);
     }
 
@@ -186,6 +188,22 @@ internal static class MasterJsonReader
                         },
                 }).ToList(),
             }).ToList(),
+            Maps = document.Maps!.Select(e => new GameMap
+            {
+                Id = e!.Id!,
+                Name = e.Name!,
+                Description = e.Description!,
+                IconKey = e.IconKey,
+                VersionAdded = e.VersionAdded!,
+                VersionRemoved = e.VersionRemoved,
+                GameEventId = e.GameEventId,
+                GatherRates = e.GatherRates!.Select(rate => new GatherRate
+                {
+                    ItemId = rate!.ItemId!,
+                    IsUnlimited = rate.IsUnlimited!.Value,
+                    RatePerMinute = rate.RatePerMinute,
+                }).ToList(),
+            }).ToList(),
             Icons = document.Icons!.Select(e => new IconEntry
             {
                 Key = e!.Key!,
@@ -201,6 +219,7 @@ internal static class MasterJsonReader
             result.Environments,
             result.GameEvents,
             result.Recipes,
+            result.Maps,
             errors);
 
         return result;
@@ -416,6 +435,43 @@ internal static class MasterJsonReader
                         fixedConsumption.ExtensionData, $"{pairLocation}.FixedConsumption", "Recipe", id, errors);
                 }
             }
+        }
+    }
+
+    private static void ValidateGameMapElement(GameMapJson? map, string location, ICollection<MasterValidationError> errors)
+    {
+        string id = map!.Id ?? "";
+        RequireField(map.Id, $"{location}.Id", "GameMap", id, errors);
+        RequireField(map.Name, $"{location}.Name", "GameMap", id, errors);
+        RequirePresent(map.Description, $"{location}.Description", "GameMap", id, errors);
+        RejectUnknownProperties(map.ExtensionData, location, "GameMap", id, errors);
+
+        if (map.GatherRates is null)
+        {
+            errors.Add(new MasterValidationError("GameMap", id, "GatherRates", $"{location}.GatherRates は必須です。"));
+            return;
+        }
+
+        for (int i = 0; i < map.GatherRates.Count; i++)
+        {
+            GatherRateJson? rate = map.GatherRates[i];
+            string rateLocation = $"{location}.GatherRates[{i}]";
+            if (rate is null)
+            {
+                errors.Add(new MasterValidationError(
+                    "GameMap", id, "GatherRates", $"{rateLocation} が null です。"));
+                continue;
+            }
+
+            RequireField(rate.ItemId, $"{rateLocation}.ItemId", "GameMap", id, errors);
+            if (rate.IsUnlimited is null)
+            {
+                errors.Add(new MasterValidationError(
+                    "GameMap", id, "GatherRates",
+                    $"{rateLocation}.IsUnlimited は必須です。"));
+            }
+
+            RejectUnknownProperties(rate.ExtensionData, rateLocation, "GameMap", id, errors);
         }
     }
 

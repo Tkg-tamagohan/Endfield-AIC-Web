@@ -175,9 +175,9 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 
 ### Phase 10: マップモデル（PR: GameMap＋スキーマ＋管理ツールのマップ編集）
 
-- [ ] `GameMap` エンティティと `GatherRate` 行の新設（仕様決定 AC）。`MasterDocument.Maps`、`MasterDataSnapshot.Maps`、`MasterValidator` のマップ検証、JSON 入出力、`data/master.schema.json` の `Maps` 節を整備する
-- [ ] 管理ツールにマップ編集ページ（一覧・共通属性・採取レート行の編集）を追加し、ナビと文書件数表示を追従する。アイテム削除時の参照検出に採取レート行を含める
-- [ ] `data/master.json` に Maps サンプルを追加し、`tools/validate_master.py` の `ENTITY_SECTIONS` に `Maps` を加える
+- [x] `GameMap` エンティティと `GatherRate` 行の新設（仕様決定 AC）。`MasterDocument.Maps`、`MasterDataSnapshot.Maps`、`MasterValidator` のマップ検証、JSON 入出力、`data/master.schema.json` の `Maps` 節を整備する
+- [x] 管理ツールにマップ編集ページ（一覧・共通属性・採取レート行の編集）を追加し、ナビと文書件数表示を追従する。アイテム削除時の参照検出に採取レート行を含める
+- [x] `data/master.json` に Maps サンプルを追加し、`tools/validate_master.py` の `ENTITY_SECTIONS` に `Maps` を加える
 - **受け入れ条件**: `dotnet test` 全緑、`tools/validate_master.py` 通過。計算結果は変わらない（マップはまだ計算へ未接続）。
 
 ### Phase 11: 採取上限の計算（PR: 上限・代替レシピ展開・警告・ユーザー上書き）
