@@ -84,3 +84,23 @@ dotnet run --project src/EndfieldAicWeb.Admin --no-launch-profile --urls http://
 - `Icons[].File` は `icons/<Key>.png` 形式がロード時の構造検証で強制される。再照合（ストア温存分を新マニフェストの Sha256/Bytes で数え直す処理）の不一致系をテストするために File を改名すると、読み込み自体が違反で失敗して再照合まで辿り着かない。読み込みは通るが再照合だけ落ちる JSON を作るには、File は正しい形のまま `Bytes`/`Sha256` を実体とずらす（例: Bytes を +1）。
 - 同梱マスタには IconKey 未設定のエンティティがいるためフォールバック検証に使える（例: recipe-part は主出力 item-part の icon-item-part にフォールバック、recipe-part-hp は主出力 item-part-hp が未設定なので「?」のまま）。エディタでヒント「主出力アイテムのアイコンが使われます。」の有無が判定材料。
 - 提案キー衝突（`icon-<Id>` の -n 連番）は種別またぎで作れる: 別エンティティの IconKey 欄に占有したいキー（例: icon-fac-dispenser）を手入力+Tab 確定 → 対象エンティティに画像登録 → icon-fac-dispenser-2 が補完される。後始末として占有側を「クリア」で null に戻さないと、エクスポートが未登録キー違反で止まる。
+## エクスポート物を App 側で e2e 確認する手順（Phase 8 以降）
+
+- `src/*/wwwroot/data/` は `CopyMasterJson` MSBuild ターゲットがリポジトリルート `data/` からコピーする **gitignore 済みのビルド生成物**。追跡対象の `data/` に触れずに App へ新マスタを食わせられる。
+- `dotnet run`（Blazor Dev Server）稼働中に `wwwroot/data/` へ追加・上書きしたファイルは**再起動なしで配信される**（新規ファイルも curl で 200 確認済み）。手順:
+  1. Admin で master-export.zip を出力し `unzip` する
+  2. `cp 展開dir/data/master.json src/EndfieldAicWeb.App/wwwroot/data/` と `cp 展開dir/data/icons/*.png src/EndfieldAicWeb.App/wwwroot/data/icons/`
+  3. App を ctrl+shift+r でハードリロード（fetch は `data/master.json` 相対パス、IconCatalog が `data/icons/<Key>.png` を個別取得）
+  4. 検証後は `cp data/master.json ...`＋追加アイコン削除で元に戻す（次回ビルド時にも CopyMasterJson が正本で上書きする）
+- **注意**: `dotnet run` を再起動すると CopyMasterJson が wwwroot/data を正本で上書きするため、コピーはサーバー稼働中に行う。
+
+## APNG アニメーションの検証（Phase 8）
+
+- Chrome は `<img>` でも `file://` 直開きでも APNG を無限ループ再生する。エクスポート物の `data/icons/*.png` を `file:///tmp/.../icon-xxx.png` で直接開けば再生を目視できる。
+- 静止スクショでアニメを証明するには **0.5〜1 秒間隔のバースト撮影**を取り、同じ領域のフレーム差を比較する。20px の `.icon-slot` ではフレーム差が小さいので、`zoom` より通常 `screenshot` を連発して後で Python（PIL）で領域比較するのが確実。
+- **保存済みスクリーンショットは実解像度（1600×1200）で、computer ツールの座標系（1024×768）と違う**。PIL で領域解析する際は `x*1600/1024, y*1200/768` に換算する。
+- APNG 構造はシェルで `b'acTL' in open(f,'rb').read()`、`n_frames`・`im.info['duration']`（PIL）で遅延 ms が読める。65535ms 超の遅延は UPNG.encode の 16bit 制約で**同一フレーム繰り返しに分割**される（例: 70000ms → [65535, 4465]）のが仕様。
+
+## 動作確認済みの補足
+
+- GTK ファイルダイアログは前回開いたディレクトリを記憶する。`/tmp/icontest` 等を一度開けば以後ファイル行クリック＋Open で選べる。
