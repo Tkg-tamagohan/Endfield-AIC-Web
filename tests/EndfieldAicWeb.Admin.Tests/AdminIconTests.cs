@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using EndfieldAicWeb.Admin.Services;
 using EndfieldAicWeb.Domain.Models;
 using EndfieldAicWeb.Infrastructure.Icons;
@@ -283,6 +284,47 @@ public class AdminIconTests
         var reloaded = new AdminDocumentService(new HttpClient());
         Assert.True(reloaded.LoadZip(outcome.ZipBytes!, "master-export.zip"));
 
+        Assert.Equal(3, reloaded.IconFilesExpected);
+        Assert.Equal(3, reloaded.IconFilesLoaded);
+        Assert.NotNull(reloaded.IconDataUrl("icon-ore"));
+    }
+
+    [Fact]
+    public void ANM01_APNGを登録すると実バイト列からエントリが算出され同一内容のdataURLが返る()
+    {
+        // I-03 が実際の APNG（acTL チャンクを含む）であることを先に担保する。
+        Assert.True(ApngFixture.HasActlChunk());
+        AdminDocumentService service = I01Loaded();
+        Item target = service.Document!.Items.Single(i => i.Id == "i-none");
+
+        service.RegisterIcon(target, ApngFixture.ApngBytes);
+
+        Assert.Equal("icon-i-none", target.IconKey);
+        IconEntry entry = service.Document.Icons.Single(e => e.Key == "icon-i-none");
+        Assert.Equal("icons/icon-i-none.png", entry.File);
+        Assert.Equal(
+            Convert.ToHexString(SHA256.HashData(ApngFixture.ApngBytes)).ToLowerInvariant(),
+            entry.Sha256);
+        Assert.Equal(ApngFixture.ApngBytes.LongLength, entry.Bytes);
+        Assert.Equal(
+            "data:image/png;base64," + Convert.ToBase64String(ApngFixture.ApngBytes),
+            service.IconDataUrl("icon-i-none"));
+    }
+
+    [Fact]
+    public void ANM02_APNGを含む文書のエクスポートzipは実バイト列を保持し往復で取り込める()
+    {
+        AdminDocumentService service = I01Loaded();
+        Item target = service.Document!.Items.Single(i => i.Id == "i-ore");
+        service.RegisterIcon(target, ApngFixture.ApngBytes);
+
+        ExportZipOutcome outcome = service.ExportZip("1.0.1");
+
+        Assert.True(outcome.Success);
+        Assert.True(IconArchive.TryReadZip(outcome.ZipBytes!, out _, out IReadOnlyDictionary<string, byte[]> icons));
+        Assert.Equal(ApngFixture.ApngBytes, icons["icons/icon-ore.png"]);
+        var reloaded = new AdminDocumentService(new HttpClient());
+        Assert.True(reloaded.LoadZip(outcome.ZipBytes!, "master-export.zip"));
         Assert.Equal(3, reloaded.IconFilesExpected);
         Assert.Equal(3, reloaded.IconFilesLoaded);
         Assert.NotNull(reloaded.IconDataUrl("icon-ore"));

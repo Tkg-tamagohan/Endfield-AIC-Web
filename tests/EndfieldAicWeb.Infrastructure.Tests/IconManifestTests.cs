@@ -77,6 +77,28 @@ public class IconManifestTests
         Assert.Contains(errors, e => e.Field == "File");
     }
 
+    [Fact(DisplayName = "ANM-03: APNG 実体は照合を通過し、改変された実体は Sha256 違反で失敗する")]
+    public void Verify_ApngContent_TamperDetected()
+    {
+        byte[] apng = ApngFixture.ApngBytes;
+        IconEntry entry = new()
+        {
+            Key = "icon-ore",
+            File = IconOrePath,
+            Sha256 = Convert.ToHexString(SHA256.HashData(apng)).ToLowerInvariant(),
+            Bytes = apng.LongLength,
+        };
+
+        var provider = new InMemoryIconProvider().Add(IconOrePath, apng);
+        Assert.Empty(IconManifestVerifier.Verify([entry], provider));
+
+        byte[] tampered = (byte[])apng.Clone();
+        tampered[tampered.Length - 1] ^= 0xFF;
+        var tamperedProvider = new InMemoryIconProvider().Add(IconOrePath, tampered);
+        var errors = IconManifestVerifier.Verify([entry], tamperedProvider);
+        Assert.Contains(errors, e => e.Field == "Sha256");
+    }
+
     [Fact(DisplayName = "ICO-13: CountMatching は実体が一致するエントリだけを数える")]
     public void CountMatching_CountsOnlyMatchingEntries()
     {
