@@ -13,6 +13,7 @@ public class PlanViewDefaultsTests
             targets,
             new ContextFilter(),
             [],
+            [],
             []);
 
     // PVD-01: 全設備が整数台数なら未調整表示が既定（両ビューの見え方が同じため）。
@@ -51,10 +52,10 @@ public class PlanViewDefaultsTests
     {
         MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
             [
-                ApplicationFixtures.Item("i-u", "上流素材"),
+                ApplicationFixtures.Item("i-u", "上流素材", gatherable: true),
                 ApplicationFixtures.Item("i-x", "中間品X"),
                 ApplicationFixtures.Item("i-y", "中間品Y"),
-                ApplicationFixtures.Item("i-gas", "活性ガス", TransportKind.Pipe),
+                ApplicationFixtures.Item("i-gas", "活性ガス", TransportKind.Pipe, gatherable: true),
             ],
             [ApplicationFixtures.Facility("f-a", "機A", 10), ApplicationFixtures.Facility("f-d", "散布機", 5)],
             [ApplicationFixtures.Env("env-1", "環境1", "f-d", "i-gas", 60)],

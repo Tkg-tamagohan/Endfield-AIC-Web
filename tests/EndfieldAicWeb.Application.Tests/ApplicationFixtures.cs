@@ -9,7 +9,7 @@ namespace EndfieldAicWeb.Application.Tests;
 /// </summary>
 internal static class ApplicationFixtures
 {
-    public static Item Item(string id, string name, TransportKind kind = TransportKind.Belt, string? eventId = null) =>
+    public static Item Item(string id, string name, TransportKind kind = TransportKind.Belt, string? eventId = null, bool gatherable = false) =>
         new()
         {
             Id = id,
@@ -18,7 +18,7 @@ internal static class ApplicationFixtures
             TransportKind = kind,
             VersionAdded = "1.0.0",
             GameEventId = eventId,
-            IsGatherable = kind is TransportKind.Belt or TransportKind.Pipe,
+            IsGatherable = gatherable,
         };
 
     public static Facility Facility(string id, string name, double power) =>
@@ -65,7 +65,8 @@ internal static class ApplicationFixtures
         IReadOnlyList<Facility> facilities,
         IReadOnlyList<DomainEnvironment> environments,
         IReadOnlyList<GameEvent> gameEvents,
-        IReadOnlyList<Recipe> recipes) =>
+        IReadOnlyList<Recipe> recipes,
+        IReadOnlyList<GameMap>? maps = null) =>
         new()
         {
             Items = items,
@@ -73,7 +74,7 @@ internal static class ApplicationFixtures
             Environments = environments,
             GameEvents = gameEvents,
             Recipes = recipes,
-            Maps = [],
+            Maps = maps ?? [],
         };
 
     public static ContextFilter Context(params string[] activeEventIds) =>
@@ -86,7 +87,7 @@ internal static class ApplicationFixtures
     public static MasterDataSnapshot A01()
     {
         return Snapshot(
-            [Item("i-ore", "鉄鉱石"), Item("i-gas", "活性ガス", TransportKind.Pipe), Item("i-part", "汎用部品")],
+            [Item("i-ore", "鉄鉱石", gatherable: true), Item("i-gas", "活性ガス", TransportKind.Pipe, gatherable: true), Item("i-part", "汎用部品")],
             [Facility("f-asm", "加工機", 50), Facility("f-disp", "ガス散布機", 20)],
             [Env("env-gas", "ガス散布", "f-disp", "i-gas", 360)],
             [],
@@ -103,7 +104,7 @@ internal static class ApplicationFixtures
     public static MasterDataSnapshot A02()
     {
         return Snapshot(
-            [Item("i-u", "上流素材"), Item("i-t", "加工品")],
+            [Item("i-u", "上流素材", gatherable: true), Item("i-t", "加工品")],
             [Facility("f-t", "組立機", 30)],
             [],
             [],
@@ -117,7 +118,7 @@ internal static class ApplicationFixtures
     public static MasterDataSnapshot A03()
     {
         return Snapshot(
-            [Item("i-u", "上流素材"), Item("i-x", "中間品X"), Item("i-y", "中間品Y")],
+            [Item("i-u", "上流素材", gatherable: true), Item("i-x", "中間品X"), Item("i-y", "中間品Y")],
             [Facility("f-sh", "共用機", 10)],
             [],
             [],
@@ -135,7 +136,7 @@ internal static class ApplicationFixtures
     public static MasterDataSnapshot A04()
     {
         return Snapshot(
-            [Item("i-u", "上流素材"), Item("i-x", "中間品X")],
+            [Item("i-u", "上流素材", gatherable: true), Item("i-x", "中間品X")],
             [Facility("f-a", "機A", 10), Facility("f-b", "機B", 10), Facility("f-disp", "散布機", 5)],
             [Env("env-ltd", "限定環境", "f-disp", "i-u", 60, "ev-off")],
             [Event("ev-off", "終了イベント")],
@@ -158,7 +159,7 @@ internal static class ApplicationFixtures
     {
         return Snapshot(
             [
-                Item("i-u", "上流素材"), Item("i-side", "主産物"), Item("i-ltd", "限定副産物", eventId: "ev-ltd"),
+                Item("i-u", "上流素材", gatherable: true), Item("i-side", "主産物"), Item("i-ltd", "限定副産物", eventId: "ev-ltd"),
             ],
             [Facility("f-asm", "加工機", 10)],
             [],

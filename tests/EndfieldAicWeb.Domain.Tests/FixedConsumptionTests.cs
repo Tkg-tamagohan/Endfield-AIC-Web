@@ -29,14 +29,14 @@ public class FixedConsumptionTests
         Assert.Equal(18.0, Req(plan, "i-fuel").RequiredPerMinute, Precision);
     }
 
-    [Fact(DisplayName = "FIX-03: 固定消費素材の生産が展開され収束する")]
-    public void FixedConsumptionItemCanBeProduced()
+    [Fact(DisplayName = "FIX-03: 固定消費素材は採取が優先され自産レシピは稼働しない（仕様決定 AD）")]
+    public void FixedConsumptionItemIsGatheredBeforeRecipe()
     {
         ProductionPlan plan = CalculationFixtures.Run(
             CalculationFixtures.F11WithFuelRecipe(), [("i-fc", 10.0)]);
 
-        Assert.Equal(30.0, Supplied(plan, "i-fuel", SupplyKind.Recipe), Precision);
-        Assert.Equal(30.0, RunOf(plan, "r-fuel")!.CyclesPerMinute, Precision);
+        Assert.Equal(30.0, Supplied(plan, "i-fuel", SupplyKind.Gathered), Precision);
+        Assert.Null(RunOf(plan, "r-fuel"));
         Assert.False(HasWarning(plan, WarningCode.ConvergenceNotReached));
         Assert.Equal(0.0, Req(plan, "i-fuel").UnmetPerMinute, Precision);
     }

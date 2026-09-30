@@ -69,6 +69,7 @@ public class PairOptionTests
             [new ProductionTarget("i-part", 60)],
             ApplicationFixtures.Context(),
             [],
+            [],
             []);
 
         IReadOnlyList<PairOption> options = outcome.PairOptionsByItemId["i-part"];

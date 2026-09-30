@@ -65,6 +65,7 @@ public class SnapshotFactoryTests
             [new ProductionTarget("i-p", 30)],
             new ContextFilter(),
             [],
+            [],
             []);
 
         ItemRequirement requirement = Assert.Single(plan.ItemRequirements, r => r.ItemId == "i-p");

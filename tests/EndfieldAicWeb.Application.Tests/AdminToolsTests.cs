@@ -16,10 +16,10 @@ public class AdminToolsTests
         DataVersion = "0.1.0",
         Items =
         [
-            ApplicationFixtures.Item("i-ore", "原鉱石"),
-            ApplicationFixtures.Item("i-gas", "活性ガス", TransportKind.Pipe),
+            ApplicationFixtures.Item("i-ore", "原鉱石", gatherable: true),
+            ApplicationFixtures.Item("i-gas", "活性ガス", TransportKind.Pipe, gatherable: true),
             ApplicationFixtures.Item("i-part", "汎用部品", eventId: "ev-on"),
-            ApplicationFixtures.Item("i-fc", "固定素材"),
+            ApplicationFixtures.Item("i-fc", "固定素材", gatherable: true),
         ],
         Facilities =
         [

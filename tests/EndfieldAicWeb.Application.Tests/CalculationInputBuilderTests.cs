@@ -206,6 +206,96 @@ public class EnvironmentCountParseTests
     }
 }
 
+/// <summary>GRI: 採取レート入力行のパース（docs/phases/test-specification-phase11.md §3）。</summary>
+public class GatherRateParseTests
+{
+    private static readonly MasterDataSnapshot Snapshot = ApplicationFixtures.A01();
+
+    // GRI-01: 有効行は GatherRateOverride になり、空欄行は無視される。
+    [Fact]
+    public void ValidRatesBecomeOverrides()
+    {
+        var inputs = new[]
+        {
+            new GatherRateInput("i-ore", "鉄鉱石", "30"),
+            new GatherRateInput("i-gas", "活性ガス", ""),
+            new GatherRateInput("i-ore", "鉄鉱石", "0"),
+        };
+
+        bool ok = CalculationInputBuilder.TryParseGatherRates(
+            inputs, Snapshot, out List<GatherRateOverride> overrides, out string? error);
+
+        Assert.True(ok);
+        Assert.Null(error);
+        Assert.Equal(
+            [new GatherRateOverride("i-ore", 30), new GatherRateOverride("i-ore", 0)],
+            overrides);
+    }
+
+    // GRI-02: 非数値・負・非有限はエラー（メッセージにアイテム名を含む）。
+    [Theory]
+    [InlineData("abc")]
+    [InlineData("-1")]
+    [InlineData("NaN")]
+    [InlineData("Infinity")]
+    public void InvalidRatesReturnError(string text)
+    {
+        bool ok = CalculationInputBuilder.TryParseGatherRates(
+            [new GatherRateInput("i-ore", "鉄鉱石", text)],
+            Snapshot,
+            out _,
+            out string? error);
+
+        Assert.False(ok);
+        Assert.Equal("鉄鉱石 の利用可能レートは 0 以上の数値で入力してください。", error);
+    }
+
+    // GRI-03: マップ値を超える値も受理する（上限との比較は行わない）。
+    [Fact]
+    public void RatesAboveMapValueAreAccepted()
+    {
+        bool ok = CalculationInputBuilder.TryParseGatherRates(
+            [new GatherRateInput("i-ore", "鉄鉱石", "9999")],
+            Snapshot,
+            out List<GatherRateOverride> overrides,
+            out _);
+
+        Assert.True(ok);
+        Assert.Equal([new GatherRateOverride("i-ore", 9999)], overrides);
+    }
+
+    // GRI-04: 存在しない・採取素材でないアイテムはエラー。
+    [Theory]
+    [InlineData("i-ghost")]
+    [InlineData("i-part")]
+    public void UnknownOrNonGatherableItemsReturnError(string itemId)
+    {
+        bool ok = CalculationInputBuilder.TryParseGatherRates(
+            [new GatherRateInput(itemId, "対象アイテム", "10")],
+            Snapshot,
+            out _,
+            out string? error);
+
+        Assert.False(ok);
+        Assert.Equal("対象アイテム は採取素材ではありません。", error);
+    }
+
+    // GRI-05: 全行空欄は空の上書き列で成功。
+    [Fact]
+    public void AllBlankRowsSucceedWithEmptyOverrides()
+    {
+        bool ok = CalculationInputBuilder.TryParseGatherRates(
+            [new GatherRateInput("i-ore", "鉄鉱石", ""), new GatherRateInput("i-gas", "活性ガス", " ")],
+            Snapshot,
+            out List<GatherRateOverride> overrides,
+            out string? error);
+
+        Assert.True(ok);
+        Assert.Null(error);
+        Assert.Empty(overrides);
+    }
+}
+
 /// <summary>FIL: アイテム検索の選択解除判定（docs/phases/test-specification-phase4.md MN-10）。</summary>
 public class ItemDeselectTests
 {

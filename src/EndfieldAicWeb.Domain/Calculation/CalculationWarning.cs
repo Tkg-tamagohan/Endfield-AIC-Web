@@ -36,6 +36,18 @@ public enum WarningCode
 
     /// <summary>追加需要の反復が上限回数内に収束しなかった（docs/implementation-plan.md §3-8）。</summary>
     ConvergenceNotReached,
+
+    /// <summary>採取上限を超える需要があり、代替レシピもなかった（仕様決定 AD）。</summary>
+    GatherCapExceeded,
+
+    /// <summary>選択マップの所属イベントが非有効で、採取素材がすべて採取不可（仕様決定 AD、X と同型）。</summary>
+    GatherMapUnavailable,
+
+    /// <summary>MapId が存在しないマップを指した。</summary>
+    InvalidGatherMap,
+
+    /// <summary>GatherRateOverride が採取素材でないアイテムを指す、または値が不正で無視した。</summary>
+    InvalidGatherRateOverride,
 }
 
 /// <summary>

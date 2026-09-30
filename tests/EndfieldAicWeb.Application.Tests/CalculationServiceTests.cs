@@ -1,5 +1,6 @@
 using EndfieldAicWeb.Application;
 using EndfieldAicWeb.Domain.Calculation;
+using EndfieldAicWeb.Domain.Models;
 
 namespace EndfieldAicWeb.Application.Tests;
 
@@ -18,6 +19,7 @@ public class CalculationServiceTests
             snapshot,
             [new ProductionTarget("i-part", 60)],
             ApplicationFixtures.Context(),
+            [],
             [],
             []);
 
@@ -41,6 +43,7 @@ public class CalculationServiceTests
             [new ProductionTarget("i-part", 60)],
             ApplicationFixtures.Context(),
             [],
+            [],
             []);
 
         IReadOnlyList<PairOption> options = Assert.Single(outcome.PairOptionsByItemId).Value;
@@ -63,6 +66,7 @@ public class CalculationServiceTests
             [new ProductionTarget("i-part", 60)],
             ApplicationFixtures.Context(),
             [pairOverride],
+            [],
             []);
 
         PairSelection selection = Assert.Single(outcome.Plan.PairSelections);
@@ -70,5 +74,60 @@ public class CalculationServiceTests
         Assert.Equal(4, selection.Pair.CycleTime);
         Assert.Null(selection.Pair.EnvironmentId);
         Assert.Empty(outcome.Plan.EnvironmentRequirements);
+    }
+
+    // SVC-04: MapId と gatherOverrides が計算へ渡る。
+    [Fact]
+    public void AppliesGatherMapAndRateOverrides()
+    {
+        MasterDataSnapshot base_ = ApplicationFixtures.A01();
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            base_.Items,
+            base_.Facilities,
+            base_.Environments,
+            base_.GameEvents,
+            base_.Recipes,
+            maps:
+            [
+                new GameMap
+                {
+                    Id = "m-cap",
+                    Name = "上限マップ",
+                    VersionAdded = "1.0.0",
+                    GatherRates =
+                    [
+                        new GatherRate { ItemId = "i-ore", RatePerMinute = 60 },
+                        new GatherRate { ItemId = "i-gas", IsUnlimited = true },
+                    ],
+                },
+            ]);
+        var context = new ContextFilter { MapId = "m-cap" };
+
+        // 上限内: i-part 30/分 → i-ore 需要 60/分（上限ちょうど）。
+        CalculationOutcome withinCap = _service.Calculate(
+            snapshot,
+            [new ProductionTarget("i-part", 30)],
+            context,
+            [],
+            [],
+            []);
+        Assert.Equal(
+            60,
+            Assert.Single(withinCap.Plan.ItemRequirements, r => r.ItemId == "i-ore")
+                .Supplies.Where(s => s.Kind == SupplyKind.Gathered).Sum(s => s.AmountPerMinute));
+        Assert.DoesNotContain(withinCap.Plan.Warnings, w => w.Code == WarningCode.GatherCapExceeded);
+
+        // 上書き 40: 有効レートの置き換えで採取 40 + 未充足 20（i-ore に代替レシピなし）。
+        CalculationOutcome overridden = _service.Calculate(
+            snapshot,
+            [new ProductionTarget("i-part", 30)],
+            context,
+            [],
+            [],
+            [new GatherRateOverride("i-ore", 40)]);
+        ItemRequirement ore = Assert.Single(overridden.Plan.ItemRequirements, r => r.ItemId == "i-ore");
+        Assert.Equal(40, ore.Supplies.Where(s => s.Kind == SupplyKind.Gathered).Sum(s => s.AmountPerMinute));
+        Assert.Equal(20, ore.UnmetPerMinute);
+        Assert.Contains(overridden.Plan.Warnings, w => w.Code == WarningCode.GatherCapExceeded);
     }
 }

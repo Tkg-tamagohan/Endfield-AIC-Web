@@ -12,6 +12,7 @@ public class ResultViewTests
             targets,
             new ContextFilter(),
             [],
+            [],
             []);
 
     // VW-01: 素材行の未達量はレシピ供給を差し引いた残り。基底素材は未達 0。
@@ -78,7 +79,8 @@ public class ResultViewTests
             [new ProductionTarget("i-part", 60)],
             new ContextFilter(),
             [],
-            [new EnvironmentCountOverride("env-unknown", 1)]);
+            [new EnvironmentCountOverride("env-unknown", 1)],
+            []);
 
         ResultView view = ResultViewBuilder.Build(plan, snapshot, new ContextFilter(), unadjusted: false);
 

@@ -27,12 +27,21 @@ public sealed record PairOverride(
 public sealed record EnvironmentCountOverride(string EnvironmentId, int Count);
 
 /// <summary>
-/// 計算時のコンテキスト（有効イベントの集合）。
+/// 採取素材ごとの利用可能レートの上書き指定（個/分、仕様決定 AE）。
+/// 有効採取レートの置き換えであり、マップ値を超える指定も許容する。
+/// </summary>
+public sealed record GatherRateOverride(string ItemId, double RatePerMinute);
+
+/// <summary>
+/// 計算時のコンテキスト（有効イベントの集合と選択マップ）。
 /// </summary>
 public sealed record ContextFilter
 {
     /// <summary>有効な GameEvent の Id 集合。</summary>
     public IReadOnlyCollection<string> ActiveGameEventIds { get; init; } = [];
+
+    /// <summary>選択されたマップの Id。null は未選択（全採取素材を上限なしとする。仕様決定 AC）。</summary>
+    public string? MapId { get; init; }
 }
 
 /// <summary>

@@ -19,16 +19,18 @@ public sealed class CalculationService
         IReadOnlyList<ProductionTarget> targets,
         ContextFilter context,
         IReadOnlyList<PairOverride> pairOverrides,
-        IReadOnlyList<EnvironmentCountOverride> environmentOverrides)
+        IReadOnlyList<EnvironmentCountOverride> environmentOverrides,
+        IReadOnlyList<GatherRateOverride> gatherOverrides)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(targets);
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(pairOverrides);
         ArgumentNullException.ThrowIfNull(environmentOverrides);
+        ArgumentNullException.ThrowIfNull(gatherOverrides);
 
         ProductionPlan plan = ProductionCalculator.Calculate(
-            snapshot, targets, context, pairOverrides, environmentOverrides);
+            snapshot, targets, context, pairOverrides, environmentOverrides, gatherOverrides);
 
         var options = new Dictionary<string, IReadOnlyList<PairOption>>(StringComparer.Ordinal);
         foreach (ItemRequirement requirement in plan.ItemRequirements)
