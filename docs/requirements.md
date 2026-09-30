@@ -197,6 +197,13 @@ erDiagram
 - ルートに `SchemaVersion`・`DataVersion` を持ち、Items・Facilities・Environments・GameEvents・Recipes・Icons を収める。
 - スキーマは新系統で v1 に振り直す（仕様決定 C）。`DataVersion` はデータ更新で上げる。
 
+### 5.10 Icons（アイコン）
+
+- エンティティのアイコンはマニフェスト（Icons 節）と画像ファイルで管理する。File は `icons/<Key>.png` 固定、Sha256・Bytes は実ファイルとの一致を保持する。
+- Key は `^[A-Za-z0-9_-]{1,64}$` とする（ファイル名導出の前提。エンティティの IconKey・マニフェストの Key 共通）。
+- 画像は管理ツールで登録する際にブラウザ内で正規化し、中央正方形にクロップした 128×128 PNG とする。
+- IconKey 未設定・解決不能の場合はプレースホルダ表示とする。
+
 ## 6. アーキテクチャ
 
 ### 6.1 構成

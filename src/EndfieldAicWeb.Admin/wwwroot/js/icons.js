@@ -1,5 +1,6 @@
-// アイコン画像のブラウザ内正規化（中央正方形クロップ → 128×128 PNG）と
-// zip バイナリのダウンロード。NuGet を増やさず Canvas で済ませる（Phase 7 仕様）。
+// アイコン画像のブラウザ内正規化と zip バイナリのダウンロード。
+// NuGet を増やさず Canvas で済ませる（Phase 7 仕様）。
+// 正規化の規格（中央正方形クロップ → 128×128 PNG）は docs/requirements.md の Icons 節を参照。
 
 // data: URI の画像を中央正方形にクロップし 128×128 PNG の data: URI で返す。
 // デコードは fetch ではなく Image 要素で行う（data: URI の fetch は環境によって失敗するため）。
