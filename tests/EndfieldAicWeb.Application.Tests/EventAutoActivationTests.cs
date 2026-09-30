@@ -61,4 +61,21 @@ public class EventAutoActivationTests
         Assert.False(EventAutoActivation.IsActiveByDefault(notStarted, Today));
         Assert.True(EventAutoActivation.IsActiveByDefault(endsToday, Today));
     }
+
+    // EVT-05: 同一瞬間の表記違い（Z とオフセット→Local 変換後の値）で判定が一致する（仕様決定 Z）。
+    [Fact]
+    public void InstantNotationEquivalence()
+    {
+        var utc = new DateTime(2026, 9, 19, 15, 0, 0, DateTimeKind.Utc);
+        DateTime asLocal = DateTime.SpecifyKind(utc.ToLocalTime(), DateTimeKind.Local);
+        GameEvent utcEvent = ApplicationFixtures.Event("ev", "Z 表記", utc, null);
+        GameEvent localEvent = ApplicationFixtures.Event("ev", "オフセット表記", asLocal, null);
+
+        foreach (DateOnly day in new[] { new DateOnly(2026, 9, 18), new DateOnly(2026, 9, 21), new DateOnly(2026, 9, 25) })
+        {
+            Assert.Equal(
+                EventAutoActivation.IsActiveByDefault(utcEvent, day),
+                EventAutoActivation.IsActiveByDefault(localEvent, day));
+        }
+    }
 }

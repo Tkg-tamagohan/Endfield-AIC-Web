@@ -14,8 +14,11 @@ public sealed record TargetRowInput(string? ItemId, string? RateText);
 public sealed class EventCheck(GameEvent gameEvent, bool isActiveByDefault)
 {
     public GameEvent Event { get; } = gameEvent;
-    public bool IsActiveByDefault { get; } = isActiveByDefault;
+    public bool IsActiveByDefault { get; internal set; } = isActiveByDefault;
     public bool Checked { get; set; } = isActiveByDefault;
+
+    /// <summary>ユーザーがチェックを操作したか。未操作分だけが既定の再評価へ追従する。</summary>
+    public bool Touched { get; set; }
 }
 
 /// <summary>
@@ -82,5 +85,23 @@ public static class CalculationInputBuilder
         return gameEvents
             .Select(e => new EventCheck(e, EventAutoActivation.IsActiveByDefault(e, today)))
             .ToList();
+    }
+
+    /// <summary>
+    /// 判定時点の日付で既定の有効判定を評価し直す。
+    /// 日付をまたいでページを開き続けた場合の既定の鮮度を保つための再評価であり、
+    /// ユーザーが未操作のチェックのみ既定へ追従させ、操作済みのものは保持する。
+    /// </summary>
+    public static void RefreshEventCheckDefaults(IEnumerable<EventCheck> checks, DateOnly today)
+    {
+        ArgumentNullException.ThrowIfNull(checks);
+        foreach (EventCheck check in checks)
+        {
+            check.IsActiveByDefault = EventAutoActivation.IsActiveByDefault(check.Event, today);
+            if (!check.Touched)
+            {
+                check.Checked = check.IsActiveByDefault;
+            }
+        }
     }
 }
