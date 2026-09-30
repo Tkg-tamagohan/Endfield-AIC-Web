@@ -60,6 +60,23 @@ else
                 }
             }
 
+            <h2 class="panel-title">採取マップ</h2>
+            <select class="input" value="@(_mapId ?? "")" @onchange="OnMapChanged">
+                <option value="">未選択（採取無制限）</option>
+                @foreach (GameMap map in MapCandidates)
+                {
+                    <option value="@map.Id">@map.Name</option>
+                }
+                @if (_mapId is not null && !MapCandidates.Any(map => map.Id == _mapId))
+                {
+                    string mapName = _snapshot!.MapsById.TryGetValue(_mapId, out GameMap? selectedMap)
+                        ? selectedMap.Name
+                        : _mapId;
+                    <option value="@_mapId">@mapName（イベント無効）</option>
+                }
+            </select>
+            <p class="hint">マップを選ぶと採取素材の採取量に上限がかかり、超えた分はレシピで生産します。</p>
+
             @if (_inputError is not null)
             {
                 <p class="error">@_inputError</p>
@@ -80,7 +97,24 @@ else
                         <button class="seg @(_unadjusted ? "" : "on")" @onclick="() => SetView(false)">調整済</button>
                         <button class="seg @(_unadjusted ? "on" : "")" @onclick="() => SetView(true)">未調整</button>
                     </div>
+                    <div class="segmented">
+                        <button class="seg @(_unit == AmountUnit.PerMinute ? "on" : "")" @onclick="() => _unit = AmountUnit.PerMinute">毎分</button>
+                        <button class="seg @(_unit == AmountUnit.PerSecond ? "on" : "")" @onclick="() => _unit = AmountUnit.PerSecond">毎秒</button>
+                        <button class="seg @(_unit == AmountUnit.Period ? "on" : "")" @onclick="() => _unit = AmountUnit.Period">期間</button>
+                    </div>
+                    @if (_unit == AmountUnit.Period)
+                    {
+                        <span class="period-inputs">
+                            <input class="input" @bind="_daysText" @bind:event="oninput" inputmode="decimal" placeholder="0" /> 日
+                            <input class="input" @bind="_hoursText" @bind:event="oninput" inputmode="decimal" placeholder="0" /> 時
+                            <input class="input" @bind="_minutesText" @bind:event="oninput" inputmode="decimal" placeholder="0" /> 分
+                        </span>
+                    }
                 </div>
+                @if (_unit == AmountUnit.Period && !PeriodValid())
+                {
+                    <p class="error">期間は 0 以上の数値で入力してください。</p>
+                }
                 @if (_view.Warnings.Count > 0)
                 {
                     <div class="warnings">
@@ -102,10 +136,10 @@ else
                             {
                                 <span class="tag">イベント</span>
                             }
-                            <span class="muted">@Fmt(m.RequiredPerMinute) 個/分</span>
+                            <span class="muted">@Fmt(m.RequiredPerMinute)@Suffix()</span>
                             @if (m.UnmetPerMinute > 1e-9)
                             {
-                                <span class="danger">未充足 @Fmt(m.UnmetPerMinute) 個/分</span>
+                                <span class="danger">未充足 @Fmt(m.UnmetPerMinute)@Suffix()</span>
                             }
                         </div>
                         <div class="mat-body">
@@ -119,8 +153,46 @@ else
                                     @SupplyText(s)
                                 </span>
                             }
+                            @if (_outcome!.PairOptionsByItemId.TryGetValue(m.ItemId, out IReadOnlyList<PairOption>? options))
+                            {
+                                <select class="input pair" value="@(m.SelectedPairKey ?? "")" @onchange="e => OnPairChanged(m.ItemId, e)">
+                                    <option value="">既定（自動選択）</option>
+                                    @foreach (PairOption o in options)
+                                    {
+                                        <option value="@o.Key">@OptionLabel(o)</option>
+                                    }
+                                </select>
+                            }
                         </div>
                     </div>
+                }
+
+                @if (_mapId is not null && _snapshot is not null
+                    && MapSelection.IsAvailable(_snapshot, _mapId, ActiveGameEventIds))
+                {
+                    <h2 class="panel-title">採取</h2>
+                    @if (_gatherError is not null)
+                    {
+                        <p class="error">@_gatherError</p>
+                    }
+                    @foreach (GatherInput input in _gatherInputs)
+                    {
+                        <div class="result-line env-line">
+                            <EntityIcon IconKey="@ItemIconKey(input.ItemId)" />
+                            <strong>@ItemName(input.ItemId)</strong>
+                            <input class="input tiny" value="@input.RateText"
+                                   @onchange="e => OnGatherRateChanged(input.ItemId, e)"
+                                   inputmode="decimal" placeholder="@GatherRatePlaceholder(input.ItemId)" />
+                            個/分
+                            <span class="muted">（@GatherRateDefaultLabel(input.ItemId)）</span>
+                            <span>採取 @FmtPerMinute(GatheredRate(input.ItemId)) 個/分</span>
+                            @if (IsGatherCapReached(input))
+                            {
+                                <span class="tag">上限到達</span>
+                            }
+                        </div>
+                    }
+                    <p class="hint">空欄はマップの既定値を使います。マップ値を超える値も指定できます。変更すると再計算します。</p>
                 }
 
                 <h2 class="panel-title">設備</h2>
@@ -140,12 +212,22 @@ else
                 @if (_view.Environments.Count > 0)
                 {
                     <h2 class="panel-title">環境</h2>
+                    <p class="hint">散布機台数を下げると消費量に反映します（自動値が上限）。変更すると再計算します。</p>
+                    @if (_envError is not null)
+                    {
+                        <p class="error">@_envError</p>
+                    }
                     @foreach (EnvironmentRequirement e in _view.Environments)
                     {
-                        <div class="result-line">
+                        <div class="result-line env-line">
                             <EntityIcon IconKey="@EnvIconKey(e.EnvironmentId)" />
                             <strong>@EnvName(e.EnvironmentId)</strong>
-                            <span class="muted"> @FacilityName(e.ProviderFacilityId) @e.DispenserCount 台 ・ @ItemName(e.ConsumeItemId) @e.ConsumeRatePerMinuteTotal.ToString("0.##", CultureInfo.InvariantCulture) 個/分</span>
+                            <span class="muted"> @FacilityName(e.ProviderFacilityId)</span>
+                            <input class="input tiny" value="@EnvCountText(e.EnvironmentId)"
+                                   @onchange="ev => OnEnvCountChanged(e.EnvironmentId, ev)"
+                                   inputmode="numeric" placeholder="自動" /> 台
+                            <span class="muted">（自動 @EnvAutoCount(e.EnvironmentId) 台まで）</span>
+                            <span> ・ @ItemName(e.ConsumeItemId) @e.ConsumeRatePerMinuteTotal.ToString("0.##", CultureInfo.InvariantCulture) 個/分@(PeriodConsumption(e.ConsumeRatePerMinuteTotal))</span>
                         </div>
                     }
                 }
@@ -168,7 +250,7 @@ else
                         <div class="result-line">
                             <EntityIcon IconKey="@ItemIconKey(s.ItemId)" />
                             <strong>@ItemName(s.ItemId)</strong>
-                            <span class="muted"> +@Fmt(s.ExcessPerMinute) 個/分</span>
+                            <span class="muted"> +@Fmt(s.ExcessPerMinute)@Suffix()</span>
                         </div>
                     }
                 }
@@ -184,18 +266,44 @@ else
         public string RateText = "60";
     }
 
+    private sealed class EnvInput(DomainEnv environment, int max)
+    {
+        public DomainEnv Env { get; } = environment;
+        public int Max { get; set; } = max;
+        public string CountText = "";
+    }
+
+    private sealed class GatherInput(string itemId)
+    {
+        public string ItemId { get; } = itemId;
+        public string RateText = "";
+    }
+
     private readonly List<TargetRow> _targetRows = [new()];
     private List<EventCheck> _eventChecks = [];
     private List<EventCheck> _autoEventChecks = [];
     private List<EventCheck> _outEventChecks = [];
+    private List<EnvInput> _envInputs = [];
+    private List<GatherInput> _gatherInputs = [];
     private IReadOnlyList<SelectOption> _itemOptions = [];
+    private readonly Dictionary<string, string> _gatherRateTexts = new(StringComparer.Ordinal);
+
+    /// <summary>ユーザーが選んだペア上書き（アイテム Id → 候補）。既定 = キーなし。</summary>
+    private readonly Dictionary<string, PairOption> _pairOverrides = new(StringComparer.Ordinal);
 
     private CalculationOutcome? _outcome;
     private ResultView? _view;
     private ContextFilter _context = new();
+    private string? _mapId;
     private string? _inputError;
+    private string? _envError;
+    private string? _gatherError;
     private bool _unadjusted;
     private bool _viewTouched;
+    private AmountUnit _unit = AmountUnit.PerMinute;
+    private string _daysText = "0";
+    private string _hoursText = "0";
+    private string _minutesText = "0";
 
     private MasterDataSnapshot? _snapshot;
     private IReadOnlyList<MasterValidationError> _snapshotErrors = [];
@@ -262,6 +370,60 @@ else
         Recalculate();
     }
 
+    private void OnMapChanged(ChangeEventArgs e)
+    {
+        string? mapId = e.Value?.ToString();
+        _mapId = string.IsNullOrEmpty(mapId) ? null : mapId;
+        Recalculate();
+    }
+
+    private void OnPairChanged(string itemId, ChangeEventArgs e)
+    {
+        string? key = e.Value?.ToString();
+        if (string.IsNullOrEmpty(key))
+        {
+            _pairOverrides.Remove(itemId);
+        }
+        else if (_outcome?.PairOptionsByItemId.TryGetValue(itemId, out IReadOnlyList<PairOption>? options) == true
+            && options.FirstOrDefault(o => o.Key == key) is { } option)
+        {
+            _pairOverrides[itemId] = option;
+        }
+
+        Recalculate();
+    }
+
+    private IReadOnlyCollection<string> ActiveGameEventIds =>
+        _eventChecks.Where(c => c.Checked).Select(c => c.Event.Id).ToList();
+
+    private IReadOnlyList<GameMap> MapCandidates =>
+        _snapshot is null ? [] : MapSelection.ListCandidates(_snapshot, ActiveGameEventIds);
+
+    private string EnvCountText(string envId) =>
+        _envInputs.FirstOrDefault(r => r.Env.Id == envId)?.CountText ?? "";
+
+    private int EnvAutoCount(string envId) =>
+        _envInputs.FirstOrDefault(r => r.Env.Id == envId)?.Max ?? 0;
+
+    private void OnEnvCountChanged(string envId, ChangeEventArgs e)
+    {
+        if (_envInputs.FirstOrDefault(r => r.Env.Id == envId) is { } input)
+        {
+            input.CountText = e.Value?.ToString() ?? "";
+            Recalculate();
+        }
+    }
+
+    private void OnGatherRateChanged(string itemId, ChangeEventArgs e)
+    {
+        if (_gatherInputs.FirstOrDefault(input => input.ItemId == itemId) is { } input)
+        {
+            input.RateText = e.Value?.ToString() ?? "";
+            _gatherRateTexts[itemId] = input.RateText;
+            Recalculate();
+        }
+    }
+
     private void SetView(bool unadjusted)
     {
         _unadjusted = unadjusted;
@@ -272,8 +434,6 @@ else
     private void Recalculate()
     {
         _inputError = null;
-        _outcome = null;
-        _view = null;
         if (!EnsureSnapshot() || _snapshot is not { } snapshot)
         {
             return;
@@ -291,14 +451,55 @@ else
             return;
         }
 
-        _context = new ContextFilter
+        _envError = null;
+        if (!CalculationInputBuilder.TryParseEnvironmentCounts(
+                _envInputs.Select(r => new EnvCountInput(r.Env.Id, r.Env.Name, r.CountText, r.Max)),
+                out List<EnvironmentCountOverride> environmentOverrides,
+                out string? envError))
         {
-            ActiveGameEventIds = _eventChecks.Where(c => c.Checked).Select(c => c.Event.Id).ToList(),
+            _envError = envError;
+            return;
+        }
+
+        _gatherError = null;
+        List<string> activeGameEventIds = _eventChecks
+            .Where(c => c.Checked)
+            .Select(c => c.Event.Id)
+            .ToList();
+        var context = new ContextFilter
+        {
+            ActiveGameEventIds = activeGameEventIds,
+            MapId = _mapId,
         };
+        List<GatherRateOverride> gatherOverrides = [];
+        if (_mapId is not null && MapSelection.IsAvailable(snapshot, _mapId, activeGameEventIds))
+        {
+            if (!CalculationInputBuilder.TryParseGatherRates(
+                    _gatherRateTexts.Select(kv => new GatherRateInput(
+                        kv.Key,
+                        ItemName(kv.Key),
+                        kv.Value)),
+                    snapshot,
+                    out gatherOverrides,
+                    out string? gatherError))
+            {
+                _gatherError = gatherError;
+                return;
+            }
+        }
+
+        _context = context;
+        var pairOverrides = _pairOverrides.Select(kv => kv.Value.ToOverride(kv.Key)).ToList();
 
         try
         {
-            _outcome = Calculator.Calculate(snapshot, targets, _context, [], [], []);
+            _outcome = Calculator.Calculate(
+                snapshot,
+                targets,
+                _context,
+                pairOverrides,
+                environmentOverrides,
+                gatherOverrides);
         }
         catch (Exception ex)
         {
@@ -313,6 +514,44 @@ else
             _unadjusted = PlanViewDefaults.DefaultUnadjusted(_outcome.Plan);
         }
 
+        // 散布機台数の入力は計算結果に登場する環境だけに出す。
+        // ユーザー入力（下げた台数）は再計算をまたいで保持する。
+        var prevCounts = _envInputs.ToDictionary(r => r.Env.Id, r => r.CountText, StringComparer.Ordinal);
+        _envInputs = _outcome.Plan.EnvironmentRequirements
+            .Select(r => new EnvInput(
+                snapshot.EnvironmentsById[r.EnvironmentId],
+                PlanViewDefaults.DispenserLimit(_outcome.Plan, r.EnvironmentId))
+            {
+                CountText = prevCounts.GetValueOrDefault(r.EnvironmentId, ""),
+            })
+            .ToList();
+
+        foreach (GatherInput input in _gatherInputs)
+        {
+            _gatherRateTexts[input.ItemId] = input.RateText;
+        }
+
+        IReadOnlyList<string> gatherableItemIds = MapSelection.GatherableItemIds(_outcome.Plan, snapshot);
+        foreach (string itemId in _gatherRateTexts.Keys.ToList())
+        {
+            if (!gatherableItemIds.Contains(itemId)
+                && !CalculationInputBuilder.TryParseGatherRates(
+                    [new GatherRateInput(itemId, ItemName(itemId), _gatherRateTexts[itemId])],
+                    snapshot,
+                    out _,
+                    out _))
+            {
+                _gatherRateTexts.Remove(itemId);
+            }
+        }
+
+        _gatherInputs = gatherableItemIds
+            .Select(itemId => new GatherInput(itemId)
+            {
+                RateText = _gatherRateTexts.GetValueOrDefault(itemId, ""),
+            })
+            .ToList();
+
         RebuildView();
     }
 
@@ -324,14 +563,122 @@ else
         }
     }
 
-    private static string Fmt(double perMinute) => perMinute.ToString("0.##", CultureInfo.InvariantCulture);
+    private PeriodAmount CurrentPeriod()
+    {
+        PeriodAmount period = default;
+        bool valid =
+            TryParsePart(_daysText, out double days) &&
+            TryParsePart(_hoursText, out double hours) &&
+            TryParsePart(_minutesText, out double minutes) &&
+            PeriodAmount.TryCreate(days, hours, minutes, out period);
+        return valid ? period : default;
+    }
+
+    private bool PeriodValid()
+    {
+        return TryParsePart(_daysText, out double days)
+            && TryParsePart(_hoursText, out double hours)
+            && TryParsePart(_minutesText, out double minutes)
+            && PeriodAmount.TryCreate(days, hours, minutes, out _);
+    }
+
+    private static bool TryParsePart(string text, out double value)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            value = 0;
+            return true;
+        }
+
+        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+    }
+
+    private string Fmt(double perMinute)
+    {
+        double converted = AmountConverter.Convert(perMinute, _unit, CurrentPeriod());
+        return converted.ToString(_unit == AmountUnit.PerSecond ? "0.###" : "0.##", CultureInfo.InvariantCulture);
+    }
+
+    private string Suffix() => AmountConverter.Suffix(_unit);
+
+    private string PeriodConsumption(double ratePerMinute)
+    {
+        return _unit == AmountUnit.Period && PeriodValid()
+            ? $"（{(ratePerMinute * CurrentPeriod().TotalMinutes).ToString("0.##", CultureInfo.InvariantCulture)} 個/期間）"
+            : "";
+    }
+
+    private string FmtPerMinute(double perMinute) =>
+        perMinute.ToString("0.##", CultureInfo.InvariantCulture);
+
+    private double GatheredRate(string itemId) =>
+        _outcome?.Plan.ItemRequirements
+            .FirstOrDefault(requirement => requirement.ItemId == itemId)?
+            .Supplies.Where(supply => supply.Kind == SupplyKind.Gathered)
+            .Sum(supply => supply.AmountPerMinute) ?? 0;
+
+    private double RequiredRate(string itemId) =>
+        _outcome?.Plan.ItemRequirements
+            .FirstOrDefault(requirement => requirement.ItemId == itemId)?
+            .RequiredPerMinute ?? 0;
+
+    private double? DefaultGatherCap(string itemId) =>
+        _snapshot is null ? null : MapSelection.DefaultGatherCap(_snapshot, _context, itemId);
+
+    private double? EffectiveGatherCap(GatherInput input)
+    {
+        if (!string.IsNullOrWhiteSpace(input.RateText)
+            && double.TryParse(input.RateText, NumberStyles.Float, CultureInfo.InvariantCulture, out double cap)
+            && double.IsFinite(cap)
+            && cap >= 0)
+        {
+            return cap;
+        }
+
+        return DefaultGatherCap(input.ItemId);
+    }
+
+    private string GatherRatePlaceholder(string itemId) =>
+        DefaultGatherCap(itemId) is double cap ? FmtPerMinute(cap) : "無制限";
+
+    private string GatherRateDefaultLabel(string itemId) =>
+        DefaultGatherCap(itemId) is double cap
+            ? $"マップ既定 {FmtPerMinute(cap)} 個/分"
+            : "マップ既定 無制限";
+
+    private bool IsGatherCapReached(GatherInput input)
+    {
+        double? cap = EffectiveGatherCap(input);
+        return cap is double value
+            && double.IsFinite(value)
+            && GatheredRate(input.ItemId) >= value - 1e-9
+            && RequiredRate(input.ItemId) > value - 1e-9;
+    }
 
     private string SupplyText(SupplyPortion portion) => portion.Kind switch
     {
-        SupplyKind.Recipe => $"レシピ {RecipeName(portion.RecipeId!)} {Fmt(portion.AmountPerMinute)} 個/分",
-        SupplyKind.Byproduct => $"副産物 {RecipeName(portion.RecipeId!)} {Fmt(portion.AmountPerMinute)} 個/分",
-        _ => $"採取素材 {Fmt(portion.AmountPerMinute)} 個/分",
+        SupplyKind.Recipe => $"レシピ {RecipeName(portion.RecipeId!)} {Fmt(portion.AmountPerMinute)}{Suffix()}",
+        SupplyKind.Byproduct => $"副産物 {RecipeName(portion.RecipeId!)} {Fmt(portion.AmountPerMinute)}{Suffix()}",
+        SupplyKind.Gathered => $"採取 {Fmt(portion.AmountPerMinute)}{Suffix()}",
+        _ => "",
     };
+
+    private string OptionLabel(PairOption option)
+    {
+        string label = $"{RecipeName(option.RecipeId)} ／ {FacilityName(option.FacilityId)} {option.CycleTime.ToString("0.##", CultureInfo.InvariantCulture)}秒";
+        label += option.EnvironmentId is null ? "・環境なし" : $"・{EnvName(option.EnvironmentId)}";
+        if (option.FixedConsumption is { } fc)
+        {
+            label += $"・{ItemName(fc.ItemId)} {fc.RatePerMinute.ToString("0.##", CultureInfo.InvariantCulture)}/分";
+        }
+
+        if (option.IsDefault)
+        {
+            label += "（既定）";
+        }
+
+        return label;
+    }
 
     private string EventPeriod(GameEvent gameEvent)
     {

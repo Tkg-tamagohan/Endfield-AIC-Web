@@ -163,6 +163,19 @@ select.input {
     padding: 3px 6px;
 }
 
+.env-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.input.pair {
+    max-width: 100%;
+    font-size: 12px;
+    padding: 4px 6px;
+}
+
 .btn {
     background: var(--chip);
     border: 1px solid var(--border);
@@ -255,6 +268,19 @@ select.input {
 .tag.dirty {
     border-color: var(--danger);
     color: var(--danger);
+}
+
+.period-inputs {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.period-inputs .input {
+    width: 56px;
+    text-align: right;
 }
 
 .warnings {
