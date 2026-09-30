@@ -27,13 +27,15 @@ public static class ProductionCalculator
         IReadOnlyList<ProductionTarget> targets,
         ContextFilter context,
         IReadOnlyList<PairOverride> overrides,
-        IReadOnlyList<EnvironmentCountOverride> environmentOverrides)
+        IReadOnlyList<EnvironmentCountOverride> environmentOverrides,
+        IReadOnlyList<GatherRateOverride> gatherOverrides)
     {
         ArgumentNullException.ThrowIfNull(master);
         ArgumentNullException.ThrowIfNull(targets);
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(overrides);
         ArgumentNullException.ThrowIfNull(environmentOverrides);
+        ArgumentNullException.ThrowIfNull(gatherOverrides);
 
         foreach (ProductionTarget target in targets)
         {
@@ -49,7 +51,7 @@ public static class ProductionCalculator
             }
         }
 
-        var session = new Session(master, context, overrides, environmentOverrides);
+        var session = new Session(master, context, overrides, environmentOverrides, gatherOverrides);
         session.Run(targets);
         return Aggregate(master, session);
     }
@@ -61,6 +63,10 @@ public static class ProductionCalculator
         private readonly ContextFilter _context;
         private readonly IReadOnlyList<PairOverride> _overrides;
         private readonly IReadOnlyList<EnvironmentCountOverride> _environmentOverrides;
+        private readonly IReadOnlyList<GatherRateOverride> _gatherOverrides;
+
+        /// <summary>採取素材ごとの有効採取上限（個/分、PositiveInfinity は上限なし）。構築時に一度だけ解決する。</summary>
+        private readonly Dictionary<string, double> _gatherCaps = new(StringComparer.Ordinal);
 
         internal readonly Dictionary<string, double> Demand = new(StringComparer.Ordinal);
         internal readonly Dictionary<string, double> Produced = new(StringComparer.Ordinal);
@@ -91,13 +97,107 @@ public static class ProductionCalculator
             MasterDataSnapshot master,
             ContextFilter context,
             IReadOnlyList<PairOverride> overrides,
-            IReadOnlyList<EnvironmentCountOverride> environmentOverrides)
+            IReadOnlyList<EnvironmentCountOverride> environmentOverrides,
+            IReadOnlyList<GatherRateOverride> gatherOverrides)
         {
             _master = master;
             _context = context;
             _overrides = overrides;
             _environmentOverrides = environmentOverrides;
+            _gatherOverrides = gatherOverrides;
+            ResolveGatherCaps();
         }
+
+        /// <summary>
+        /// 採取素材ごとの有効採取上限（個/分、無限は <see cref="double.PositiveInfinity"/>）を解決する。
+        /// 解決順は 上書き → マップの採取レート行 → 行なしは 0 で、無限行は上限なし、
+        /// マップ未選択は全採取素材を無制限とする（仕様決定 AC・AE）。
+        /// マップが存在しない、または所属イベントが非有効なら全採取素材を採取不可（上限 0）とし、
+        /// 採取レートのユーザー上書きは適用しない（仕様決定 AD、X と同型）。
+        /// </summary>
+        private void ResolveGatherCaps()
+        {
+            List<string> gatherableIds = _master.Items.Where(i => i.IsGatherable).Select(i => i.Id).ToList();
+
+            void CapAll(double cap)
+            {
+                foreach (string id in gatherableIds)
+                {
+                    _gatherCaps[id] = cap;
+                }
+            }
+
+            if (_context.MapId is null)
+            {
+                // 未選択は無制限。上書きは有効なマップ選択に対してのみ適用される（仕様決定 AE）。
+                CapAll(double.PositiveInfinity);
+                return;
+            }
+
+            if (!_master.MapsById.TryGetValue(_context.MapId, out GameMap? map))
+            {
+                Warnings.Add(new CalculationWarning(
+                    WarningCode.InvalidGatherMap,
+                    $"選択されたマップ {_context.MapId} はマスタに存在しないため、採取素材はすべて採取できません。"));
+                CapAll(0);
+                return;
+            }
+
+            if (map.GameEventId is not null && !_context.ActiveGameEventIds.Contains(map.GameEventId))
+            {
+                Warnings.Add(new CalculationWarning(
+                    WarningCode.GatherMapUnavailable,
+                    $"選択されたマップ {map.Id} はイベント {map.GameEventId} が有効でないため、採取素材はすべて採取できません。"));
+                CapAll(0);
+                return;
+            }
+
+            // 上書きの検証。存在しない・採取素材でないアイテムへの指定と、負・非有限の値は無視する。
+            var overrideByItem = new Dictionary<string, double>(StringComparer.Ordinal);
+            foreach (GatherRateOverride gatherOverride in _gatherOverrides)
+            {
+                if (!_master.ItemsById.TryGetValue(gatherOverride.ItemId, out Item? overrideItem)
+                    || !overrideItem.IsGatherable)
+                {
+                    Warnings.Add(new CalculationWarning(
+                        WarningCode.InvalidGatherRateOverride,
+                        $"採取レートの上書きが採取素材でないアイテムを指しているため無視します: {gatherOverride.ItemId}"));
+                    continue;
+                }
+
+                if (!double.IsFinite(gatherOverride.RatePerMinute) || gatherOverride.RatePerMinute < 0)
+                {
+                    Warnings.Add(new CalculationWarning(
+                        WarningCode.InvalidGatherRateOverride,
+                        $"アイテム {gatherOverride.ItemId} の採取レート上書き {gatherOverride.RatePerMinute} は 0 以上の有限値ではないため無視します。"));
+                    continue;
+                }
+
+                // 同一アイテムへの重複上書きは先頭を採用する（散布機台数上書きと同型）。
+                overrideByItem.TryAdd(gatherOverride.ItemId, gatherOverride.RatePerMinute);
+            }
+
+            foreach (string id in gatherableIds)
+            {
+                if (overrideByItem.TryGetValue(id, out double overridden))
+                {
+                    _gatherCaps[id] = overridden;
+                    continue;
+                }
+
+                GatherRate? row = map.GatherRates.FirstOrDefault(r => r.ItemId == id);
+                _gatherCaps[id] = row switch
+                {
+                    null => 0,
+                    { IsUnlimited: true } => double.PositiveInfinity,
+                    _ => row.RatePerMinute ?? 0,
+                };
+            }
+        }
+
+        /// <summary>採取素材の残り採取可能量（個/分）。採取素材以外や上限の解決漏れは 0。</summary>
+        private double GatherRemaining(string itemId) =>
+            Math.Max(0.0, _gatherCaps.GetValueOrDefault(itemId) - Get(Raw, itemId));
 
         /// <summary>均衡化（展開→引き戻し）の反復上限。目標順によらず収束先が一意になることを保証するための仕組み。</summary>
         private const int MaxBalanceRounds = 100;
@@ -322,6 +422,25 @@ public static class ProductionCalculator
                 return;
             }
 
+            double remainder = net;
+            if (IsGatherable(itemId))
+            {
+                // 採取素材は有効採取上限までを採取（外部調達）とし、超過分のみをレシピへ展開する
+                // （採取優先。従来のレシピ優先からの変更。仕様決定 AD）。
+                // 採取は終端処理のため循環検出より先に行い、残差のみが以降の経路へ進む。
+                double gathered = Math.Min(remainder, GatherRemaining(itemId));
+                if (gathered > Epsilon)
+                {
+                    Raw[itemId] = Get(Raw, itemId) + gathered;
+                    remainder -= gathered;
+                }
+
+                if (remainder <= Epsilon)
+                {
+                    return;
+                }
+            }
+
             if (_stackSet.Contains(itemId))
             {
                 int cycleStart = _stack.IndexOf(itemId);
@@ -329,7 +448,7 @@ public static class ProductionCalculator
                 Warnings.Add(new CalculationWarning(
                     WarningCode.CycleDetected,
                     $"循環依存を検出したため展開を打ち切りました: {path}"));
-                Unmet[itemId] = Get(Unmet, itemId) + net;
+                Unmet[itemId] = Get(Unmet, itemId) + remainder;
                 return;
             }
 
@@ -367,13 +486,15 @@ public static class ProductionCalculator
 
             if (selection is null)
             {
+                Unmet[itemId] = Get(Unmet, itemId) + remainder;
                 if (IsGatherable(itemId))
                 {
-                    Raw[itemId] = Get(Raw, itemId) + net;
+                    Warnings.Add(new CalculationWarning(
+                        WarningCode.GatherCapExceeded,
+                        $"アイテム {itemId} の需要が採取上限（{_gatherCaps.GetValueOrDefault(itemId):0.###} 個/分）を超え、代替レシピもないため {remainder:0.###} 個/分が不足します。"));
                 }
                 else
                 {
-                    Unmet[itemId] = Get(Unmet, itemId) + net;
                     Warnings.Add(new CalculationWarning(
                         WarningCode.NoRecipeAvailable,
                         $"アイテム {itemId} を生産できるレシピがありません。"));
@@ -386,10 +507,10 @@ public static class ProductionCalculator
             double outputQty = recipe.Outputs
                 .Where(o => o.ItemId == itemId)
                 .Sum(o => o.Quantity);
-            double delta = net / outputQty;
+            double delta = remainder / outputQty;
             if (!double.IsFinite(delta) || delta <= 0)
             {
-                Unmet[itemId] = Get(Unmet, itemId) + net;
+                Unmet[itemId] = Get(Unmet, itemId) + remainder;
                 Warnings.Add(new CalculationWarning(
                     WarningCode.NoRecipeAvailable,
                     $"アイテム {itemId} のレシピ {recipe.Id} の出力数量が 0 以下のため生産できません。"));

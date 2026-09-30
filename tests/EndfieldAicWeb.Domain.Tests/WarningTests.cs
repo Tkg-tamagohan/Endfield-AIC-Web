@@ -55,23 +55,23 @@ public class WarningTests
         Assert.Throws<ArgumentException>(() => ProductionCalculator.Calculate(
             master,
             [new ProductionTarget("i-part", 0.0)],
-            new ContextFilter(), [], []));
+            new ContextFilter(), [], [], []));
         Assert.Throws<ArgumentException>(() => ProductionCalculator.Calculate(
             master,
             [new ProductionTarget("i-part", -5.0)],
-            new ContextFilter(), [], []));
+            new ContextFilter(), [], [], []));
         Assert.Throws<ArgumentException>(() => ProductionCalculator.Calculate(
             master,
             [new ProductionTarget("i-part", double.NaN)],
-            new ContextFilter(), [], []));
+            new ContextFilter(), [], [], []));
         Assert.Throws<ArgumentException>(() => ProductionCalculator.Calculate(
             master,
             [new ProductionTarget("i-part", double.PositiveInfinity)],
-            new ContextFilter(), [], []));
+            new ContextFilter(), [], [], []));
         Assert.Throws<ArgumentException>(() => ProductionCalculator.Calculate(
             master,
             [new ProductionTarget("i-ghost", 10.0)],
-            new ContextFilter(), [], []));
+            new ContextFilter(), [], [], []));
     }
 
     [Fact(DisplayName = "WRN-05: 未知環境への台数上書きは警告")]

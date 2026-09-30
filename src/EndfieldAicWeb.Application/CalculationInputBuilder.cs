@@ -10,6 +10,9 @@ public sealed record TargetRowInput(string? ItemId, string? RateText);
 /// <summary>散布機台数 1 行の入力値（環境 Id・表示名・台数文字列・自動検出の上限）。</summary>
 public sealed record EnvCountInput(string EnvId, string EnvName, string? CountText, int Max);
 
+/// <summary>採取素材の利用可能レート 1 行の入力値（アイテム Id・表示名・レート文字列。空欄はマップ既定値）。</summary>
+public sealed record GatherRateInput(string ItemId, string ItemName, string? RateText);
+
 /// <summary>
 /// イベントのチェック状態。Checked は UI が書き換え、
 /// IsActiveByDefault は期間外イベントを折りたたみへ振り分ける判定に使う。
@@ -105,6 +108,48 @@ public static class CalculationInputBuilder
             }
 
             overrides.Add(new EnvironmentCountOverride(row.EnvId, count));
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// 採取素材の利用可能レート入力行を GatherRateOverride の列に変換する。
+    /// 空欄の行はマップ既定値扱いで無視する（仕様決定 AE）。
+    /// 行が指すアイテムが存在しない・採取素材でない、または値が非数値・負・非有限ならエラーを返す。
+    /// 0 以上ならマップ値を超える入力も受理する。
+    /// </summary>
+    public static bool TryParseGatherRates(
+        IEnumerable<GatherRateInput> inputs,
+        MasterDataSnapshot snapshot,
+        out List<GatherRateOverride> overrides,
+        out string? error)
+    {
+        ArgumentNullException.ThrowIfNull(inputs);
+        ArgumentNullException.ThrowIfNull(snapshot);
+        overrides = [];
+        error = null;
+        foreach (GatherRateInput row in inputs)
+        {
+            if (string.IsNullOrWhiteSpace(row.RateText))
+            {
+                continue;
+            }
+
+            if (!snapshot.ItemsById.TryGetValue(row.ItemId, out Item? item) || !item.IsGatherable)
+            {
+                error = $"{row.ItemName} は採取素材ではありません。";
+                return false;
+            }
+
+            if (!double.TryParse(row.RateText, NumberStyles.Float, CultureInfo.InvariantCulture, out double rate)
+                || !double.IsFinite(rate) || rate < 0)
+            {
+                error = $"{row.ItemName} の利用可能レートは 0 以上の数値で入力してください。";
+                return false;
+            }
+
+            overrides.Add(new GatherRateOverride(row.ItemId, rate));
         }
 
         return true;

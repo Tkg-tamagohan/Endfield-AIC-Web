@@ -418,7 +418,7 @@ else
         };
         var pairOverrides = _pairOverrides.Select(kv => kv.Value.ToOverride(kv.Key)).ToList();
 
-        _outcome = Calculator.Calculate(_snapshot, targets, _context, pairOverrides, environmentOverrides);
+        _outcome = Calculator.Calculate(_snapshot, targets, _context, pairOverrides, environmentOverrides, []);
         if (!_viewTouched)
         {
             _unadjusted = PlanViewDefaults.DefaultUnadjusted(_outcome.Plan);

@@ -121,23 +121,48 @@ internal static class CalculationFixtures
         VersionAdded = "1.0.0",
     };
 
+    /// <summary>マップ。rows は (ItemId, 無限なら true, 上限個/分) の行。</summary>
+    public static GameMap Map(
+        string id,
+        (string ItemId, bool IsUnlimited, double? Rate)[]? rows = null,
+        string? gameEventId = null) => new()
+    {
+        Id = id,
+        Name = id,
+        VersionAdded = "1.0.0",
+        GameEventId = gameEventId,
+        GatherRates = (rows ?? [])
+            .Select(r => new GatherRate
+            {
+                ItemId = r.ItemId,
+                IsUnlimited = r.IsUnlimited,
+                RatePerMinute = r.Rate,
+            })
+            .ToList(),
+    };
+
     public static MasterDataSnapshot Snapshot(
         IReadOnlyList<Item> items,
         IReadOnlyList<Facility> facilities,
         IReadOnlyList<Recipe> recipes,
         IReadOnlyList<Environment>? environments = null,
-        IReadOnlyList<GameEvent>? gameEvents = null) => new()
+        IReadOnlyList<GameEvent>? gameEvents = null,
+        IReadOnlyList<GameMap>? maps = null) => new()
     {
         Items = items,
         Facilities = facilities,
         Recipes = recipes,
         Environments = environments ?? [],
         GameEvents = gameEvents ?? [],
-        Maps = [],
+        Maps = maps ?? [],
     };
 
     public static ContextFilter Context(params string[] activeEventIds) =>
         new() { ActiveGameEventIds = activeEventIds };
+
+    /// <summary>マップ選択つきのコンテキスト。mapId は選択マップ、残りは有効イベント。</summary>
+    public static ContextFilter MapContext(string mapId, params string[] activeEventIds) =>
+        new() { ActiveGameEventIds = activeEventIds, MapId = mapId };
 
     public static PairOverride Override(
         string itemId,
@@ -161,14 +186,16 @@ internal static class CalculationFixtures
         IReadOnlyList<(string ItemId, double Rate)> targets,
         ContextFilter? context = null,
         IReadOnlyList<PairOverride>? overrides = null,
-        IReadOnlyList<EnvironmentCountOverride>? environmentOverrides = null)
+        IReadOnlyList<EnvironmentCountOverride>? environmentOverrides = null,
+        IReadOnlyList<GatherRateOverride>? gatherOverrides = null)
     {
         return ProductionCalculator.Calculate(
             master,
             targets.Select(t => new ProductionTarget(t.ItemId, t.Rate)).ToList(),
             context ?? new ContextFilter(),
             overrides ?? [],
-            environmentOverrides ?? []);
+            environmentOverrides ?? [],
+            gatherOverrides ?? []);
     }
 
     /// <summary>F-01: 直線チェーン（i-ore×2 → i-part、4秒）。</summary>
@@ -422,4 +449,112 @@ internal static class CalculationFixtures
                 [("i-ore", 1.0)], [("i-fuelself", 1.0)]),
         ],
         [Env("env-gasp", "f-disp", "i-gasp", 360.0)]);
+
+    /// <summary>F-15 系のマップ一覧。ev-off は無効イベント、m-ev・m-ev-shard はその所属マップ。</summary>
+    private static GameMap[] F15Maps() =>
+    [
+        Map("m-cap", [("i-ore", false, 60.0), ("i-stone", false, 30.0), ("i-shard", false, 10.0)]),
+        Map("m-inf", [("i-ore", true, null)]),
+        Map("m-none"),
+        Map("m-ev", [("i-ore", false, 999.0)], "ev-off"),
+        Map("m-ev-shard", [("i-shard", false, 999.0)], "ev-off"),
+    ];
+
+    /// <summary>
+    /// F-15: 採取上限。i-ore は採取素材かつ r-ore で生産可、i-stone は r-ore の入力、
+    /// i-shard は採取素材だが生産レシピなし、i-part は非採取。
+    /// r-ore: f-mine 4秒 i-stone×1 → i-ore×1、r-part: f-asm 4秒 i-ore×2 → i-part×1。
+    /// </summary>
+    public static MasterDataSnapshot F15() => Snapshot(
+        [
+            Item("i-ore", "採取素材", TransportKind.Belt, null, true),
+            Item("i-stone", "採取素材", TransportKind.Belt, null, true),
+            Item("i-shard", "採取素材", TransportKind.Belt, null, true),
+            Item("i-part"),
+            Item("i-pack"),
+            Item("i-fx"),
+            Item("i-hot"),
+        ],
+        [Facility("f-mine"), Facility("f-asm"), Facility("f-fx"), Facility("f-disp")],
+        [
+            Recipe("r-ore", "f-mine", 4.0, [("i-stone", 1.0)], [("i-ore", 1.0)]),
+            Recipe("r-part", "f-asm", 4.0, [("i-ore", 2.0)], [("i-part", 1.0)]),
+        ],
+        gameEvents: [GameEvent("ev-off")],
+        maps: F15Maps());
+
+    /// <summary>F-15 派生: i-ore を固定消費する r-fx（f-fx 30秒、i-ore 16個/分）を追加（GAT-12 用）。</summary>
+    public static MasterDataSnapshot F15WithFixedConsumption()
+    {
+        MasterDataSnapshot base_ = F15();
+        return Snapshot(
+            base_.Items,
+            base_.Facilities,
+            [
+                .. base_.Recipes,
+                Recipe("r-fx", [Pair("r-fx", "f-fx", 30.0, null, ("i-ore", 16.0))],
+                    [("i-stone", 1.0)], [("i-fx", 1.0)]),
+            ],
+            gameEvents: base_.GameEvents,
+            maps: base_.Maps);
+    }
+
+    /// <summary>F-15 派生: i-ore を環境消費する env-burn を使う r-hot を追加（GAT-13 用）。</summary>
+    public static MasterDataSnapshot F15WithEnvConsumption()
+    {
+        MasterDataSnapshot base_ = F15();
+        return Snapshot(
+            base_.Items,
+            base_.Facilities,
+            [
+                .. base_.Recipes,
+                Recipe("r-hot", "f-asm", 4.0, [("i-stone", 1.0)], [("i-hot", 1.0)], environmentId: "env-burn"),
+            ],
+            [Env("env-burn", "f-disp", "i-ore", 80.0)],
+            base_.GameEvents,
+            base_.Maps);
+    }
+
+    /// <summary>
+    /// F-15 派生: i-ore を 30/サイクル副産する r-side（i-stone×1 → i-part×1 + i-ore×30）。
+    /// i-part 向けに r-part より新しい VersionAdded で既定選択される（GAT-15 用）。
+    /// </summary>
+    public static MasterDataSnapshot F15WithByproduct() => Snapshot(
+        [
+            Item("i-ore", "採取素材", TransportKind.Belt, null, true),
+            Item("i-stone", "採取素材", TransportKind.Belt, null, true),
+            Item("i-part"),
+        ],
+        [Facility("f-mine"), Facility("f-asm")],
+        [
+            Recipe("r-ore", "f-mine", 4.0, [("i-stone", 1.0)], [("i-ore", 1.0)]),
+            Recipe("r-part", "f-asm", 4.0, [("i-ore", 2.0)], [("i-part", 1.0)]),
+            Recipe("r-side", "f-asm", 6.0, [("i-stone", 1.0)], [("i-part", 1.0), ("i-ore", 30.0)], versionAdded: "2.0.0"),
+        ],
+        gameEvents: [GameEvent("ev-off")],
+        maps: F15Maps());
+
+    /// <summary>F-15 派生: i-ore の超過レシピ r-ore が i-x を要し、i-x が i-ore を要する循環（GAT-16 用）。</summary>
+    public static MasterDataSnapshot F15WithCycle() => Snapshot(
+        [
+            Item("i-ore", "採取素材", TransportKind.Belt, null, true),
+            Item("i-x"),
+        ],
+        [Facility("f-mine"), Facility("f-asm")],
+        [
+            Recipe("r-ore", "f-mine", 4.0, [("i-x", 1.0)], [("i-ore", 1.0)]),
+            Recipe("r-x", "f-asm", 4.0, [("i-ore", 1.0)], [("i-x", 1.0)]),
+        ],
+        maps: [Map("m-cap", [("i-ore", false, 60.0)])]);
+
+    /// <summary>F-15 派生: 採取素材 i-ore が無効イベント ev-off 所属（GAT-19 用）。</summary>
+    public static MasterDataSnapshot F15WithInactiveGatherable() => Snapshot(
+        [
+            Item("i-ore", "採取素材", TransportKind.Belt, "ev-off", true),
+            Item("i-stone", "採取素材", TransportKind.Belt, null, true),
+        ],
+        [Facility("f-mine")],
+        [Recipe("r-ore", "f-mine", 4.0, [("i-stone", 1.0)], [("i-ore", 1.0)])],
+        gameEvents: [GameEvent("ev-off")],
+        maps: [Map("m-cap", [("i-ore", false, 60.0), ("i-stone", false, 30.0)])]);
 }

@@ -14,6 +14,7 @@ public class UnadjustedViewTests
             targets,
             new ContextFilter(),
             [],
+            [],
             []);
         return (plan, ResultViewBuilder.Build(plan, snapshot, new ContextFilter(), unadjusted: true));
     }
@@ -68,7 +69,7 @@ public class UnadjustedViewTests
     {
         // f-fc がレシピと散布機を兼ねる: レシピ実数 0.5 + 散布機 1 = 切上げ 2 → レシピ倍率 (2-1)/0.5 = 2
         var snapshot = ApplicationFixtures.Snapshot(
-            [ApplicationFixtures.Item("i-fuel", "燃料"), ApplicationFixtures.Item("i-gas", "ガス", TransportKind.Pipe), ApplicationFixtures.Item("i-fcx", "化学体")],
+            [ApplicationFixtures.Item("i-fuel", "燃料", gatherable: true), ApplicationFixtures.Item("i-gas", "ガス", TransportKind.Pipe, gatherable: true), ApplicationFixtures.Item("i-fcx", "化学体")],
             [ApplicationFixtures.Facility("f-fc", "化学機", 10)],
             [ApplicationFixtures.Env("env-fcx", "化学環境", "f-fc", "i-gas", 360)],
             [],
