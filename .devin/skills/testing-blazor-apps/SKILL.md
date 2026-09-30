@@ -85,7 +85,7 @@ dotnet run --project src/EndfieldAicWeb.Admin --no-launch-profile --urls http://
 {"GameEventId": null, "Inputs": [{"ItemId": "item-fuel", "Quantity": 1}], "Outputs": [{"ItemId": "item-ore", "Quantity": 1, "SortOrder": 0}], "Facilities": [{"FacilityId": "fac-assembler", "CycleTime": 4, "EnvironmentId": null, "FixedConsumption": null}], "Id": "recipe-ore", "Name": "原鉱石採掘", "Description": "採取上限超過分のレシピ展開確認用（計算プレビュー確認用）", "IconKey": null, "VersionAdded": "0.1.0", "VersionRemoved": null}
 ```
 
-検証後は `cp data/master.json src/EndfieldAicWeb.*/wwwroot/data/` で正本へ戻す。
+検証後は正本へ戻す。glob が App と Admin の 2 ディレクトリに展開されるため、`for d in src/EndfieldAicWeb.*/wwwroot/data/; do cp data/master.json "$d"; done` とループで両アプリ分を戻す（`cp 対象 .../data/` の形は最後の 1 件にしか効かない）。
 
 フィクスチャ適用時の期待値（App/Admin 共通）:
 
