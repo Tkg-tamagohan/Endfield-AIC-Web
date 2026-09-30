@@ -504,10 +504,10 @@ else
         if (_mapId is not null && MapSelection.IsAvailable(_snapshot, _mapId, activeGameEventIds))
         {
             if (!CalculationInputBuilder.TryParseGatherRates(
-                    _gatherInputs.Select(input => new GatherRateInput(
-                        input.ItemId,
-                        ItemName(input.ItemId),
-                        input.RateText)),
+                    _gatherRateTexts.Select(kv => new GatherRateInput(
+                        kv.Key,
+                        ItemName(kv.Key),
+                        kv.Value)),
                     _snapshot,
                     out gatherOverrides,
                     out string? gatherError))
