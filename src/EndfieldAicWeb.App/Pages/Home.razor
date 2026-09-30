@@ -272,7 +272,6 @@ else
     private List<EventCheck> _outEventChecks = [];
     private List<EnvInput> _envInputs = [];
     private List<Item> _selectableItems = [];
-    private DateOnly _today = DateOnly.FromDateTime(DateTime.Now);
 
     /// <summary>ユーザーが選んだペア上書き（アイテム Id → 候補）。既定 = キーなし。</summary>
     private readonly Dictionary<string, PairOption> _pairOverrides = new(StringComparer.Ordinal);
@@ -298,9 +297,8 @@ else
             _snapshot = MasterData.Snapshot!;
             await Icons.LoadAsync(MasterData.Document!);
             _selectableItems = _snapshot.Items.Where(i => i.TransportKind != TransportKind.None).ToList();
-            _eventChecks = CalculationInputBuilder.InitializeEventChecks(_snapshot.GameEvents, _today);
-            _autoEventChecks = _eventChecks.Where(c => c.IsActiveByDefault).ToList();
-            _outEventChecks = _eventChecks.Where(c => !c.IsActiveByDefault).ToList();
+            _eventChecks = CalculationInputBuilder.InitializeEventChecks(_snapshot.GameEvents, DateOnly.FromDateTime(DateTime.Now));
+            RefreshEventViews(DateOnly.FromDateTime(DateTime.Now));
         }
     }
 
@@ -332,9 +330,18 @@ else
         row.Open = false;
     }
 
+    /// <summary>判定時点の日付で既定を評価し直し、自動・期間外の振り分けを更新する。</summary>
+    private void RefreshEventViews(DateOnly today)
+    {
+        CalculationInputBuilder.RefreshEventCheckDefaults(_eventChecks, today);
+        _autoEventChecks = _eventChecks.Where(c => c.IsActiveByDefault).ToList();
+        _outEventChecks = _eventChecks.Where(c => !c.IsActiveByDefault).ToList();
+    }
+
     private void OnEventToggled(EventCheck check, ChangeEventArgs e)
     {
         check.Checked = e.Value is true;
+        check.Touched = true;
         Recalculate();
     }
 
@@ -383,6 +390,8 @@ else
         {
             return;
         }
+
+        RefreshEventViews(DateOnly.FromDateTime(DateTime.Now));
 
         if (!CalculationInputBuilder.TryParseTargets(
                 _targetRows.Select(r => new TargetRowInput(r.ItemId, r.RateText)),
@@ -524,8 +533,8 @@ else
             return "";
         }
 
-        string from = gameEvent.ActiveFrom?.ToString("MM/dd") ?? "";
-        string to = gameEvent.ActiveTo?.ToString("MM/dd") ?? "";
+        string from = gameEvent.ActiveFrom?.ToLocalTime().ToString("MM/dd") ?? "";
+        string to = gameEvent.ActiveTo?.ToLocalTime().ToString("MM/dd") ?? "";
         return $"（{from}〜{to}）";
     }
 

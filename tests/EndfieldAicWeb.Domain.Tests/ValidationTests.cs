@@ -181,7 +181,39 @@ public class ValidationTests
             new GameEvent
             {
                 Id = "ev-1", Name = "n", VersionAdded = "1.0.0",
-                ActiveFrom = new DateTime(2026, 6, 1), ActiveTo = new DateTime(2026, 5, 1),
+                ActiveFrom = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                ActiveTo = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc),
+            }, errors);
+
+        Assert.Contains(errors, e => e.Field == "ActiveFrom/ActiveTo");
+    }
+
+    [Fact(DisplayName = "VAL-18: オフセット無しのイベント日時はエラー")]
+    public void EventPeriodRequiresOffset()
+    {
+        var errors = new List<MasterValidationError>();
+        MasterValidator.ValidateGameEvent(
+            new GameEvent
+            {
+                Id = "ev-1", Name = "n", VersionAdded = "1.0.0",
+                ActiveFrom = new DateTime(2026, 6, 1), ActiveTo = new DateTime(2026, 7, 1),
+            }, errors);
+
+        Assert.Contains(errors, e => e.Field == "ActiveFrom/ActiveTo");
+    }
+
+    [Fact(DisplayName = "VAL-19: イベント期間は瞬間として比較")]
+    public void EventPeriodComparesInstants()
+    {
+        // 同一瞬間の表記違い（Utc と Local 変換後の値）でも瞬間としては逆転扱いになる。
+        var instant = new DateTime(2026, 6, 1, 12, 0, 0, DateTimeKind.Utc);
+        var errors = new List<MasterValidationError>();
+        MasterValidator.ValidateGameEvent(
+            new GameEvent
+            {
+                Id = "ev-1", Name = "n", VersionAdded = "1.0.0",
+                ActiveFrom = instant,
+                ActiveTo = DateTime.SpecifyKind(instant.ToLocalTime(), DateTimeKind.Local),
             }, errors);
 
         Assert.Contains(errors, e => e.Field == "ActiveFrom/ActiveTo");

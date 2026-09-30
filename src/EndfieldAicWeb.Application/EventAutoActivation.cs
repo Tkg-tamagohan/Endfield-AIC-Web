@@ -5,6 +5,7 @@ namespace EndfieldAicWeb.Application;
 /// <summary>
 /// イベントの自動有効化判定。開催期間の前後に猶予日数を設け、
 /// 今日がその範囲内なら有効イベントの既定とする（仕様決定 T の UI 既定）。
+/// ActiveFrom/ActiveTo は時刻の瞬間として読み、閲覧者のローカル暦日へ換算して比較する（仕様決定 Z）。
 /// </summary>
 public static class EventAutoActivation
 {
@@ -21,10 +22,10 @@ public static class EventAutoActivation
         }
 
         DateOnly from = gameEvent.ActiveFrom is { } f
-            ? DateOnly.FromDateTime(f).AddDays(-MarginDays)
+            ? DateOnly.FromDateTime(f.ToLocalTime()).AddDays(-MarginDays)
             : DateOnly.MinValue;
         DateOnly to = gameEvent.ActiveTo is { } t
-            ? DateOnly.FromDateTime(t).AddDays(MarginDays)
+            ? DateOnly.FromDateTime(t.ToLocalTime()).AddDays(MarginDays)
             : DateOnly.MaxValue;
 
         return from <= today && today <= to;

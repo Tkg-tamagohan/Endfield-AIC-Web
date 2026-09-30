@@ -315,6 +315,8 @@
 | VAL-15 | VersionAdded は semver 形式 | `1.2.0-beta.1+build.7`（prerelease/build 付き）・`1.0`（2 要素）・`01.0.0`（先頭ゼロ） | prerelease/build 付きは有効。2 要素・先頭ゼロは `VersionAdded` エラー |
 | VAL-16 | 参照欠落の入力があっても仮想アイテム入力は検出される | 同一レシピの Inputs に未登録 `i-ghost` と `TransportKind.None` の `i-power` | 参照欠落・仮想アイテム規則の両方がエラー一覧に載る |
 | VAL-17 | 桁あふれのバージョン要素はエラー（例外にならない） | `VersionAdded="2147483648.0.0"`（int 範囲外の semver） | `VersionAdded` エラーとして集計される（例外を投げない） |
+| VAL-18 | オフセット無しのイベント日時はエラー | `ActiveFrom`/`ActiveTo` にオフセットを持たない値 | `ActiveFrom/ActiveTo` エラー（Z・オフセット必須。仕様決定 Z） |
+| VAL-19 | イベント期間は瞬間として比較 | 同一瞬間の Utc 表記と Local 変換後の値 | 同一瞬間のため順序違反としてエラー（種別によらず瞬間で比較） |
 
 ## 4. 受け入れ条件との対応
 

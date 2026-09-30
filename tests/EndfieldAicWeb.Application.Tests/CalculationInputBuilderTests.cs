@@ -127,4 +127,25 @@ public class EventCheckInitializationTests
         Assert.Equal(["ev-a", "ev-b"], checks.Select(c => c.Event.Id));
         Assert.Equal([true, false], checks.Select(c => c.IsActiveByDefault));
     }
+
+    // EVI-04: 既定の再評価は未操作チェックのみ新しい既定へ追従させ、操作済みは保持する。
+    [Fact]
+    public void RefreshDefaultsRespectsTouched()
+    {
+        GameEvent ev = ApplicationFixtures.Event("ev", "期間イベント",
+            new DateTime(2026, 9, 20), new DateTime(2026, 9, 25));
+        DateOnly inPeriod = new(2026, 9, 22);
+        DateOnly afterPeriod = new(2026, 9, 30);
+
+        List<EventCheck> checks = CalculationInputBuilder.InitializeEventChecks([ev], inPeriod);
+        EventCheck untouched = checks[0];
+        var touched = new EventCheck(ev, true) { Checked = true, Touched = true };
+
+        CalculationInputBuilder.RefreshEventCheckDefaults([untouched, touched], afterPeriod);
+
+        Assert.False(untouched.IsActiveByDefault);
+        Assert.False(untouched.Checked);
+        Assert.False(touched.IsActiveByDefault);
+        Assert.True(touched.Checked);
+    }
 }
