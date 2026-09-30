@@ -50,6 +50,18 @@ dotnet run --project src/EndfieldAicWeb.Admin --no-launch-profile --urls http://
 
 `wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz` で最大化。狭幅化は `wmctrl -r :ACTIVE: -b remove,maximized_vert,maximized_horz` → `wmctrl -r :ACTIVE: -e 0,x,y,w,h`。
 
+## ゴールデンパスの期待値（同梱マスタ基準）
+
+`data/master.json`（DataVersion 0.2.0）を対象に、基本導線で期待される表示の基準。マスタ更新で件数が変わったら本表も更新する。
+
+| 確認箇所 | 期待値 |
+|---|---|
+| 生産リストのアイテム候補 | 6 件（全 7 アイテムから仮想アイテム `item-power` を除く） |
+| イベント | `ev-first` のみ。期間外のため期間外イベント側（折りたたみ）で、既定チェックは外れている |
+| 計算結果（例: アイテム選択＋数量入力後） | 素材・設備・消費電力の各節が出る（既定は個/分表示） |
+| Admin「現在の文書」パネル | アイコン: 5 件（ファイル取得 5/5）。検証実行後は違反 0 |
+| フッター | 非公式ファンツールの明記がある |
+
 ## Admin ツール固有の操作注意（Phase 6 時点）
 
 - ネイティブ `confirm` ダイアログ（削除・ダーティ時の読み込み直し）は **Return=OK / Escape=キャンセル**。マウスクリックはボタンが小さく外れることがあるのでキー操作が確実。
