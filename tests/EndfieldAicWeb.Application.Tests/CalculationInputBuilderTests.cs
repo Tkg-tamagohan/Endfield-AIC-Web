@@ -206,6 +206,36 @@ public class EnvironmentCountParseTests
     }
 }
 
+/// <summary>ERC: 保持された散布機台数の自動上限との整合（仕様決定 AH・docs/remaining-issues.md）。</summary>
+public class EnvCountReconcileTests
+{
+    // ERC-01: 0〜上限の整数文字列はそのまま保持する（境界の 0 と上限ちょうどを含む）。
+    [Theory]
+    [InlineData("3", 5, "3")]
+    [InlineData("0", 5, "0")]
+    [InlineData("5", 5, "5")]
+    public void KeepsTextWithinLimit(string text, int max, string expected) =>
+        Assert.Equal(expected, CalculationInputBuilder.ReconcileEnvCountText(text, max));
+
+    // ERC-02: 新しい上限を超えた保持値は空欄へ戻す（クランプしない）。
+    [Theory]
+    [InlineData("6", 5)]
+    [InlineData("2", 1)]
+    public void RevertsTextAboveLimitToAuto(string text, int max) =>
+        Assert.Equal("", CalculationInputBuilder.ReconcileEnvCountText(text, max));
+
+    // ERC-03: 非整数・負数・空欄・空白のみは空欄（自動値）のまま/へ戻す。
+    [Theory]
+    [InlineData("abc", 5)]
+    [InlineData("1.5", 5)]
+    [InlineData("-1", 5)]
+    [InlineData("", 5)]
+    [InlineData("  ", 5)]
+    [InlineData(null, 5)]
+    public void RevertsInvalidTextToAuto(string? text, int max) =>
+        Assert.Equal("", CalculationInputBuilder.ReconcileEnvCountText(text, max));
+}
+
 /// <summary>GRI: 採取レート入力行のパース（docs/phases/test-specification-phase11.md §3）。</summary>
 public class GatherRateParseTests
 {

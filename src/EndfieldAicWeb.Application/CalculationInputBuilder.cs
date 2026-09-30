@@ -114,6 +114,24 @@ public static class CalculationInputBuilder
     }
 
     /// <summary>
+    /// 再計算をまたいで保持する散布機台数の入力を、新しい自動上限と整合させる。
+    /// 整数かつ 0〜上限の範囲内の値だけを残し、上限超過・非整数・負数は
+    /// 空欄（自動値）へ戻す（仕様決定 AH）。
+    /// ユーザーが直前に入力した値の検証は <see cref="TryParseEnvironmentCounts"/> が担うため、
+    /// ここでは保持値の丸め（クランプ）は行わず自動値への復帰のみを行う。
+    /// </summary>
+    public static string ReconcileEnvCountText(string? countText, int max)
+    {
+        if (int.TryParse(countText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int count)
+            && count >= 0 && count <= max)
+        {
+            return countText!;
+        }
+
+        return "";
+    }
+
+    /// <summary>
     /// 採取素材の利用可能レート入力行を GatherRateOverride の列に変換する。
     /// 空欄の行はマップ既定値扱いで無視する（仕様決定 AE）。
     /// 行が指すアイテムが存在しない・採取素材でない、または値が非数値・負・非有限ならエラーを返す。
