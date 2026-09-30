@@ -39,7 +39,7 @@
 - アニメーション画像（GIF・APNG）を取り込める。各フレームへ上記の正規化規則を適用し、128×128 の APNG として保存する。
 - APNG は PNG の拡張形式であり拡張子 `.png`・MIME `image/png` をそのまま使うため、ファイル名規約・マニフェスト・スキーマに変更を入れない。
 - フレームの遅延時間は入力画像の値を引き継ぐ。ループは無限ループとする。
-- アニメーションのデコードは WebCodecs の `ImageDecoder` を主経路とし、APNG 入力については同梱する UPNG.js のデコード機能を副経路とする。どちらも使えない場合は先頭フレームの静止画として取り込む（警告を出してよい）。
+- アニメーションのデコードは WebCodecs の `ImageDecoder` を主経路とし、APNG 入力については同梱する UPNG.js のデコード機能（`UPNG.decode`）を副経路とする。`ImageDecoder` が使えない環境でも APNG 入力は `UPNG.decode` で処理し、いずれの経路も使えない場合に限り先頭フレームの静止画として取り込む（警告を出してよい）。
 - アニメーション WebP も `ImageDecoder` でデコードできれば同じ経路で取り込める。受け入れは副次的な範囲とし、動作しない場合の専用対応は行わない。
 
 ### 変わらないもの
@@ -77,6 +77,7 @@ APNG を `.png`・`image/png` のまま扱うため、次は全て無変更で�
 - App: `IconCatalog.Url`（`data:image/png` で APNG を正しく表示できる）、`EntityIcon.razor`（`<img>` がブラウザ側で APNG を再生する）。
 - データ・検証: `data/master.schema.json`（`File` は長さ制約のみで拡張子を縛らない）、`tools/validate_master.py`（`.png` 接尾辞の走査のまま成立）、既存の `data/icons/*.png`。
 - 既存テスト: `IconPipelineTests`・`IconManifestTests`・`AdminIconTests`（いずれも形式非依存または C# 側規約のテスト）。
+- App の同梱: `EndfieldAicWeb.App.csproj` の `RepoIcons` は `data/icons/**/*.png` グロブのため、APNG も拡張子 `.png` のまま同梱対象になる（GIF を保存形式にした場合はここにも変更が入った）。
 
 ### 3.4 ドキュメント更新
 
@@ -91,7 +92,8 @@ APNG を `.png`・`image/png` のまま扱うため、次は全て無変更で�
    - 128 ピクセル未満の画像を取り込むと、拡大されずシャープなまま 128×128 中央に配置される。
    - アニメーション GIF を取り込むと、プレビューでアニメーション再生される。
    - エクスポートした `master-export.zip` を展開し、`data/icons/` の APNG ファイルがブラウザで直接開くとアニメーション再生できる。
-3. App を `dotnet run --project src/EndfieldAicWeb.App --no-launch-profile --urls http://127.0.0.1:5180` で起動し、APNG アイコンが一覧でアニメーション表示されること、静止アイコンが従来どおり出ることを自分で確認する。
+3. App 側の確認には、公開データがリポジトリの `data/` からビルド時に同梱されるため、先に反映を行う。エクスポートした `master-export.zip` をリポジトリルートへ展開して `data/master.json`・`data/icons/` を差し替えるか、確認用の APNG を `data/icons/` へ置いて `master.json` の `Icons` と該当エンティティの `IconKey` を登録する。
+   - そのうえで App を `dotnet run --project src/EndfieldAicWeb.App --no-launch-profile --urls http://127.0.0.1:5180` で起動し（起動中なら再ビルド）、APNG アイコンが一覧でアニメーション表示されること、静止アイコンが従来どおり出ることを自分で確認する。
 4. ブラウザプレビューでユーザーに触ってもらい、フィードバックを反映する（ui-mock-first。テスト作成はこの後）。
 
 ## 5. 作業順序
