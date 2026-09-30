@@ -272,6 +272,29 @@
       "VersionRemoved": null
     }
   ],
+  "Maps": [
+    {
+      "GameEventId": null,
+      "GatherRates": [
+        {
+          "ItemId": "item-ore",
+          "IsUnlimited": false,
+          "RatePerMinute": 240
+        },
+        {
+          "ItemId": "item-fuel",
+          "IsUnlimited": true,
+          "RatePerMinute": null
+        }
+      ],
+      "Id": "map-sample",
+      "Name": "サンプル採取地",
+      "Description": "採取上限の動作確認用サンプル（ゲーム実データではない）",
+      "IconKey": null,
+      "VersionAdded": "0.1.0",
+      "VersionRemoved": null
+    }
+  ],
   "Icons": [
     {
       "Key": "icon-item-ore",

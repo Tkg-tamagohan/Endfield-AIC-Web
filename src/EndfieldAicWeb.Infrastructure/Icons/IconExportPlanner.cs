@@ -155,5 +155,6 @@ public static class IconExportPlanner
         foreach (Domain.Models.Environment e in document.Environments) yield return e;
         foreach (GameEvent e in document.GameEvents) yield return e;
         foreach (Recipe e in document.Recipes) yield return e;
+        foreach (GameMap e in document.Maps) yield return e;
     }
 }

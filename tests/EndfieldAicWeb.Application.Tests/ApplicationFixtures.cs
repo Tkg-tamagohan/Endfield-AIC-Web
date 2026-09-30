@@ -73,6 +73,7 @@ internal static class ApplicationFixtures
             Environments = environments,
             GameEvents = gameEvents,
             Recipes = recipes,
+            Maps = [],
         };
 
     public static ContextFilter Context(params string[] activeEventIds) =>

@@ -52,6 +52,7 @@ public static class MasterExporter
         List<Environment> environments = RequiredCollection(document.Environments, "Environments", errors);
         List<GameEvent> gameEvents = RequiredCollection(document.GameEvents, "GameEvents", errors);
         List<Recipe> recipes = RequiredCollection(document.Recipes, "Recipes", errors);
+        List<GameMap> maps = RequiredCollection(document.Maps, "Maps", errors);
         List<IconEntry> iconEntries = RequiredCollection(icons ?? document.Icons, "Icons", errors);
 
         RejectNullElements(items, "Items", errors);
@@ -59,6 +60,7 @@ public static class MasterExporter
         RejectNullElements(environments, "Environments", errors);
         RejectNullElements(gameEvents, "GameEvents", errors);
         RejectNullElements(recipes, "Recipes", errors);
+        RejectNullElements(maps, "Maps", errors);
         RejectNullElements(iconEntries, "Icons", errors);
 
         // Description はスキーマ type=string の必須。null（空文字化しない呼び出し側の違反）は拒否する。
@@ -67,6 +69,7 @@ public static class MasterExporter
         RejectNullDescription(environments, "Environment", errors);
         RejectNullDescription(gameEvents, "GameEvent", errors);
         RejectNullDescription(recipes, "Recipe", errors);
+        RejectNullDescription(maps, "GameMap", errors);
 
         // レシピ内配列・要素の null は MasterValidator が参照できないため、ここで検出して対象から外す。
         var safeRecipes = new List<Recipe>();
@@ -88,12 +91,22 @@ public static class MasterExporter
             }
         }
 
+        var safeMaps = new List<GameMap>();
+        foreach (GameMap? map in maps)
+        {
+            if (map is not null && !RejectNullGatherRates(map, errors))
+            {
+                safeMaps.Add(map);
+            }
+        }
+
         MasterValidator.ValidateAll(
             items.Where(e => e is not null).ToList(),
             facilities.Where(e => e is not null).ToList(),
             environments.Where(e => e is not null).ToList(),
             gameEvents.Where(e => e is not null).ToList(),
             safeRecipes,
+            safeMaps,
             errors);
 
         MasterJsonReader.ValidateIconManifestValues(
@@ -117,6 +130,7 @@ public static class MasterExporter
             Environments = document.Environments.Select(ToEnvironmentJson).Cast<EnvironmentJson?>().ToList(),
             GameEvents = document.GameEvents.Select(ToGameEventJson).Cast<GameEventJson?>().ToList(),
             Recipes = document.Recipes.Select(ToRecipeJson).Cast<RecipeJson?>().ToList(),
+            Maps = document.Maps.Select(ToGameMapJson).Cast<GameMapJson?>().ToList(),
             Icons = iconEntries.Select(e => (IconJson?)new IconJson
             {
                 Key = e.Key,
@@ -197,6 +211,32 @@ public static class MasterExporter
             {
                 errors.Add(new MasterValidationError(
                     "Recipe", recipe.Id ?? "", name, $"レシピ {recipe.Id} の {name}[{i}] が null です。"));
+                found = true;
+            }
+        }
+
+        return found;
+    }
+
+    private static bool RejectNullGatherRates(
+        GameMap map,
+        ICollection<MasterValidationError> errors)
+    {
+        if (map.GatherRates is null)
+        {
+            errors.Add(new MasterValidationError(
+                "GameMap", map.Id ?? "", "GatherRates", $"マップ {map.Id} の GatherRates が null です。"));
+            return true;
+        }
+
+        bool found = false;
+        for (int i = 0; i < map.GatherRates.Count; i++)
+        {
+            if (map.GatherRates[i] is null)
+            {
+                errors.Add(new MasterValidationError(
+                    "GameMap", map.Id ?? "", "GatherRates",
+                    $"マップ {map.Id} の GatherRates[{i}] が null です。"));
                 found = true;
             }
         }
@@ -289,6 +329,23 @@ public static class MasterExporter
                     ItemId = p.FixedConsumption.ItemId,
                     RatePerMinute = p.FixedConsumption.RatePerMinute,
                 },
+        }).ToList(),
+    };
+
+    private static GameMapJson ToGameMapJson(GameMap e) => new()
+    {
+        Id = e.Id,
+        Name = e.Name,
+        Description = e.Description,
+        IconKey = e.IconKey,
+        VersionAdded = e.VersionAdded,
+        VersionRemoved = e.VersionRemoved,
+        GameEventId = e.GameEventId,
+        GatherRates = e.GatherRates.Select(rate => (GatherRateJson?)new GatherRateJson
+        {
+            ItemId = rate.ItemId,
+            IsUnlimited = rate.IsUnlimited,
+            RatePerMinute = rate.RatePerMinute,
         }).ToList(),
     };
 }

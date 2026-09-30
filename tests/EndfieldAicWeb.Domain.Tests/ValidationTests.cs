@@ -32,7 +32,7 @@ public class ValidationTests
         IReadOnlyList<Recipe> recipes)
     {
         var errors = new List<MasterValidationError>();
-        MasterValidator.ValidateAll(items, facilities, environments, gameEvents, recipes, errors);
+        MasterValidator.ValidateAll(items, facilities, environments, gameEvents, recipes, [], errors);
         return errors;
     }
 

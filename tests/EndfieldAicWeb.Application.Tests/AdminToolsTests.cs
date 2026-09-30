@@ -52,7 +52,8 @@ public class AdminToolsTests
     private static List<MasterValidationError> Validate(MasterDocument doc)
     {
         var errors = new List<MasterValidationError>();
-        MasterValidator.ValidateAll(doc.Items, doc.Facilities, doc.Environments, doc.GameEvents, doc.Recipes, errors);
+        MasterValidator.ValidateAll(
+            doc.Items, doc.Facilities, doc.Environments, doc.GameEvents, doc.Recipes, doc.Maps, errors);
         return errors;
     }
 

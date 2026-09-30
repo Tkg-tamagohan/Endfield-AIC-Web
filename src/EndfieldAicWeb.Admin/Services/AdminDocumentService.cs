@@ -336,6 +336,7 @@ public sealed class AdminDocumentService
             Document.Environments,
             Document.GameEvents,
             Document.Recipes,
+            Document.Maps,
             errors);
         ValidationErrors = errors;
         ValidationRan = true;
@@ -499,6 +500,7 @@ public sealed class AdminDocumentService
             Document.Environments,
             Document.GameEvents,
             Document.Recipes,
+            Document.Maps,
             errors);
         List<IconEntry> manifest = IconExportPlanner.BuildManifest(Document, _iconStore, errors);
         if (errors.Count > 0)
