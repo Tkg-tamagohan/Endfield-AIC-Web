@@ -69,7 +69,7 @@ public sealed class AdminDocumentService
     /// <summary>アイコンプレビュー用の data: URI キャッシュ。変更・読み込み直しでクリアする。</summary>
     private readonly Dictionary<string, string> _iconDataUrls = new(StringComparer.Ordinal);
 
-    /// <summary>IconKey の解決器。Document.Icons の変更箇所（読み込み・登録・エクスポート確定）で破棄し、必要時に再構築する。</summary>
+    /// <summary>IconKey の解決器。読み込み・変更通知・エクスポート確定で破棄し、必要時に再構築する。</summary>
     private IconResolver? _iconResolver;
 
     /// <summary>赤枠表示のまま確定されていない不正な入力値を持つエディタがあるか。</summary>
@@ -304,6 +304,7 @@ public sealed class AdminDocumentService
     {
         _editCounter++;
         IsDirty = true;
+        _iconResolver = null;
         ValidationErrors = [];
         if (ValidationRan)
         {
@@ -456,7 +457,6 @@ public sealed class AdminDocumentService
 
         _iconStore.Set(entry.File, pngBytes);
         _iconDataUrls.Remove(entry.File);
-        _iconResolver = null;
         IconFilesExpected = Document.Icons.Count;
         IconFilesLoaded = Document.Icons.Count(e => _iconStore.ReadAllBytes(e.File) is not null);
         NotifyChanged();
