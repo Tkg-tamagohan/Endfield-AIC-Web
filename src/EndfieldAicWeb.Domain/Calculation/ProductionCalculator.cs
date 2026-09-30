@@ -8,7 +8,7 @@ namespace EndfieldAicWeb.Domain.Calculation;
 /// 骨格は旧 ProductionCalculator の Session（展開→引き戻しの固定点反復）を移植したもので、
 /// ペア選択（F/U）・環境計上（I）・固定消費（J/V）・イベント不可扱い（T/X）・収束反復を含む。
 /// </summary>
-public sealed class ProductionCalculator
+public static class ProductionCalculator
 {
     internal const double Epsilon = 1e-9;
 
@@ -22,7 +22,7 @@ public sealed class ProductionCalculator
     internal const int MaxConvergenceIterations = 10;
 
     /// <summary>生産計画を計算する。</summary>
-    public ProductionPlan Calculate(
+    public static ProductionPlan Calculate(
         MasterDataSnapshot master,
         IReadOnlyList<ProductionTarget> targets,
         ContextFilter context,
@@ -335,7 +335,13 @@ public sealed class ProductionCalculator
 
             if (!Selection.TryGetValue(itemId, out PairSelector.Selection? selection))
             {
-                selection = PairSelector.Select(itemId, _master, _context, _overrides, Warnings);
+                PairSelector.Result result = PairSelector.Select(itemId, _master, _context, _overrides);
+                foreach (CalculationWarning warning in result.Warnings)
+                {
+                    Warnings.Add(warning);
+                }
+
+                selection = result.Selection;
                 Selection[itemId] = selection;
             }
 

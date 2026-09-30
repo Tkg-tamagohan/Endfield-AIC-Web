@@ -27,7 +27,7 @@ public sealed class CalculationService
         ArgumentNullException.ThrowIfNull(pairOverrides);
         ArgumentNullException.ThrowIfNull(environmentOverrides);
 
-        ProductionPlan plan = new ProductionCalculator().Calculate(
+        ProductionPlan plan = ProductionCalculator.Calculate(
             snapshot, targets, context, pairOverrides, environmentOverrides);
 
         var options = new Dictionary<string, IReadOnlyList<PairOption>>(StringComparer.Ordinal);

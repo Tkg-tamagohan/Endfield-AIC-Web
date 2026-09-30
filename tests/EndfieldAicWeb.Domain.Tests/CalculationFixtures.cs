@@ -162,8 +162,7 @@ internal static class CalculationFixtures
         IReadOnlyList<PairOverride>? overrides = null,
         IReadOnlyList<EnvironmentCountOverride>? environmentOverrides = null)
     {
-        var calculator = new ProductionCalculator();
-        return calculator.Calculate(
+        return ProductionCalculator.Calculate(
             master,
             targets.Select(t => new ProductionTarget(t.ItemId, t.Rate)).ToList(),
             context ?? new ContextFilter(),

@@ -50,26 +50,25 @@ public class WarningTests
     [Fact(DisplayName = "WRN-04: 不正な目標は ArgumentException")]
     public void InvalidTargetThrows()
     {
-        var calculator = new ProductionCalculator();
         MasterDataSnapshot master = F.F01();
 
-        Assert.Throws<ArgumentException>(() => calculator.Calculate(
+        Assert.Throws<ArgumentException>(() => ProductionCalculator.Calculate(
             master,
             [new ProductionTarget("i-part", 0.0)],
             new ContextFilter(), [], []));
-        Assert.Throws<ArgumentException>(() => calculator.Calculate(
+        Assert.Throws<ArgumentException>(() => ProductionCalculator.Calculate(
             master,
             [new ProductionTarget("i-part", -5.0)],
             new ContextFilter(), [], []));
-        Assert.Throws<ArgumentException>(() => calculator.Calculate(
+        Assert.Throws<ArgumentException>(() => ProductionCalculator.Calculate(
             master,
             [new ProductionTarget("i-part", double.NaN)],
             new ContextFilter(), [], []));
-        Assert.Throws<ArgumentException>(() => calculator.Calculate(
+        Assert.Throws<ArgumentException>(() => ProductionCalculator.Calculate(
             master,
             [new ProductionTarget("i-part", double.PositiveInfinity)],
             new ContextFilter(), [], []));
-        Assert.Throws<ArgumentException>(() => calculator.Calculate(
+        Assert.Throws<ArgumentException>(() => ProductionCalculator.Calculate(
             master,
             [new ProductionTarget("i-ghost", 10.0)],
             new ContextFilter(), [], []));

@@ -76,8 +76,15 @@ public static class MasterValidator
 
         CheckCommonFields(gameEvent, "GameEvent", errors);
 
-        if (gameEvent.ActiveFrom is not null && gameEvent.ActiveTo is not null
-            && gameEvent.ActiveFrom >= gameEvent.ActiveTo)
+        if (gameEvent.ActiveFrom is { Kind: DateTimeKind.Unspecified }
+            || gameEvent.ActiveTo is { Kind: DateTimeKind.Unspecified })
+        {
+            errors.Add(new MasterValidationError(
+                "GameEvent", gameEvent.Id, "ActiveFrom/ActiveTo",
+                "ActiveFrom/ActiveTo はタイムゾーン（Z またはオフセット）付きの日時で指定する必要があります（仕様決定 Z）"));
+        }
+        else if (gameEvent.ActiveFrom is { } from && gameEvent.ActiveTo is { } to
+            && from.ToUniversalTime() >= to.ToUniversalTime())
         {
             errors.Add(new MasterValidationError(
                 "GameEvent", gameEvent.Id, "ActiveFrom/ActiveTo",
