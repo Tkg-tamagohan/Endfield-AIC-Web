@@ -397,6 +397,21 @@ public class IconPipelineTests
     }
 
     [Fact]
+    public void ANM04_APNG実体もzip配置往復で無改変に取り出せる()
+    {
+        MasterDocument doc = I01();
+        InMemoryIconFileProvider store = Store(
+            ("icons/icon-ore.png", ApngFixture.ApngBytes),
+            ("icons/icon-part.png", IconB),
+            ("icons/icon-fac.png", IconA));
+
+        byte[] zip = IconArchive.CreateZip("{}", doc.Icons, store);
+
+        Assert.True(IconArchive.TryReadZip(zip, out _, out IReadOnlyDictionary<string, byte[]> icons));
+        Assert.Equal(ApngFixture.ApngBytes, icons["icons/icon-ore.png"]);
+    }
+
+    [Fact]
     public void ZIP05_正本JSONのないzipは読み取りに失敗する()
     {
         byte[] zip;
