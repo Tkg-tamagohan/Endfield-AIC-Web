@@ -24,7 +24,7 @@
         "Id": { "type": "string", "minLength": 1 },
         "Name": { "type": "string", "minLength": 1 },
         "Description": { "type": "string" },
-        "IconKey": { "type": ["string", "null"] },
+        "IconKey": { "type": ["string", "null"], "pattern": "^[A-Za-z0-9_-]{0,64}$(?![\\s\\S])" },
         "VersionAdded": { "type": "string", "minLength": 1 },
         "VersionRemoved": { "type": ["string", "null"] }
       }
@@ -151,7 +151,7 @@
       "required": ["Key", "File", "Sha256", "Bytes"],
       "additionalProperties": false,
       "properties": {
-        "Key": { "type": "string", "minLength": 1 },
+        "Key": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$(?![\\s\\S])" },
         "File": { "type": "string", "minLength": 1 },
         "Sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
         "Bytes": { "type": "integer", "minimum": 1 }
