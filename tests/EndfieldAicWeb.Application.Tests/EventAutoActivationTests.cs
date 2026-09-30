@@ -68,8 +68,8 @@ public class EventAutoActivationTests
     {
         var utc = new DateTime(2026, 9, 19, 15, 0, 0, DateTimeKind.Utc);
         DateTime asLocal = DateTime.SpecifyKind(utc.ToLocalTime(), DateTimeKind.Local);
-        GameEvent utcEvent = ApplicationFixtures.Event("ev", "Z 表記", utc, null);
-        GameEvent localEvent = ApplicationFixtures.Event("ev", "オフセット表記", asLocal, null);
+        var utcEvent = ApplicationFixtures.Event("ev", "Z 表記", utc, null);
+        var localEvent = ApplicationFixtures.Event("ev", "オフセット表記", asLocal, null);
 
         foreach (DateOnly day in new[] { new DateOnly(2026, 9, 18), new DateOnly(2026, 9, 21), new DateOnly(2026, 9, 25) })
         {
