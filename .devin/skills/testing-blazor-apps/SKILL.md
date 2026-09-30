@@ -68,11 +68,33 @@ dotnet run --project src/EndfieldAicWeb.Admin --no-launch-profile --urls http://
 
 - recipe-part の環境付きペア（加工機 CycleTime 3秒・ガス環境・固形燃料 30/分）が既定選択になる（CycleTime 最小規則で 3 < 4 のため環境なし 4 秒ペアより先）。
 - 環境行: 「ガス環境 ガス散布機 1 台 ・ 活性ガス 360 個/分」（散布機台数は稼働ペア数=1 が自動値）。
-- 素材: 原鉱石 20/分・固形燃料 30/分・活性ガス 360/分。供給チップは全て「採取素材」。
+- 素材: 原鉱石 20/分・固形燃料 30/分・活性ガス 360/分。供給チップは全て「採取」。
 - 設備: 加工機 0.5 台 → 1 台。端数のため調整済ビューが既定になり、「汎用部品 の 原鉱石 を 0.333/秒 に制限」のフロー制限ヒントが出る（輸送容量系と同じく /秒 表記は単位統一の対象外）。ガス散布機 1 台。
-- ペア選択プルダウンはネイティブ `<select>`（App のみ。Admin プレビューにはペア選択 UI がない）。開いて選択肢を撮れば「固形燃料 30/分（既定）」ラベルを目視確認できる。
+- ペア選択プルダウンはネイティブ `<select>`（App・Admin プレビュー共通。Phase 13 で Admin にも追加）。開いて選択肢を撮れば「固形燃料 30/分（既定）」ラベルを目視確認できる。
 - 毎秒トグルは素材の数量・チップのみ /秒 換算する。環境行（個/分）とペアラベル（/分）は表示単位トグルの対象外で変わらない。
-- Admin の計算プレビュー（/preview）はアイテム選択が検索コンボではなくネイティブ `<select>`（RefSelect）。単位トグルはなく常に 個/分 表示。
+- Admin の計算プレビュー（/preview）は Phase 13 で公開版へ追従し、ペア選択・散布機台数入力・単位トグル・期間入力・採取マップ/レート入力がある。残る意図的差異はアイテム選択が検索コンボではなくネイティブ `<select>`（RefSelect）な点のみ。
+
+## 採取機能の手動確認用フィクスチャ（Phase 12/13）
+
+同梱マスタにはイベント所属マップと「採取素材を産出するレシピ」がない。採取節の全要素（候補外保持・上限到達・レシピ展開）を見るには、稼働中 dev server の `src/EndfieldAicWeb.*/wwwroot/data/master.json` に次を追加して即時配信させる（`dotnet run` 再起動は CopyMasterJson が正本で上書きするため不可。再起動なしで反映）:
+
+```json
+// Maps に追加
+{"GameEventId": "ev-first", "GatherRates": [{"ItemId": "item-ore", "IsUnlimited": true, "RatePerMinute": null}], "Id": "map-event", "Name": "イベント採取地", "Description": "イベント期間限定の採取地（計算プレビュー確認用）", "IconKey": null, "VersionAdded": "0.1.0", "VersionRemoved": null}
+// Recipes に追加
+{"GameEventId": null, "Inputs": [{"ItemId": "item-fuel", "Quantity": 1}], "Outputs": [{"ItemId": "item-ore", "Quantity": 1, "SortOrder": 0}], "Facilities": [{"FacilityId": "fac-assembler", "CycleTime": 4, "EnvironmentId": null, "FixedConsumption": null}], "Id": "recipe-ore", "Name": "原鉱石採掘", "Description": "採取上限超過分のレシピ展開確認用（計算プレビュー確認用）", "IconKey": null, "VersionAdded": "0.1.0", "VersionRemoved": null}
+```
+
+検証後は `cp data/master.json src/EndfieldAicWeb.*/wwwroot/data/` で正本へ戻す。
+
+フィクスチャ適用時の期待値（App/Admin 共通）:
+
+- `map-event` は所属イベント `ev-first` を有効にしたときだけ候補に出る。選択中にイベントを外すと「〈名〉（イベント無効）」で候補外保持され `GatherMapUnavailable` 警告＋採取節消失になる。
+- 採取素材の利用可能レート上書きを既定値より下げると超過分が代替レシピへ展開され採取行に「上限到達」が付く。非数値・負値は「〈名〉 の利用可能レートは 0 以上の数値で入力してください。」で再計算されず前回結果が残る。
+- 採取レート・散布機台数の入力値は数量変更・ペア切替・マップ切替をまたいで保持される。
+- FixedConsumption は施設の合計台数（ceil）請求。例: 加工機 1.17 台 → 2 台で固定消費 30/分 × 2 = 60/分。直感より大きい値が正しいことがある。
+- 単位切替は素材・チップ・未充足・余剰のみ換算。採取節・環境行・消費電力・ペアラベル・フロー制限ヒントは 個/分・/秒 のまま換算対象外。
+- エラー表示が出ると要素が下にずれる。`@onchange` 入力のクリック座標はエラー行の有無で変わるので、エラー中は最新スクリーンショットで位置を取り直す。
 
 ## 旧フィールド名 JSON の拒否確認（Phase 9 以降）
 
