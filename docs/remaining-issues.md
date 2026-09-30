@@ -45,6 +45,8 @@
 キー規則とハッシュ照合は C#（`IconKeyRules`、`IconManifestVerifier`）と CI 側 Python（`tools/validate_master.py` の再実装）に二重化され、画像正規化（中央正方形・128×128 PNG）の規格は `wwwroot/js/icons.js` の `normalizeIconPng` のみが保持している。
 アイコン規格を変更する場合は三箇所の同期が必要であり、現状はコメントによる相互参照に留まる。
 
+（PR <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/19> で対応。文字種はスキーマの `pattern`、マニフェスト整合は `BundledMasterDataTests`、正規化規格は `docs/requirements.md` §5.10 へ集約）
+
 ## スキルへの追記案
 
 改善作業中のテストエージェントから、リポジトリ内スキル `.devin/skills/testing-blazor-apps` への追記案が複数出ている。
