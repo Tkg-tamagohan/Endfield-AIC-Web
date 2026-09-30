@@ -63,9 +63,29 @@ function _normalizedFrameRgba(source, width, height) {
     return ctx.getImageData(0, 0, ICON_CANVAS_SIZE, ICON_CANVAS_SIZE).data.buffer;
 }
 
+const APNG_DELAY_NUM_MAX = 65535;
+const APNG_MAX_SPLIT_FRAMES = 64;
+
 // 正規化済み RGBA フレーム列と遅延（ミリ秒）から APNG の data: URI を作る。ループは無限。
+// UPNG.encode は遅延を 16bit 分子・分母 1000 で書き込むため、65535ms を超える遅延は
+// 同一フレームの繰り返しに分割して合計を保つ。上限 64 分割（約70分）で打ち切る。
 function _encodeApngDataUrl(frames, delays) {
-    const apng = UPNG.encode(frames, ICON_CANVAS_SIZE, ICON_CANVAS_SIZE, 0, delays);
+    const expandedFrames = [];
+    const expandedDelays = [];
+    for (let i = 0; i < frames.length; i++) {
+        let rest = Math.max(1, Math.round(delays[i]));
+        let parts = Math.ceil(rest / APNG_DELAY_NUM_MAX);
+        if (parts > APNG_MAX_SPLIT_FRAMES) {
+            console.warn("フレーム遅延が APNG で表現できる上限を超えるため、64 分割で打ち切ります。");
+            parts = APNG_MAX_SPLIT_FRAMES;
+        }
+        for (let p = 0; p < parts; p++) {
+            expandedFrames.push(frames[i]);
+            expandedDelays.push(Math.min(rest, APNG_DELAY_NUM_MAX));
+            rest -= APNG_DELAY_NUM_MAX;
+        }
+    }
+    const apng = UPNG.encode(expandedFrames, ICON_CANVAS_SIZE, ICON_CANVAS_SIZE, 0, expandedDelays);
     return "data:image/png;base64," + _bytesToBase64(new Uint8Array(apng));
 }
 
@@ -83,15 +103,13 @@ async function _decodeViaImageDecoder(bytes, mime) {
     try {
         decoder = new ImageDecoder({ data: bytes, type: mime });
         await decoder.tracks.ready;
-    } catch {
-        return null;
-    }
 
-    try {
         const track = decoder.tracks.selectedTrack;
         if (!track || !track.animated || track.frameCount <= 1) return null;
 
-        // 差分フレームが返る実装に備え、フルサイズのオフスクリーンへ重ね描きしてから採取する。
+        // ImageDecoder は blend/dispose 適用済みの合成フレームを返す。visibleRect が全面を
+        // 覆う場合は合成済みとみなし、透明画素の残像が残らないようクリアしてから描く。
+        // 部分矩形が返る実装に備え、その場合は従来どおりオフセット重ね描きで近似する。
         const composite = document.createElement("canvas");
         const compositeCtx = composite.getContext("2d");
         const frames = [];
@@ -105,10 +123,11 @@ async function _decodeViaImageDecoder(bytes, mime) {
                 composite.height = height;
             }
             const rect = image.visibleRect;
-            if (rect) {
-                compositeCtx.drawImage(image, rect.x, rect.y, rect.width, rect.height);
-            } else {
+            if (!rect || (rect.x === 0 && rect.y === 0 && rect.width === width && rect.height === height)) {
+                compositeCtx.clearRect(0, 0, composite.width, composite.height);
                 compositeCtx.drawImage(image, 0, 0);
+            } else {
+                compositeCtx.drawImage(image, rect.x, rect.y, rect.width, rect.height);
             }
             delays.push(Math.round(image.duration ? image.duration / 1000 : 100));
             image.close();
@@ -118,7 +137,7 @@ async function _decodeViaImageDecoder(bytes, mime) {
     } catch {
         return null;
     } finally {
-        decoder.close();
+        decoder?.close();
     }
 }
 
