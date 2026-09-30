@@ -17,6 +17,7 @@
 - C 時刻規約（仕様決定 Z。瞬間として解釈して閲覧者のローカル暦日で判定し、オフセット無しは検証エラー。既定判定のたびに当日を再評価）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/20>
 - D 判定ロジックの抽出（散布機台数の検証とコンボの選択解除判定を Application の純粋関数へ移し xUnit でテスト化）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/21>
 - E 可変性の境界明文化（requirements §6.2）・F スキルへのゴールデンパス期待値表追記: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/22>
+- 保持された散布機台数が新しい自動上限を超えるケース（自動値へ戻す整合処理、仕様決定 AH）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/36>
 
 ## 残っている項目
 
