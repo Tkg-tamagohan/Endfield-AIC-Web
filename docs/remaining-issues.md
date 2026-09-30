@@ -71,7 +71,7 @@
 
 - `ProductionCalculator` を `static` クラスにする。計算途中の状態は内部の `Session` に閉じており、呼び出し側の `new` は `CalculationService` とテストで計 8 箇所、いずれも書き換えで済む。
 - `PairSelector.Select` の警告出口を、出力引数の `ICollection<CalculationWarning>` から戻り値へ移す。`Selection` と警告一覧の組を返す結果型を新設し、`ListCandidates` が捨てるためだけに `new List<>()` を渡す形を消す。
-- `ContextFilter` を `record` にする。`init` プロパティはそのまま使えるため呼び出し側の記述は変わらず、読み取り専用コンテナの意図と値どうしの等価比較が明示できる。
+- `ContextFilter` を `record` にする。`init` プロパティはそのまま使えるため呼び出し側の記述は変わらない。読み取り専用コンテナの意図が型の形で明示できる点が利点で、等価比較は `ActiveGameEventIds` の参照比較に留まる点は従来と変わらない（集合の中身まで見た等価性が要る用途は出ていない）。
 - `AdminDocumentService.ResolveIconPath` で毎回組み立てている `IconResolver` をキャッシュする。構築は文書の読み込み時に一度だけとし、マニフェストが変わる箇所（アイコン登録、zip エクスポートのマニフェスト差し替え）で作り直す。
 
 ### B. アイコン規格の分散
@@ -79,7 +79,7 @@
 規格の正本を C# 側と文書に揃え、CI 側の再実装を縮める方向がよい。
 
 - キー文字種。`master.schema.json` の `IconKey` に `pattern` を記述して、スキーマ上でも制約を明示する。ただし Python の `$` は末尾改行の手前にも一致するため、厳密には `tools/validate_master.py` 側の `\Z` による検査が引き続き要る。スキーマへの記述はドキュメントとしての位置づけであり、完全な一元化にはならない点に注意する。
-- ハッシュ照合と参照解決。`validate_master.py` の意味検証（マニフェストと実ファイルの Bytes/Sha256 照合、参照キー列挙、孤立・未収録の警告）は `IconManifestVerifier` や `IconExportPlanner` と規則が重複する。`data/master.json` と `data/icons/` を対象にこれらを実行する検証テストを加えれば、CI は既に `dotnet test` を実行しており、追加の呼び出しなしに C# 側の規則で担保できる。Python 側はスキーマ適合とキー文字種の厳密検査に縮小できる。
+- ハッシュ照合と参照解決。`validate_master.py` の意味検証（マニフェストと実ファイルの Bytes/Sha256 照合、参照キー列挙、孤立・未収録の警告）は `IconManifestVerifier` や `IconExportPlanner` と規則が重複する。`data/master.json` と `data/icons/` を対象に読み込みとマニフェスト検証を実行する検証テストを加えれば、CI は既に `dotnet test` を実行しており、追加の呼び出しなしに C# 側の規則で担保できる。`icons/<Key>.png` の File 形式は `MasterJsonReader` の構造検証で担保されるため、検証テストは読み込みを通してカバーできる。孤立エントリと未収録ファイルの警告は C# 側に対応する列挙がないため、検証テスト側で警告相当の検査を実装するか、Python 側に警告として残すかを実装時に選ぶ。Python 側はスキーマ適合とキー文字種の厳密検査（および警告を残す場合はその一覧）に縮小できる。
 - 画像正規化。中央正方形・128×128 PNG の規格は `icons.js` のコードコメントにのみあるため、`docs/requirements.md` のアイコン節に規格として書き、`icons.js` 側は規格への参照に留める。
 
 ### C. 時刻の解釈規約
