@@ -8,7 +8,7 @@ namespace EndfieldAicWeb.Application.Tests;
 public class PlanViewDefaultsTests
 {
     private static ProductionPlan Plan(MasterDataSnapshot snapshot, params ProductionTarget[] targets) =>
-        new ProductionCalculator().Calculate(
+        ProductionCalculator.Calculate(
             snapshot,
             targets,
             new ContextFilter(),

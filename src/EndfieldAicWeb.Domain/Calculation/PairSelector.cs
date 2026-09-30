@@ -15,21 +15,24 @@ public static class PairSelector
     /// <summary>選択結果。稼働するレシピとその中のペア行。</summary>
     public sealed record Selection(Recipe Recipe, RecipeFacility Pair);
 
+    /// <summary>選択の戻り値。選択結果（候補 0 件は null）と、選択中に発生した警告をまとめて返す。</summary>
+    public sealed record Result(Selection? Selection, IReadOnlyList<CalculationWarning> Warnings);
+
     /// <summary>
     /// itemId を出力するレシピのうちコンテキスト上 eligible なものから 1 組を選ぶ。
-    /// 候補が 0 件なら null を返す（呼び出し側で終端処理する）。
+    /// 候補が 0 件なら Selection は null（呼び出し側で終端処理する）。
     /// </summary>
-    public static Selection? Select(
+    public static Result Select(
         string itemId,
         MasterDataSnapshot master,
         ContextFilter context,
-        IReadOnlyList<PairOverride> overrides,
-        ICollection<CalculationWarning> warnings)
+        IReadOnlyList<PairOverride> overrides)
     {
         ArgumentNullException.ThrowIfNull(master);
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(overrides);
-        ArgumentNullException.ThrowIfNull(warnings);
+
+        var warnings = new List<CalculationWarning>();
 
         IEnumerable<Recipe> candidates = master.RecipesByOutputItemId.TryGetValue(itemId, out IReadOnlyList<Recipe>? list)
             ? list.Where(r => IsEventEligible(r.GameEventId, context))
@@ -43,7 +46,7 @@ public static class PairSelector
             Selection? overridden = FindOverride(ordered, master, context, pairOverride);
             if (overridden is not null)
             {
-                return overridden;
+                return new Result(overridden, warnings);
             }
 
             warnings.Add(new CalculationWarning(
@@ -56,11 +59,11 @@ public static class PairSelector
             List<RecipeFacility> eligiblePairs = EligiblePairs(recipe, master, context);
             if (eligiblePairs.Count > 0)
             {
-                return new Selection(recipe, ChooseDefaultPair(eligiblePairs));
+                return new Result(new Selection(recipe, ChooseDefaultPair(eligiblePairs)), warnings);
             }
         }
 
-        return null;
+        return new Result(null, warnings);
     }
 
     /// <summary>候補列挙の1要素。IsDefault は選択規則の既定ペアを示す。</summary>
@@ -84,6 +87,7 @@ public static class PairSelector
             ? list.Where(r => IsEventEligible(r.GameEventId, context))
             : [];
 
+        // バージョン文字列の警告はここでは捨てる（計算実行時に Warnings として報告済みのため）。
         List<Recipe> ordered = OrderCandidates(candidates, new List<CalculationWarning>());
 
         List<(Recipe Recipe, List<RecipeFacility> Pairs)> eligible = ordered

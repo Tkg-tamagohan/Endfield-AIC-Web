@@ -29,7 +29,7 @@ public sealed record EnvironmentCountOverride(string EnvironmentId, int Count);
 /// <summary>
 /// 計算時のコンテキスト（有効イベントの集合）。
 /// </summary>
-public sealed class ContextFilter
+public sealed record ContextFilter
 {
     /// <summary>有効な GameEvent の Id 集合。</summary>
     public IReadOnlyCollection<string> ActiveGameEventIds { get; init; } = [];
