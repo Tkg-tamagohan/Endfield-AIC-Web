@@ -340,8 +340,8 @@ else
             return "";
         }
 
-        string from = gameEvent.ActiveFrom?.ToString("MM/dd") ?? "";
-        string to = gameEvent.ActiveTo?.ToString("MM/dd") ?? "";
+        string from = gameEvent.ActiveFrom?.ToLocalTime().ToString("MM/dd") ?? "";
+        string to = gameEvent.ActiveTo?.ToLocalTime().ToString("MM/dd") ?? "";
         return $"（{from}〜{to}）";
     }
 
