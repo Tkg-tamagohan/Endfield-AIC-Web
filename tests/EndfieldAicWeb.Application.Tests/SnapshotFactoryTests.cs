@@ -60,7 +60,7 @@ public class SnapshotFactoryTests
         };
 
         MasterDataSnapshot snapshot = MasterSnapshotFactory.Create(document);
-        ProductionPlan plan = new ProductionCalculator().Calculate(
+        ProductionPlan plan = ProductionCalculator.Calculate(
             snapshot,
             [new ProductionTarget("i-p", 30)],
             new ContextFilter(),

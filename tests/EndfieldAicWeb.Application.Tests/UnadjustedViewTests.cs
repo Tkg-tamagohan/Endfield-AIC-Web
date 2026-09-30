@@ -9,7 +9,7 @@ public class UnadjustedViewTests
 {
     private static (ProductionPlan Plan, ResultView View) Build(MasterDataSnapshot snapshot, params ProductionTarget[] targets)
     {
-        ProductionPlan plan = new ProductionCalculator().Calculate(
+        ProductionPlan plan = ProductionCalculator.Calculate(
             snapshot,
             targets,
             new ContextFilter(),

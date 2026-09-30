@@ -69,6 +69,9 @@ public sealed class AdminDocumentService
     /// <summary>アイコンプレビュー用の data: URI キャッシュ。変更・読み込み直しでクリアする。</summary>
     private readonly Dictionary<string, string> _iconDataUrls = new(StringComparer.Ordinal);
 
+    /// <summary>IconKey の解決器。Document.Icons の変更箇所（読み込み・登録・エクスポート確定）で破棄し、必要時に再構築する。</summary>
+    private IconResolver? _iconResolver;
+
     /// <summary>赤枠表示のまま確定されていない不正な入力値を持つエディタがあるか。</summary>
     public bool HasInvalidInput => _invalidEditors.Count > 0;
 
@@ -275,6 +278,7 @@ public sealed class AdminDocumentService
             }
 
             Document = result.Document;
+            _iconResolver = null;
             SourceLabel = sourceLabel;
             IsDirty = false;
             ValidationErrors = [];
@@ -389,7 +393,7 @@ public sealed class AdminDocumentService
             return null;
         }
 
-        return new IconResolver(Document.Icons, _iconStore).Resolve(iconKey);
+        return (_iconResolver ??= new IconResolver(Document.Icons, _iconStore)).Resolve(iconKey);
     }
 
     /// <summary>IconKey のプレビュー用 data: URI。未解決は null（プレースホルダ表示）。</summary>
@@ -452,6 +456,7 @@ public sealed class AdminDocumentService
 
         _iconStore.Set(entry.File, pngBytes);
         _iconDataUrls.Remove(entry.File);
+        _iconResolver = null;
         IconFilesExpected = Document.Icons.Count;
         IconFilesLoaded = Document.Icons.Count(e => _iconStore.ReadAllBytes(e.File) is not null);
         NotifyChanged();
@@ -514,6 +519,7 @@ public sealed class AdminDocumentService
             byte[] zip = IconArchive.CreateZip(json, manifest, _iconStore);
             Document.DataVersion = version;
             Document.Icons = manifest;
+            _iconResolver = null;
             _counterAtExport = _editCounter;
             ValidationErrors = [];
             ValidationRan = true;
