@@ -549,7 +549,21 @@ else
             _gatherRateTexts[input.ItemId] = input.RateText;
         }
 
-        _gatherInputs = MapSelection.GatherableItemIds(_outcome.Plan, _snapshot)
+        IReadOnlyList<string> gatherableItemIds = MapSelection.GatherableItemIds(_outcome.Plan, _snapshot);
+        foreach (string itemId in _gatherRateTexts.Keys.ToList())
+        {
+            if (!gatherableItemIds.Contains(itemId)
+                && !CalculationInputBuilder.TryParseGatherRates(
+                    [new GatherRateInput(itemId, ItemName(itemId), _gatherRateTexts[itemId])],
+                    _snapshot,
+                    out _,
+                    out _))
+            {
+                _gatherRateTexts.Remove(itemId);
+            }
+        }
+
+        _gatherInputs = gatherableItemIds
             .Select(itemId => new GatherInput(itemId)
             {
                 RateText = _gatherRateTexts.GetValueOrDefault(itemId, ""),
