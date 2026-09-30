@@ -61,6 +61,7 @@
 | GAT-17 | 不明なマップ Id（暫定解釈） | MapId="m-ghost"、i-ore 50/分 | `InvalidGatherMap` 警告、i-ore 採取 0、全量 r-ore 展開 |
 | GAT-18 | 不正な上書きは無視＋警告（暫定解釈） | m-cap、i-ore 上書き −5、存在しない i-ghost 上書き 10、非採取素材 i-part 上書き 10 | `InvalidGatherRateOverride` 警告。i-ore はマップ値 60 を使い i-ore 需要 100 → 採取 60 + Recipe 40 |
 | GAT-19 | 採取素材でも所属イベントが非有効なら不可（X の維持） | i-ore を ev-off 所属にした派生、m-cap | `EventItemUnavailable` 警告、採取 0、未充足 |
+| GAT-20 | 後の引き戻しで不足が解消された場合は警告を残さない | F-16（i-shard が一時不足→r-y 副産で i-x が充足され r-x が引き戻される）、m-g16、i-x→r-x 上書き | i-shard の要求行が消え、`GatherCapExceeded` は発行されない |
 
 ### GRI: 採取レート入力行のパース（Application）
 
@@ -86,6 +87,7 @@
 |---|---|
 | FIX-03 | i-fuel は採取優先により全量採取となる。`r-fuel` は稼働しない |
 | CNV-01 | i-gasp は全量採取となる。`r-gasp` は稼働しない。環境消費の追加需要は収束する |
+| VWU-06（新規） | 未調整ビューの余剰再計算に採取供給を含める。採取 60 + レシピ産出（切上げ後 45）で需要 100 → 余剰 5 |
 | その他 | 採取素材がレシピ産出を持たない既存ケースの期待値は据え置き |
 
 `ApplicationFixtures.Item` の `IsGatherable` は TransportKind 推定をやめ、明示引数とする。生産対象のアイテムは `false`（既定）、原材料は `true` を明示する。

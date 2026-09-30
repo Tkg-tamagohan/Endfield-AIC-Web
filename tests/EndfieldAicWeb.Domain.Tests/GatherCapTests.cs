@@ -249,6 +249,23 @@ public class GatherCapTests
         Assert.Equal(40.0, RunOf(plan, "r-ore")!.CyclesPerMinute, Precision);
     }
 
+    [Fact(DisplayName = "GAT-20: 後の引き戻しで不足が解消された場合は警告を残さない")]
+    public void ResolvedShortfallLeavesNoWarning()
+    {
+        // i-x → r-x で i-shard 20 需要（上限 10 → 不足 10）となるが、
+        // i-y 向け r-y の副産物 i-x 10 で r-x が引き戻され i-shard 需要が消える。
+        ProductionPlan plan = F.Run(
+            F.F16(), [("i-x", 10.0), ("i-y", 1.0)],
+            context: F.MapContext("m-g16"),
+            overrides: [F.Override("i-x", "r-x", "f-asm", 4.0)]);
+
+        // i-shard の需要は 0 まで引き戻され、要求行ごと消える（警告も残らない）。
+        Assert.False(HasReq(plan, "i-shard"));
+        Assert.False(HasWarning(plan, WarningCode.GatherCapExceeded));
+        Assert.Null(RunOf(plan, "r-x"));
+        Assert.Equal(10.0, Supplied(plan, "i-x", SupplyKind.Byproduct), Precision);
+    }
+
     [Fact(DisplayName = "GAT-19: 採取素材でも所属イベントが非有効なら不可")]
     public void InactiveEventGatherableIsUnavailable()
     {

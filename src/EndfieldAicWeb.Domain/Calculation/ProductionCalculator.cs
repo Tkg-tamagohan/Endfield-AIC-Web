@@ -68,6 +68,12 @@ public static class ProductionCalculator
         /// <summary>採取素材ごとの有効採取上限（個/分、PositiveInfinity は上限なし）。構築時に一度だけ解決する。</summary>
         private readonly Dictionary<string, double> _gatherCaps = new(StringComparer.Ordinal);
 
+        /// <summary>
+        /// 採取上限を超えて未充足になった採取素材。警告は均衡化後の最終 Unmet で発行するため
+        /// ここでは候補のみ記録する（後の供給や引き戻しで不足が解消されることがある）。
+        /// </summary>
+        private readonly HashSet<string> _gatherCapShortfall = new(StringComparer.Ordinal);
+
         internal readonly Dictionary<string, double> Demand = new(StringComparer.Ordinal);
         internal readonly Dictionary<string, double> Produced = new(StringComparer.Ordinal);
         internal readonly Dictionary<string, double> Raw = new(StringComparer.Ordinal);
@@ -250,6 +256,19 @@ public static class ProductionCalculator
                 Warnings.Add(new CalculationWarning(
                     WarningCode.ConvergenceNotReached,
                     $"環境消費・固定消費の追加需要が {MaxConvergenceIterations} 回の反復内に収束しませんでした。結果は途中経過のものです。"));
+            }
+
+            // 採取上限超過の警告は均衡化後の最終 Unmet で発行する（仕様決定 AD）。
+            // 後から供給された副産物や引き戻しで不足が解消されたアイテムには警告を残さない。
+            foreach (string itemId in _gatherCapShortfall)
+            {
+                double unmet = Get(Unmet, itemId);
+                if (unmet > Epsilon)
+                {
+                    Warnings.Add(new CalculationWarning(
+                        WarningCode.GatherCapExceeded,
+                        $"アイテム {itemId} の需要が採取上限（{_gatherCaps.GetValueOrDefault(itemId):0.###} 個/分）を超え、代替レシピもないため {unmet:0.###} 個/分が不足します。"));
+                }
             }
         }
 
@@ -489,9 +508,8 @@ public static class ProductionCalculator
                 Unmet[itemId] = Get(Unmet, itemId) + remainder;
                 if (IsGatherable(itemId))
                 {
-                    Warnings.Add(new CalculationWarning(
-                        WarningCode.GatherCapExceeded,
-                        $"アイテム {itemId} の需要が採取上限（{_gatherCaps.GetValueOrDefault(itemId):0.###} 個/分）を超え、代替レシピもないため {remainder:0.###} 個/分が不足します。"));
+                    // 警告の発行は Run 末尾で最終 Unmet を見て行う（途中の不足が後で解消されうる）。
+                    _gatherCapShortfall.Add(itemId);
                 }
                 else
                 {

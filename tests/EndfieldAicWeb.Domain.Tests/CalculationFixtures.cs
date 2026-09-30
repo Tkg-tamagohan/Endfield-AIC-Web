@@ -547,6 +547,25 @@ internal static class CalculationFixtures
         ],
         maps: [Map("m-cap", [("i-ore", false, 60.0)])]);
 
+    /// <summary>
+    /// F-16: 採取上限超過の不足が後の引き戻しで解消されるケース（GAT-20 用）。
+    /// i-x を r-x（i-shard×2 → i-x×1）で展開すると i-shard が上限超過で不足するが、
+    /// i-y 目標の r-y が i-x を 10 副産するため r-x が引き戻され i-shard の未充足が消える。
+    /// m-g16: i-shard 上限 10、i-ore 無限。
+    /// </summary>
+    public static MasterDataSnapshot F16() => Snapshot(
+        [
+            Item("i-ore", "採取素材", TransportKind.Belt, null, true),
+            Item("i-shard", "採取素材", TransportKind.Belt, null, true),
+            Item("i-x"), Item("i-y"),
+        ],
+        [Facility("f-asm")],
+        [
+            Recipe("r-x", "f-asm", 4.0, [("i-shard", 2.0)], [("i-x", 1.0)]),
+            Recipe("r-y", "f-asm", 4.0, [("i-ore", 1.0)], [("i-y", 1.0), ("i-x", 10.0)]),
+        ],
+        maps: [Map("m-g16", [("i-shard", false, 10.0), ("i-ore", true, null)])]);
+
     /// <summary>F-15 派生: 採取素材 i-ore が無効イベント ev-off 所属（GAT-19 用）。</summary>
     public static MasterDataSnapshot F15WithInactiveGatherable() => Snapshot(
         [

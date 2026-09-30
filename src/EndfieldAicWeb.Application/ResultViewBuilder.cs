@@ -211,6 +211,14 @@ public static class ResultViewBuilder
         var demandByItem = plan.ItemRequirements
             .ToDictionary(r => r.ItemId, r => r.RequiredPerMinute, StringComparer.Ordinal);
 
+        // 採取（外部調達）の供給も需要の充当に含める。採取＋レシピの併存供給で
+        // 生産分だけを見ると余剰が過小になるため（仕様決定 AD で併存が生じた）。
+        var gatheredByItem = plan.ItemRequirements
+            .ToDictionary(
+                r => r.ItemId,
+                r => r.Supplies.Where(s => s.Kind == SupplyKind.Gathered).Sum(s => s.AmountPerMinute),
+                StringComparer.Ordinal);
+
         var surpluses = new List<SurplusProduction>();
         foreach ((string itemId, double amount) in produced)
         {
@@ -220,7 +228,7 @@ public static class ResultViewBuilder
 
             double excess = inactive
                 ? amount
-                : amount - demandByItem.GetValueOrDefault(itemId);
+                : amount + gatheredByItem.GetValueOrDefault(itemId) - demandByItem.GetValueOrDefault(itemId);
             if (excess > Epsilon)
             {
                 surpluses.Add(new SurplusProduction(itemId, excess));

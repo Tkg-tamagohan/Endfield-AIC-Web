@@ -107,4 +107,45 @@ public class UnadjustedViewTests
         FacilityViewRow facility = Assert.Single(view.Facilities);
         Assert.Empty(facility.FlowLimits);
     }
+
+    // VWU-06: 採取とレシピが併存するアイテムの未調整余剰は採取分を含めて再計算する。
+    [Fact]
+    public void UnadjustedSurplusIncludesGatheredSupply()
+    {
+        var snapshot = ApplicationFixtures.Snapshot(
+            [
+                ApplicationFixtures.Item("i-ore", "鉄鉱石", gatherable: true),
+                ApplicationFixtures.Item("i-stone", "石材", gatherable: true),
+            ],
+            [ApplicationFixtures.Facility("f-mine", "採掘機", 10)],
+            [],
+            [],
+            [
+                ApplicationFixtures.Recipe("r-ore", "鉄鉱石", [("i-stone", 1)], [("i-ore", 1)],
+                    [ApplicationFixtures.Pair("f-mine", 4)]),
+            ],
+            maps:
+            [
+                new GameMap
+                {
+                    Id = "m-cap",
+                    Name = "上限マップ",
+                    VersionAdded = "1.0.0",
+                    GatherRates =
+                    [
+                        new GatherRate { ItemId = "i-ore", RatePerMinute = 60 },
+                        new GatherRate { ItemId = "i-stone", IsUnlimited = true },
+                    ],
+                },
+            ]);
+        var context = new ContextFilter { MapId = "m-cap" };
+
+        // 採取 60 + r-ore 40（f-mine 実数 2.667 → 切上げ 3 → 未調整産出 45）= 供給 105 → 余剰 5。
+        ProductionPlan plan = ProductionCalculator.Calculate(
+            snapshot, [new ProductionTarget("i-ore", 100)], context, [], [], []);
+        ResultView view = ResultViewBuilder.Build(plan, snapshot, context, unadjusted: true);
+
+        SurplusProduction surplus = Assert.Single(view.Surpluses, s => s.ItemId == "i-ore");
+        Assert.Equal(5, surplus.ExcessPerMinute, 6);
+    }
 }
