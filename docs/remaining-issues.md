@@ -71,7 +71,7 @@
 
 - `ProductionCalculator` を `static` クラスにする。計算途中の状態は内部の `Session` に閉じており、呼び出し側の `new` は `CalculationService` とテストで計 8 箇所、いずれも書き換えで済む。
 - `PairSelector.Select` の警告出口を、出力引数の `ICollection<CalculationWarning>` から戻り値へ移す。`Selection` と警告一覧の組を返す結果型を新設し、`ListCandidates` が捨てるためだけに `new List<>()` を渡す形を消す。
-- `ContextFilter` を `record` にする。`init` プロパティはそのまま使えるため呼び出し側の記述は変わらない。読み取り専用コンテナの意図が型の形で明示できる点が利点で、等価比較は `ActiveGameEventIds` の参照比較に留まる点は従来と変わらない（集合の中身まで見た等価性が要る用途は出ていない）。
+- `ContextFilter` を `record` にする。`init` プロパティはそのまま使えるため呼び出し側の記述は変わらない。読み取り専用コンテナの意図が型の形で明示できる点が利点である。等価比較はインスタンスの参照一致から `ActiveGameEventIds` の参照一致へ変わるが、コレクションの中身まで遡る等価性は得られない（現状、等価比較を必要とする用途は出ていない）。
 - `AdminDocumentService.ResolveIconPath` で毎回組み立てている `IconResolver` をキャッシュする。構築は文書の読み込み時に一度だけとし、マニフェストが変わる箇所（アイコン登録、zip エクスポートのマニフェスト差し替え）で作り直す。
 
 ### B. アイコン規格の分散
