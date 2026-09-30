@@ -1,4 +1,4 @@
-@* アイコンの取り込み・プレビュー・クリア。正規化（中央正方形→128×128 PNG）はブラウザの Canvas で行う。 *@
+@* アイコンの取り込み・プレビュー・クリア。正規化（中央正方形→128×128 PNG/APNG）はブラウザの Canvas＋UPNG.js で行う。 *@
 @inject AdminDocumentService Store
 @inject IJSRuntime JS
 
@@ -19,7 +19,7 @@
         <div class="icon-actions">
             <label class="file-pick">
                 <span class="btn small">画像を選択</span>
-                <InputFile OnChange="ImportAsync" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none" />
+                <InputFile OnChange="ImportAsync" accept="image/png,image/jpeg,image/webp,image/gif,image/apng" style="display:none" />
             </label>
             <button class="btn small" @onclick="Clear" disabled="@(Entity.IconKey is null)">クリア</button>
         </div>
