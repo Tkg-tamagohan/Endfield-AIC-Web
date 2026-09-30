@@ -96,6 +96,23 @@ else
                 <p class="hint">開催期間（±1 日）のイベントは自動で有効になります。期間外は折りたたみから選択できます。</p>
             }
 
+            <h2 class="panel-title">採取マップ</h2>
+            <select class="input" value="@(_mapId ?? "")" @onchange="OnMapChanged">
+                <option value="">未選択（採取無制限）</option>
+                @foreach (GameMap map in MapCandidates)
+                {
+                    <option value="@map.Id">@map.Name</option>
+                }
+                @if (_mapId is not null && !MapCandidates.Any(map => map.Id == _mapId))
+                {
+                    string mapName = _snapshot!.MapsById.TryGetValue(_mapId, out GameMap? selectedMap)
+                        ? selectedMap.Name
+                        : _mapId;
+                    <option value="@_mapId">@mapName（イベント無効）</option>
+                }
+            </select>
+            <p class="hint">マップを選ぶと採取素材の採取量に上限がかかり、超えた分はレシピで生産します。</p>
+
             @if (_inputError is not null)
             {
                 <p class="error">@_inputError</p>
@@ -186,6 +203,34 @@ else
                     </div>
                 }
 
+                @if (_mapId is not null && _snapshot is not null
+                    && MapSelection.IsAvailable(_snapshot, _mapId, ActiveGameEventIds))
+                {
+                    <h2 class="panel-title">採取</h2>
+                    @if (_gatherError is not null)
+                    {
+                        <p class="error">@_gatherError</p>
+                    }
+                    @foreach (GatherInput input in _gatherInputs)
+                    {
+                        <div class="result-line env-line">
+                            <EntityIcon IconKey="@ItemIconKey(input.ItemId)" />
+                            <strong>@ItemName(input.ItemId)</strong>
+                            <input class="input tiny" value="@input.RateText"
+                                   @onchange="e => OnGatherRateChanged(input.ItemId, e)"
+                                   inputmode="decimal" placeholder="@GatherRatePlaceholder(input.ItemId)" />
+                            個/分
+                            <span class="muted">（@GatherRateDefaultLabel(input.ItemId)）</span>
+                            <span>採取 @FmtPerMinute(GatheredRate(input.ItemId)) 個/分</span>
+                            @if (IsGatherCapReached(input))
+                            {
+                                <span class="tag">上限到達</span>
+                            }
+                        </div>
+                    }
+                    <p class="hint">空欄はマップの既定値を使います。マップ値を超える値も指定できます。変更すると再計算します。</p>
+                }
+
                 <h2 class="panel-title">設備</h2>
                 @foreach (FacilityViewRow f in _view.Facilities)
                 {
@@ -266,12 +311,20 @@ else
         public string CountText = "";
     }
 
+    private sealed class GatherInput(string itemId)
+    {
+        public string ItemId { get; } = itemId;
+        public string RateText = "";
+    }
+
     private readonly List<TargetRow> _targetRows = [new()];
     private List<EventCheck> _eventChecks = [];
     private List<EventCheck> _autoEventChecks = [];
     private List<EventCheck> _outEventChecks = [];
     private List<EnvInput> _envInputs = [];
+    private List<GatherInput> _gatherInputs = [];
     private List<Item> _selectableItems = [];
+    private readonly Dictionary<string, string> _gatherRateTexts = new(StringComparer.Ordinal);
 
     /// <summary>ユーザーが選んだペア上書き（アイテム Id → 候補）。既定 = キーなし。</summary>
     private readonly Dictionary<string, PairOption> _pairOverrides = new(StringComparer.Ordinal);
@@ -280,8 +333,10 @@ else
     private CalculationOutcome? _outcome;
     private ResultView? _view;
     private ContextFilter _context = new();
+    private string? _mapId;
     private string? _inputError;
     private string? _envError;
+    private string? _gatherError;
     private bool _unadjusted;
     private bool _viewTouched;
     private AmountUnit _unit = AmountUnit.PerMinute;
@@ -344,6 +399,13 @@ else
         Recalculate();
     }
 
+    private void OnMapChanged(ChangeEventArgs e)
+    {
+        string? mapId = e.Value?.ToString();
+        _mapId = string.IsNullOrEmpty(mapId) ? null : mapId;
+        Recalculate();
+    }
+
     private void OnPairChanged(string itemId, ChangeEventArgs e)
     {
         string? key = e.Value?.ToString();
@@ -360,6 +422,12 @@ else
         Recalculate();
     }
 
+    private IReadOnlyCollection<string> ActiveGameEventIds =>
+        _eventChecks.Where(c => c.Checked).Select(c => c.Event.Id).ToList();
+
+    private IReadOnlyList<GameMap> MapCandidates =>
+        _snapshot is null ? [] : MapSelection.ListCandidates(_snapshot, ActiveGameEventIds);
+
     private string EnvCountText(string envId) =>
         _envInputs.FirstOrDefault(r => r.Env.Id == envId)?.CountText ?? "";
 
@@ -371,6 +439,16 @@ else
         if (_envInputs.FirstOrDefault(r => r.Env.Id == envId) is { } input)
         {
             input.CountText = e.Value?.ToString() ?? "";
+            Recalculate();
+        }
+    }
+
+    private void OnGatherRateChanged(string itemId, ChangeEventArgs e)
+    {
+        if (_gatherInputs.FirstOrDefault(input => input.ItemId == itemId) is { } input)
+        {
+            input.RateText = e.Value?.ToString() ?? "";
+            _gatherRateTexts[itemId] = input.RateText;
             Recalculate();
         }
     }
@@ -412,13 +490,43 @@ else
             return;
         }
 
-        _context = new ContextFilter
+        _gatherError = null;
+        List<string> activeGameEventIds = _eventChecks
+            .Where(c => c.Checked)
+            .Select(c => c.Event.Id)
+            .ToList();
+        var context = new ContextFilter
         {
-            ActiveGameEventIds = _eventChecks.Where(c => c.Checked).Select(c => c.Event.Id).ToList(),
+            ActiveGameEventIds = activeGameEventIds,
+            MapId = _mapId,
         };
+        List<GatherRateOverride> gatherOverrides = [];
+        if (_mapId is not null && MapSelection.IsAvailable(_snapshot, _mapId, activeGameEventIds))
+        {
+            if (!CalculationInputBuilder.TryParseGatherRates(
+                    _gatherInputs.Select(input => new GatherRateInput(
+                        input.ItemId,
+                        ItemName(input.ItemId),
+                        input.RateText)),
+                    _snapshot,
+                    out gatherOverrides,
+                    out string? gatherError))
+            {
+                _gatherError = gatherError;
+                return;
+            }
+        }
+
+        _context = context;
         var pairOverrides = _pairOverrides.Select(kv => kv.Value.ToOverride(kv.Key)).ToList();
 
-        _outcome = Calculator.Calculate(_snapshot, targets, _context, pairOverrides, environmentOverrides, []);
+        _outcome = Calculator.Calculate(
+            _snapshot,
+            targets,
+            _context,
+            pairOverrides,
+            environmentOverrides,
+            gatherOverrides);
         if (!_viewTouched)
         {
             _unadjusted = PlanViewDefaults.DefaultUnadjusted(_outcome.Plan);
@@ -433,6 +541,18 @@ else
                 PlanViewDefaults.DispenserLimit(_outcome.Plan, r.EnvironmentId))
             {
                 CountText = prevCounts.GetValueOrDefault(r.EnvironmentId, ""),
+            })
+            .ToList();
+
+        foreach (GatherInput input in _gatherInputs)
+        {
+            _gatherRateTexts[input.ItemId] = input.RateText;
+        }
+
+        _gatherInputs = MapSelection.GatherableItemIds(_outcome.Plan, _snapshot)
+            .Select(itemId => new GatherInput(itemId)
+            {
+                RateText = _gatherRateTexts.GetValueOrDefault(itemId, ""),
             })
             .ToList();
 
@@ -492,11 +612,59 @@ else
             : "";
     }
 
+    private string FmtPerMinute(double perMinute) =>
+        perMinute.ToString("0.##", CultureInfo.InvariantCulture);
+
+    private double GatheredRate(string itemId) =>
+        _outcome?.Plan.ItemRequirements
+            .FirstOrDefault(requirement => requirement.ItemId == itemId)?
+            .Supplies.Where(supply => supply.Kind == SupplyKind.Gathered)
+            .Sum(supply => supply.AmountPerMinute) ?? 0;
+
+    private double RequiredRate(string itemId) =>
+        _outcome?.Plan.ItemRequirements
+            .FirstOrDefault(requirement => requirement.ItemId == itemId)?
+            .RequiredPerMinute ?? 0;
+
+    private double? DefaultGatherCap(string itemId) =>
+        _snapshot is null ? null : MapSelection.DefaultGatherCap(_snapshot, _context, itemId);
+
+    private double? EffectiveGatherCap(GatherInput input)
+    {
+        if (!string.IsNullOrWhiteSpace(input.RateText)
+            && double.TryParse(input.RateText, NumberStyles.Float, CultureInfo.InvariantCulture, out double cap)
+            && double.IsFinite(cap)
+            && cap >= 0)
+        {
+            return cap;
+        }
+
+        return DefaultGatherCap(input.ItemId);
+    }
+
+    private string GatherRatePlaceholder(string itemId) =>
+        DefaultGatherCap(itemId) is double cap ? FmtPerMinute(cap) : "無制限";
+
+    private string GatherRateDefaultLabel(string itemId) =>
+        DefaultGatherCap(itemId) is double cap
+            ? $"マップ既定 {FmtPerMinute(cap)} 個/分"
+            : "マップ既定 無制限";
+
+    private bool IsGatherCapReached(GatherInput input)
+    {
+        double? cap = EffectiveGatherCap(input);
+        return cap is double value
+            && double.IsFinite(value)
+            && GatheredRate(input.ItemId) >= value - 1e-9
+            && RequiredRate(input.ItemId) > value - 1e-9;
+    }
+
     private string SupplyText(SupplyPortion portion) => portion.Kind switch
     {
         SupplyKind.Recipe => $"レシピ {RecipeName(portion.RecipeId!)} {Fmt(portion.AmountPerMinute)}{Suffix()}",
         SupplyKind.Byproduct => $"副産物 {RecipeName(portion.RecipeId!)} {Fmt(portion.AmountPerMinute)}{Suffix()}",
-        _ => $"採取素材 {Fmt(portion.AmountPerMinute)}{Suffix()}",
+        SupplyKind.Gathered => $"採取 {Fmt(portion.AmountPerMinute)}{Suffix()}",
+        _ => "",
     };
 
     private string OptionLabel(PairOption option)
