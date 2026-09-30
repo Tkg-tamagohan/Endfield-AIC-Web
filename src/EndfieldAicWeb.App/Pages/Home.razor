@@ -318,8 +318,7 @@ else
     private void OnItemFilterInput(TargetRow row, ChangeEventArgs e)
     {
         row.Filter = e.Value?.ToString() ?? "";
-        // 選択済み名と本文がずれたら選択を解除する（古い Id のまま計算しないため）。
-        if (row.ItemId is not null && row.Filter != ItemName(row.ItemId))
+        if (CalculationInputBuilder.ShouldDeselectItem(row.ItemId, row.ItemId is { } id ? ItemName(id) : null, row.Filter))
         {
             row.ItemId = null;
         }
@@ -395,22 +394,13 @@ else
         }
 
         _envError = null;
-        var environmentOverrides = new List<EnvironmentCountOverride>();
-        foreach (EnvInput row in _envInputs)
+        if (!CalculationInputBuilder.TryParseEnvironmentCounts(
+                _envInputs.Select(r => new EnvCountInput(r.Env.Id, r.Env.Name, r.CountText, r.Max)),
+                out List<EnvironmentCountOverride> environmentOverrides,
+                out string? envError))
         {
-            if (string.IsNullOrWhiteSpace(row.CountText))
-            {
-                continue;
-            }
-
-            if (!int.TryParse(row.CountText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int count)
-                || count < 0 || count > row.Max)
-            {
-                _envError = $"{row.Env.Name} の散布機台数は 0〜{row.Max} の整数で入力してください。";
-                return;
-            }
-
-            environmentOverrides.Add(new EnvironmentCountOverride(row.Env.Id, count));
+            _envError = envError;
+            return;
         }
 
         _context = new ContextFilter
