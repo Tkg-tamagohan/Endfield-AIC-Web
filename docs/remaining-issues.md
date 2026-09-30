@@ -17,11 +17,12 @@
 - C 時刻規約（仕様決定 Z。瞬間として解釈して閲覧者のローカル暦日で判定し、オフセット無しは検証エラー。既定判定のたびに当日を再評価）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/20>
 - D 判定ロジックの抽出（散布機台数の検証とコンボの選択解除判定を Application の純粋関数へ移し xUnit でテスト化）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/21>
 - E 可変性の境界明文化（requirements §6.2）・F スキルへのゴールデンパス期待値表追記: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/22>
+- 保持された散布機台数が新しい自動上限を超えるケース（自動値へ戻す整合処理、仕様決定 AH）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/36>
 
 ## 残っている項目
 
 以下は引き続き対応を先送りした項目である。
-「保持された散布機台数が新しい自動上限を超えるケース」はエラー表示と入力修正で回復できる挙動の粗さであり、それ以外は動作上の障害ではなく構造の整合性や保守性に関わるものとして列挙する。
+いずれも動作上の障害ではなく、構造の整合性や保守性に関わるものとして列挙する。
 
 ### エンティティの不変化への移行
 
@@ -43,14 +44,6 @@ UI 層の変更頻度が上がった時点で再検討とする。
 公開アプリ（`src/EndfieldAicWeb.App/Pages/Home.razor`）と管理ツールの計算プレビュー（`src/EndfieldAicWeb.Admin/Pages/PreviewPage.razor`）は、目標入力・ペア選択・散布機台数・単位切替・結果表示など同型の UI をページごとに別実装している。
 仕様決定 AG では管理ツール側への機能移植はコピー追従で行い、razor の共有化（Razor Class Library 化）は見送る方針とした。
 共有ロジックは Application 層（`ResultViewBuilder` 等）に寄せる現状維持で、差分の取りこぼしや修正の二重化が実害として現れた時点で RCL 化を再検討する。
-
-### 保持された散布機台数が新しい自動上限を超えるケース
-
-計算ページ（公開版 `Home.razor` と管理ツール `PreviewPage.razor` の共通動作）は、散布機台数の入力値を再計算をまたいで保持する。
-ペア変更などで稼働ペア数が減り自動上限（`PlanViewDefaults.DispenserLimit`）が下がると、保持された入力値が新しい上限を超えた状態になり、次回の計算で `TryParseEnvironmentCounts` が上限超過エラーを返して再計算が止まる。
-回復には入力欄の修正操作が要る。
-PR #35 のレビューで指摘されたもので、Phase 13 は公開版との同等化が仕様のため挙動を変えずに課題として記録する。
-対応する場合は、保持値と新しい上限の整合処理（自動値へ戻すか上限へクランプするか）を両アプリ共通で行う方針がよい。
 
 ## 改善方針の検討
 

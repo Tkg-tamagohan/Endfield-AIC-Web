@@ -515,16 +515,31 @@ else
         }
 
         // 散布機台数の入力は計算結果に登場する環境だけに出す。
-        // ユーザー入力（下げた台数）は再計算をまたいで保持する。
+        // ユーザー入力（下げた台数）は再計算をまたいで保持するが、
+        // 新しい自動上限を超えた保持値は自動値へ戻す（仕様決定 AH）。
+        bool envCountReconciled = false;
         var prevCounts = _envInputs.ToDictionary(r => r.Env.Id, r => r.CountText, StringComparer.Ordinal);
         _envInputs = _outcome.Plan.EnvironmentRequirements
-            .Select(r => new EnvInput(
-                snapshot.EnvironmentsById[r.EnvironmentId],
-                PlanViewDefaults.DispenserLimit(_outcome.Plan, r.EnvironmentId))
+            .Select(r =>
             {
-                CountText = prevCounts.GetValueOrDefault(r.EnvironmentId, ""),
+                int max = PlanViewDefaults.DispenserLimit(_outcome.Plan, r.EnvironmentId);
+                string kept = CalculationInputBuilder.ReconcileEnvCountText(
+                    prevCounts.GetValueOrDefault(r.EnvironmentId, ""), max);
+                envCountReconciled |= kept != prevCounts.GetValueOrDefault(r.EnvironmentId, "");
+                return new EnvInput(snapshot.EnvironmentsById[r.EnvironmentId], max)
+                {
+                    CountText = kept,
+                };
             })
             .ToList();
+
+        // 自動値へ戻した行があると表示中の計画は戻す前の台数で計算済みのため、
+        // 表示と入力が一致するよう整合後の入力で計算し直す。
+        if (envCountReconciled)
+        {
+            Recalculate();
+            return;
+        }
 
         foreach (GatherInput input in _gatherInputs)
         {
