@@ -43,7 +43,7 @@ public class AdminToolsTests
                 [
                     ApplicationFixtures.Pair("f-asm", 4),
                     ApplicationFixtures.Pair("f-asm", 3, "env-gas",
-                        new FixedConsumption { ItemId = "i-fc", RatePerSecond = 1 }),
+                        new FixedConsumption { ItemId = "i-fc", RatePerMinute = 60 }),
                 ],
                 "ev-on"),
         ],

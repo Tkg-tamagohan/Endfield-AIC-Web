@@ -60,11 +60,11 @@ public static class MasterValidator
         RequireNonEmpty(environment.ProviderFacilityId, "Environment", environment.Id, "ProviderFacilityId", errors);
         RequireNonEmpty(environment.ConsumeItemId, "Environment", environment.Id, "ConsumeItemId", errors);
 
-        if (!double.IsFinite(environment.ConsumeRatePerSecond) || environment.ConsumeRatePerSecond <= 0)
+        if (!double.IsFinite(environment.ConsumeRatePerMinute) || environment.ConsumeRatePerMinute <= 0)
         {
             errors.Add(new MasterValidationError(
-                "Environment", environment.Id, "ConsumeRatePerSecond",
-                $"ConsumeRatePerSecond は 0 より大きい有限値である必要があります: {environment.ConsumeRatePerSecond}"));
+                "Environment", environment.Id, "ConsumeRatePerMinute",
+                $"ConsumeRatePerMinute は 0 より大きい有限値である必要があります: {environment.ConsumeRatePerMinute}"));
         }
     }
 
@@ -169,11 +169,11 @@ public static class MasterValidator
                         $"{name}.FixedConsumption.ItemId は必須です。"));
                 }
 
-                if (!double.IsFinite(fixedConsumption.RatePerSecond) || fixedConsumption.RatePerSecond <= 0)
+                if (!double.IsFinite(fixedConsumption.RatePerMinute) || fixedConsumption.RatePerMinute <= 0)
                 {
                     errors.Add(new MasterValidationError(
-                        "Recipe", recipe.Id, $"{name}.FixedConsumption.RatePerSecond",
-                        $"{name}.FixedConsumption.RatePerSecond は 0 より大きい有限値である必要があります: {fixedConsumption.RatePerSecond}"));
+                        "Recipe", recipe.Id, $"{name}.FixedConsumption.RatePerMinute",
+                        $"{name}.FixedConsumption.RatePerMinute は 0 より大きい有限値である必要があります: {fixedConsumption.RatePerMinute}"));
                 }
             }
 
@@ -183,7 +183,7 @@ public static class MasterValidator
                 pair.CycleTime,
                 pair.EnvironmentId,
                 pair.FixedConsumption?.ItemId,
-                pair.FixedConsumption?.RatePerSecond);
+                pair.FixedConsumption?.RatePerMinute);
             if (!seen.Add(key))
             {
                 errors.Add(new MasterValidationError(

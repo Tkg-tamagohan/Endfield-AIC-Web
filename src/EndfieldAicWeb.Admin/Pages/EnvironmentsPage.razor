@@ -34,8 +34,8 @@ else
                     <RefSelect Value="@_selected.ConsumeItemId" Options="_itemOptions" EmptyLabel="（未選択）"
                                ValueChanged="SetConsumeItem" />
 
-                    <label>消費速度（個/s）</label>
-                    <span><NumberInput Value="@_selected.ConsumeRatePerSecond" Owner="_selected" Field="ConsumeRatePerSecond" ValueChanged="v => ApplyNum(v => _selected.ConsumeRatePerSecond = v, v)" /></span>
+                    <label>消費速度（個/分）</label>
+                    <span><NumberInput Value="@_selected.ConsumeRatePerMinute" Owner="_selected" Field="ConsumeRatePerMinute" ValueChanged="v => ApplyNum(v => _selected.ConsumeRatePerMinute = v, v)" /></span>
 
                     <label>所属イベント</label>
                     <RefSelect Value="@_selected.GameEventId" Options="_eventOptions" EmptyLabel="（常設）"

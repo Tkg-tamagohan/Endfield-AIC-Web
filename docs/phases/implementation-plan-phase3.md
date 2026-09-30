@@ -55,13 +55,13 @@
 | 各配列 | `Items`・`Facilities`・`Environments`・`GameEvents`・`Recipes`・`Icons` が存在すること（スキーマ `required` 準拠） |
 | 配列要素 | null 要素を許さない |
 | 共通属性 | `Id`・`Name` は非空必須。`Description` は必須（空文字可、null は拒否。スキーマ type=string 準拠） |
-| Item | `Category`・`TransportKind`（enum として解析可能）・`IsBaseMaterial` 必須 |
+| Item | `Category`・`TransportKind`（enum として解析可能）・`IsGatherable` 必須 |
 | Facility | `Width`・`Height`・`PowerConsumption` 必須（実体化で `null` を剥がすため） |
-| Environment | `ProviderFacilityId`・`ConsumeItemId`・`ConsumeRatePerSecond` 必須 |
+| Environment | `ProviderFacilityId`・`ConsumeItemId`・`ConsumeRatePerMinute` 必須 |
 | Recipe | `Inputs`・`Outputs`・`Facilities` 必須（配列の存在。空や値域は意味検証へ） |
 | RecipeInput/Output | `ItemId`・`Quantity` 必須。`SortOrder` 必須かつ 0 以上 |
 | RecipeFacility | `FacilityId`・`CycleTime` 必須。`EnvironmentId`・`FixedConsumption` は null 許容 |
-| FixedConsumption | `ItemId`・`RatePerSecond` 必須 |
+| FixedConsumption | `ItemId`・`RatePerMinute` 必須 |
 | Icons 節 | `Key` 必須・一意・文字種制約（`IconKeyRules`）、`File` は `icons/<Key>.png` 固定形式、`Sha256` は 64 桁小文字 hex、`Bytes` は 1 以上（スキーマ準拠） |
 
 上記以外の値域（数値の正負・バージョン順序・イベント期間）と参照整合性・ペア一意性・ID 一意性・`IconKey` 文字種は `MasterValidator` が担い、二重に報告しない。

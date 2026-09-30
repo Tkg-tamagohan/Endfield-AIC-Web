@@ -218,7 +218,7 @@ else
                                    @onchange="ev => OnEnvCountChanged(e.EnvironmentId, ev)"
                                    inputmode="numeric" placeholder="自動" /> 台
                             <span class="muted">（自動 @EnvAutoCount(e.EnvironmentId) 台まで）</span>
-                            <span> ・ @ItemName(e.ConsumeItemId) @e.ConsumeRatePerSecondTotal.ToString("0.##", CultureInfo.InvariantCulture) 個/s@(PeriodConsumption(e.ConsumeRatePerSecondTotal))</span>
+                            <span> ・ @ItemName(e.ConsumeItemId) @e.ConsumeRatePerMinuteTotal.ToString("0.##", CultureInfo.InvariantCulture) 個/分@(PeriodConsumption(e.ConsumeRatePerMinuteTotal))</span>
                         </div>
                     }
                 }
@@ -485,10 +485,10 @@ else
 
     private string Suffix() => AmountConverter.Suffix(_unit);
 
-    private string PeriodConsumption(double ratePerSecond)
+    private string PeriodConsumption(double ratePerMinute)
     {
         return _unit == AmountUnit.Period && PeriodValid()
-            ? $"（{(ratePerSecond * 60 * CurrentPeriod().TotalMinutes).ToString("0.##", CultureInfo.InvariantCulture)} 個/期間）"
+            ? $"（{(ratePerMinute * CurrentPeriod().TotalMinutes).ToString("0.##", CultureInfo.InvariantCulture)} 個/期間）"
             : "";
     }
 
@@ -496,7 +496,7 @@ else
     {
         SupplyKind.Recipe => $"レシピ {RecipeName(portion.RecipeId!)} {Fmt(portion.AmountPerMinute)}{Suffix()}",
         SupplyKind.Byproduct => $"副産物 {RecipeName(portion.RecipeId!)} {Fmt(portion.AmountPerMinute)}{Suffix()}",
-        _ => $"基礎素材 {Fmt(portion.AmountPerMinute)}{Suffix()}",
+        _ => $"採取素材 {Fmt(portion.AmountPerMinute)}{Suffix()}",
     };
 
     private string OptionLabel(PairOption option)
@@ -505,7 +505,7 @@ else
         label += option.EnvironmentId is null ? "・環境なし" : $"・{EnvName(option.EnvironmentId)}";
         if (option.FixedConsumption is { } fc)
         {
-            label += $"・{ItemName(fc.ItemId)} {fc.RatePerSecond.ToString("0.##", CultureInfo.InvariantCulture)}/秒";
+            label += $"・{ItemName(fc.ItemId)} {fc.RatePerMinute.ToString("0.##", CultureInfo.InvariantCulture)}/分";
         }
 
         if (option.IsDefault)

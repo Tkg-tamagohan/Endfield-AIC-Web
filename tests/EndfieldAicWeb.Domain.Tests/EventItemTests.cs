@@ -40,15 +40,15 @@ public class EventItemTests
         Assert.Equal(10.0, Supplied(plan, "i-ltd", SupplyKind.Recipe), Precision);
     }
 
-    [Fact(DisplayName = "EVT-04: 基礎素材でもイベント非有効なら外部調達不可")]
-    public void InactiveRawMaterialCannotBeProcured()
+    [Fact(DisplayName = "EVT-04: 採取素材でもイベント非有効なら外部調達不可")]
+    public void InactiveGatherableCannotBeProcured()
     {
         ProductionPlan plan = CalculationFixtures.Run(
             CalculationFixtures.F12(), [("i-ltd-raw", 10.0)]);
 
         Assert.True(HasWarning(plan, WarningCode.EventItemUnavailable));
         Assert.Equal(10.0, Req(plan, "i-ltd-raw").UnmetPerMinute, Precision);
-        Assert.Equal(0.0, Supplied(plan, "i-ltd-raw", SupplyKind.RawMaterial), Precision);
+        Assert.Equal(0.0, Supplied(plan, "i-ltd-raw", SupplyKind.Gathered), Precision);
     }
 
     [Fact(DisplayName = "EVT-05: 副産物でイベント不可アイテムが生産されても需要は未充足")]

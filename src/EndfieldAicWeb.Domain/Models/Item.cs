@@ -10,8 +10,8 @@ public class Item : MasterEntity
     /// </summary>
     public required string Category { get; set; }
 
-    /// <summary>需要展開の終端となる基礎素材か。true なら外部調達扱い。</summary>
-    public bool IsBaseMaterial { get; set; }
+    /// <summary>需要展開の終端となる採取素材か。true なら採取（外部調達）扱い。</summary>
+    public bool IsGatherable { get; set; }
 
     /// <summary>輸送種別。None は輸送容量対象外の仮想アイテム。</summary>
     public TransportKind TransportKind { get; set; }

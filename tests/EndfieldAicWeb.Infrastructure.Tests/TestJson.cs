@@ -51,29 +51,29 @@ internal static class TestJson
             ["Items"] = new JsonArray(
                 Entity("i-ore", "原鉱石").CloneWith(new
                 {
-                    Category = "基礎素材",
-                    IsBaseMaterial = true,
+                    Category = "採取素材",
+                    IsGatherable = true,
                     TransportKind = "Belt",
                     GameEventId = (string?)null,
                 }),
                 Entity("i-part", "汎用部品").CloneWith(new
                 {
                     Category = "部品",
-                    IsBaseMaterial = false,
+                    IsGatherable = false,
                     TransportKind = "Belt",
                     GameEventId = (string?)null,
                 }),
                 Entity("i-gas", "活性ガス").CloneWith(new
                 {
-                    Category = "基礎素材",
-                    IsBaseMaterial = true,
+                    Category = "採取素材",
+                    IsGatherable = true,
                     TransportKind = "Pipe",
                     GameEventId = (string?)null,
                 }),
                 Entity("i-power", "電力").CloneWith(new
                 {
                     Category = "エネルギー",
-                    IsBaseMaterial = false,
+                    IsGatherable = false,
                     TransportKind = "None",
                     GameEventId = (string?)null,
                 })),
@@ -95,7 +95,7 @@ internal static class TestJson
                 {
                     ProviderFacilityId = "f-disp",
                     ConsumeItemId = "i-gas",
-                    ConsumeRatePerSecond = 6.0,
+                    ConsumeRatePerMinute = 360.0,
                     GameEventId = (string?)null,
                 })),
             ["GameEvents"] = new JsonArray(
@@ -192,7 +192,7 @@ internal static class TestJsonExtensions
                 ["FixedConsumption"] = new JsonObject
                 {
                     ["ItemId"] = "i-gas",
-                    ["RatePerSecond"] = 0.5,
+                    ["RatePerMinute"] = 30.0,
                 },
             });
         return recipe;

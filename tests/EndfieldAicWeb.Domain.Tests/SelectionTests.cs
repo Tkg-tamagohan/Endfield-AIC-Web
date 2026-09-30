@@ -133,7 +133,7 @@ public class SelectionTests
             [
                 CalculationFixtures.Item("i-m"),
                 CalculationFixtures.Item("i-n"),
-                CalculationFixtures.Item("i-ore", "基礎素材", TransportKind.Belt, null, true),
+                CalculationFixtures.Item("i-ore", "採取素材", TransportKind.Belt, null, true),
             ],
             [
                 CalculationFixtures.Facility("f-a"),
@@ -185,7 +185,7 @@ public class SelectionTests
         MasterDataSnapshot betaOnly = CalculationFixtures.Snapshot(
             [
                 CalculationFixtures.Item("i-x"),
-                CalculationFixtures.Item("i-ore", "基礎素材", TransportKind.Belt, null, true),
+                CalculationFixtures.Item("i-ore", "採取素材", TransportKind.Belt, null, true),
             ],
             [CalculationFixtures.Facility("f-a")],
             [
@@ -201,7 +201,7 @@ public class SelectionTests
         MasterDataSnapshot withRelease = CalculationFixtures.Snapshot(
             [
                 CalculationFixtures.Item("i-x"),
-                CalculationFixtures.Item("i-ore", "基礎素材", TransportKind.Belt, null, true),
+                CalculationFixtures.Item("i-ore", "採取素材", TransportKind.Belt, null, true),
             ],
             [CalculationFixtures.Facility("f-a")],
             [
@@ -221,7 +221,7 @@ public class SelectionTests
         MasterDataSnapshot master = CalculationFixtures.Snapshot(
             [
                 CalculationFixtures.Item("i-x"),
-                CalculationFixtures.Item("i-ore", "基礎素材", TransportKind.Belt, null, true),
+                CalculationFixtures.Item("i-ore", "採取素材", TransportKind.Belt, null, true),
             ],
             [CalculationFixtures.Facility("f-a")],
             [

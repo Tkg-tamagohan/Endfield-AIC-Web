@@ -33,7 +33,7 @@ public static class EntityFactory
         VersionAdded = versionAdded,
         VersionRemoved = null,
         Category = "一般",
-        IsBaseMaterial = false,
+        IsGatherable = false,
         TransportKind = TransportKind.Belt,
         GameEventId = null,
     };
@@ -65,7 +65,7 @@ public static class EntityFactory
         VersionRemoved = null,
         ProviderFacilityId = providerFacilityId ?? "",
         ConsumeItemId = consumeItemId ?? "",
-        ConsumeRatePerSecond = 1,
+        ConsumeRatePerMinute = 60,
         GameEventId = null,
     };
 

@@ -30,7 +30,7 @@ public class ResultViewTests
         MaterialViewRow ore = Assert.Single(view.Materials, m => m.ItemId == "i-ore");
         Assert.Equal(120, ore.RequiredPerMinute);
         SupplyPortion rawSupply = Assert.Single(ore.Supplies);
-        Assert.Equal(SupplyKind.RawMaterial, rawSupply.Kind);
+        Assert.Equal(SupplyKind.Gathered, rawSupply.Kind);
     }
 
     // VW-02: 設備行に実数・切上げ台数と推奨流量制限が入る。
@@ -65,7 +65,7 @@ public class ResultViewTests
         Assert.Equal("f-disp", env.ProviderFacilityId);
         Assert.Equal(1, env.DispenserCount);
         Assert.Equal("i-gas", env.ConsumeItemId);
-        Assert.Equal(6, env.ConsumeRatePerSecondTotal);
+        Assert.Equal(360, env.ConsumeRatePerMinuteTotal);
     }
 
     // VW-04: 警告と余剰行が入る。

@@ -183,8 +183,8 @@ public class MasterExporterTests
                 recipeA.Facilities[i].FixedConsumption?.ItemId,
                 recipeB.Facilities[i].FixedConsumption?.ItemId);
             Assert.Equal(
-                recipeA.Facilities[i].FixedConsumption?.RatePerSecond,
-                recipeB.Facilities[i].FixedConsumption?.RatePerSecond);
+                recipeA.Facilities[i].FixedConsumption?.RatePerMinute,
+                recipeB.Facilities[i].FixedConsumption?.RatePerMinute);
         }
 
         for (int i = 0; i < a.Icons.Count; i++)
@@ -250,5 +250,39 @@ public class MasterExporterTests
 
         Assert.True(result.Success, string.Join("\n", result.Errors.Select(e => e.Message)));
         Assert.Empty(result.Errors);
+    }
+
+    // ---------- REN: Phase 9 改称の I/O 契約 ----------
+
+    [Fact(DisplayName = "REN-02: エクスポートは新フィールド名のみ出力する")]
+    public void Export_EmitsOnlyNewFieldNames()
+    {
+        string json = MasterExporter.Export(TestJson.LoadValidDocument());
+        JsonObject root = JsonNode.Parse(json)!.AsObject();
+
+        foreach (JsonNode? node in root["Items"]!.AsArray())
+        {
+            Assert.True(node!.AsObject().ContainsKey("IsGatherable"));
+            Assert.False(node.AsObject().ContainsKey("IsBaseMaterial"));
+        }
+
+        foreach (JsonNode? node in root["Environments"]!.AsArray())
+        {
+            Assert.True(node!.AsObject().ContainsKey("ConsumeRatePerMinute"));
+            Assert.False(node.AsObject().ContainsKey("ConsumeRatePerSecond"));
+        }
+
+        foreach (JsonNode? node in root["Recipes"]!.AsArray())
+        {
+            foreach (JsonNode? pair in node!.AsObject()["Facilities"]!.AsArray())
+            {
+                JsonNode? fc = pair!.AsObject()["FixedConsumption"];
+                if (fc is not null)
+                {
+                    Assert.True(fc.AsObject().ContainsKey("RatePerMinute"));
+                    Assert.False(fc.AsObject().ContainsKey("RatePerSecond"));
+                }
+            }
+        }
     }
 }

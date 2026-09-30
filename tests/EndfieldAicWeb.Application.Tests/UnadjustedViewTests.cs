@@ -59,7 +59,7 @@ public class UnadjustedViewTests
         Assert.Equal(60, Assert.Single(part.Supplies).AmountPerMinute, 6);
         EnvironmentRequirement env = Assert.Single(view.Environments);
         Assert.Equal(1, env.DispenserCount);
-        Assert.Equal(6, env.ConsumeRatePerSecondTotal);
+        Assert.Equal(360, env.ConsumeRatePerMinuteTotal);
     }
 
     // VWU-03b: 散布機とレシピが同じ設備を共用する場合でも、散布機台数は切上げ分から控除される。
@@ -70,7 +70,7 @@ public class UnadjustedViewTests
         var snapshot = ApplicationFixtures.Snapshot(
             [ApplicationFixtures.Item("i-fuel", "燃料"), ApplicationFixtures.Item("i-gas", "ガス", TransportKind.Pipe), ApplicationFixtures.Item("i-fcx", "化学体")],
             [ApplicationFixtures.Facility("f-fc", "化学機", 10)],
-            [ApplicationFixtures.Env("env-fcx", "化学環境", "f-fc", "i-gas", 6)],
+            [ApplicationFixtures.Env("env-fcx", "化学環境", "f-fc", "i-gas", 360)],
             [],
             [
                 ApplicationFixtures.Recipe("r-fcx", "化学体", [("i-fuel", 1)], [("i-fcx", 1)],

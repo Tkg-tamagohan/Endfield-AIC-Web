@@ -26,7 +26,7 @@ public class EnvironmentTests
 
         ItemRequirement gas = Req(plan, "i-gas");
         Assert.Equal(360.0, gas.RequiredPerMinute, Precision);
-        Assert.Equal(360.0, Supplied(plan, "i-gas", SupplyKind.RawMaterial), Precision);
+        Assert.Equal(360.0, Supplied(plan, "i-gas", SupplyKind.Gathered), Precision);
 
         Assert.Equal(120.0, plan.TotalPowerConsumption, Precision);
     }

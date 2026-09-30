@@ -104,9 +104,9 @@ else
                                             <div class="fc-row">
                                                 <RefSelect Value="@fc.ItemId" Options="_itemOptions" EmptyLabel="（未選択）"
                                                            ValueChanged="v => SetFcItem(fc, v)" />
-                                                <NumberInput Value="@fc.RatePerSecond" Owner="fc" Field="RatePerSecond" CssClass="input tiny"
+                                                <NumberInput Value="@fc.RatePerMinute" Owner="fc" Field="RatePerMinute" CssClass="input tiny"
                                                              ValueChanged="v => SetFcRate(fc, v)" />
-                                                <span class="muted">個/s</span>
+                                                <span class="muted">個/分</span>
                                             </div>
                                         }
                                     </td>
@@ -254,7 +254,7 @@ else
             ? new FixedConsumption
             {
                 ItemId = Store.Document!.Items.FirstOrDefault()?.Id ?? "",
-                RatePerSecond = 1,
+                RatePerMinute = 60,
             }
             : null;
         Store.NotifyChanged();
@@ -278,7 +278,7 @@ else
 
     private void SetFcItem(FixedConsumption fc, string? value) { fc.ItemId = value ?? ""; Store.NotifyChanged(); }
 
-    private void SetFcRate(FixedConsumption fc, double value) { fc.RatePerSecond = value; Store.NotifyChanged(); }
+    private void SetFcRate(FixedConsumption fc, double value) { fc.RatePerMinute = value; Store.NotifyChanged(); }
 
     private void SetGameEvent(string? value)
     {

@@ -29,16 +29,16 @@
 | 新モデル | 旧モデルからの変更 |
 |---|---|
 | `MasterEntity`（抽象基底） | 共通属性 `Id`・`Name`・`Description`・`IconKey`・`VersionAdded`・`VersionRemoved`（N）を集約。旧版はエンティティごとに散在していた |
-| `Item` | 旧 Item に共通属性・`GameEventId`・`IsBaseMaterial` を追加。`Origin` 廃止（S） |
-| `Environment` | 新設（H）。`ProviderFacilityId`・`ConsumeItemId`・`ConsumeRatePerSecond`・`GameEventId`。カバー範囲は持たない（W） |
+| `Item` | 旧 Item に共通属性・`GameEventId`・`IsGatherable` を追加。`Origin` 廃止（S） |
+| `Environment` | 新設（H）。`ProviderFacilityId`・`ConsumeItemId`・`ConsumeRatePerMinute`・`GameEventId`。カバー範囲は持たない（W） |
 | `Recipe` | `CycleTime`・`FacilityId` をペアへ移動し `Facilities: RecipeFacility[]` を持つ。共通属性・`GameEventId` |
 | `RecipeFacility` | 新設。`RecipeId`・`FacilityId`・`CycleTime`・`EnvironmentId`・`FixedConsumption`。JSON ではレシピ内にネストし、`RecipeId` は所属レシピから与える |
-| `FixedConsumption` | 新設（J）。`ItemId`・`RatePerSecond` |
+| `FixedConsumption` | 新設（J）。`ItemId`・`RatePerMinute` |
 | `Facility` | `Width`・`Height`・`PowerConsumption` のみ（G/W）。`Category`・`CollisionClass`・`PowerSupplyRange`・`InternalSlots`・ポート・`Origin` は廃止 |
 | `GameEvent` | 共通属性を追加し `ActiveFrom`/`ActiveTo`（両 null=常設、T）。旧の `Recipes` ナビは持たない |
 | `MasterDocument` | `SchemaVersion`・`DataVersion`・5 エンティティ・`Icons`（マニフェスト `Key/File/Sha256/Bytes`）。旧 `MasterMeta`（DB 管理用）は廃止 |
 
-基礎素材の判定は `IsBaseMaterial`（bool）とし、`Category` は表示用タグとして残す（計算の判定には使わない）。`Category` の enum 化は実データが揃ってから検討する保留事項とする。
+採取素材の判定は `IsGatherable`（bool）とし、`Category` は表示用タグとして残す（計算の判定には使わない）。`Category` の enum 化は実データが揃ってから検討する保留事項とする。
 
 ## 3. 計算の適合方針
 
@@ -53,7 +53,7 @@
 
 1. アイテムを出力するレシピを `GameEventId` で適格判定し、`VersionAdded` 最新（同率は Id 昇順、パース不能は最古＋警告）の順に並べる。
 2. 先頭から順に、そのレシピ内で適格なペア（`EnvironmentId` が null、または指す環境の `GameEventId` が有効）を持つ最初のレシピを採用する。
-3. 採用レシピ内で `CycleTime` 最小を既定とし、同率は `EnvironmentId=null` → `FixedConsumption` なし/小（`RatePerSecond` 昇順）の順（U）。なお同率は `FacilityId` 昇順で決定論的にする。
+3. 採用レシピ内で `CycleTime` 最小を既定とし、同率は `EnvironmentId=null` → `FixedConsumption` なし/小（`RatePerMinute` 昇順）の順（U）。なお同率は `FacilityId` 昇順で決定論的にする。
 4. `PairOverride` はペア行の全要素（`RecipeId`・`FacilityId`・`CycleTime`・`EnvironmentId`・`FixedConsumption`、P の一意キー）で照合し、不適格なら `InvalidPairOverride` 警告のうえ既定へフォールバックする。
 
 ### 環境計上（I）
@@ -63,12 +63,12 @@
 - 既定台数：その環境を必要とする稼働中ペア数（ペアは計画内でレシピに一意のため「レシピにつき 1 台」と同値）。
 - 上書き：`EnvironmentCountOverride { EnvironmentId, Count }` があればそちらを優先する。
 - 散布機（`ProviderFacilityId` の設備）は `FacilityRequirement`（実数=切上げ=指定台数）と `TotalPowerConsumption` に計上する。
-- 環境の消費アイテムには `ConsumeRatePerSecond × 60 × 台数` を毎分の需要として追加する。
-- `EnvironmentRequirement` として環境ごとの台数・消費アイテム・消費流量（個/s 合計）を出力する。
+- 環境の消費アイテムには `ConsumeRatePerMinute × 台数` を毎分の需要として追加する。
+- `EnvironmentRequirement` として環境ごとの台数・消費アイテム・消費流量（個/分 合計）を出力する。
 
 ### 固定消費（J/V）
 
-稼働確定ペアの `FixedConsumption` について `RatePerSecond × 60 × 切上台数` を毎分の需要として追加する。
+稼働確定ペアの `FixedConsumption` について `RatePerMinute × 切上台数` を毎分の需要として追加する。
 切上台数はペアが属する設備の `FacilityRequirement.CeilCount` とし、文面どおりペア単位で計上する（同一設備に複数ペアが稼働する場合、各ペアが設備全体の切上台数を基準にする）。調整済モードでも基準は変えない（V）。
 
 ### 収束反復
@@ -100,10 +100,10 @@
 
 | メンバー | 型 | 内容 |
 |---|---|---|
-| `ItemRequirements` | `ItemRequirement[]` | 需要・供給内訳（Recipe/Byproduct/RawMaterial）・未充足量 |
+| `ItemRequirements` | `ItemRequirement[]` | 需要・供給内訳（Recipe/Byproduct/Gathered）・未充足量 |
 | `FacilityRequirements` | `FacilityRequirement[]` | 実数台数・切上げ台数。散布機を含む |
 | `RecipeRuns` | `RecipeRun[]` | `RecipeId`・`FacilityId`・`CyclesPerMinute`。ペア単位 |
-| `EnvironmentRequirements` | `EnvironmentRequirement[]` | `EnvironmentId`・散布機台数・消費アイテム・消費流量（個/s） |
+| `EnvironmentRequirements` | `EnvironmentRequirement[]` | `EnvironmentId`・散布機台数・消費アイテム・消費流量（個/分） |
 | `TotalPowerConsumption` | `double` | Σ(設備消費電力 × 切上台数)。散布機分を含む |
 | `Surpluses` | `SurplusProduction[]` | 充当しきれなかった余剰 |
 | `FlowAdjustments` | `FlowAdjustment[]` | `RecipeId`・`InputItemId`・要求流量・推奨制限（個/s） |
@@ -120,7 +120,7 @@
 | 規則 | 扱い |
 |---|---|
 | 必須項目（Id・Name・各必須属性）・enum 定義値（`TransportKind`） | 継承 |
-| 値域（`CycleTime`>0、`Quantity`>0、`PowerConsumption`>=0、`Width`/`Height`>0、`ConsumeRatePerSecond`>0、`RatePerSecond`>0、`ActiveFrom`<`ActiveTo`） | 継承・適合 |
+| 値域（`CycleTime`>0、`Quantity`>0、`PowerConsumption`>=0、`Width`/`Height`>0、`ConsumeRatePerMinute`>0、`RatePerMinute`>0、`ActiveFrom`<`ActiveTo`） | 継承・適合 |
 | `VersionAdded` の semver 形式・`VersionRemoved`>`VersionAdded` | 旧版は Recipe のみだったが、共通属性（N）の一貫した値域として全エンティティへ適用する |
 | 参照整合性（Recipe の入出力 ItemId・ペアの FacilityId/EnvironmentId/FixedConsumption.ItemId・Environment の ProviderFacilityId/ConsumeItemId・Item/Environment/Recipe の GameEventId） | 新モデルに合わせて再構成 |
 | ペア一意性（P） | 同一レシピ内で全要素の組が重複するペアを検出する |

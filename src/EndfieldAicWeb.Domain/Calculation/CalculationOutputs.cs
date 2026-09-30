@@ -60,8 +60,8 @@ public enum SupplyKind
     /// <summary>他レシピの副産物による充当。</summary>
     Byproduct,
 
-    /// <summary>基礎素材。レシピを持たない終端で外部調達扱い。</summary>
-    RawMaterial,
+    /// <summary>採取素材。レシピを持たない終端で外部調達扱い。</summary>
+    Gathered,
 }
 
 /// <summary>
@@ -82,7 +82,7 @@ public sealed record EnvironmentRequirement(
     string ProviderFacilityId,
     int DispenserCount,
     string ConsumeItemId,
-    double ConsumeRatePerSecondTotal);
+    double ConsumeRatePerMinuteTotal);
 
 /// <summary>
 /// 充当しきれなかった余剰生産（副産物残など）。

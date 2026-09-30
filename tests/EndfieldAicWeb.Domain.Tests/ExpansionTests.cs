@@ -14,7 +14,7 @@ public class ExpansionTests
 
         ItemRequirement ore = Req(plan, "i-ore");
         Assert.Equal(60.0, ore.RequiredPerMinute, Precision);
-        Assert.Equal(60.0, ore.Supplies.Single(s => s.Kind == SupplyKind.RawMaterial).AmountPerMinute, Precision);
+        Assert.Equal(60.0, ore.Supplies.Single(s => s.Kind == SupplyKind.Gathered).AmountPerMinute, Precision);
         Assert.Equal(0.0, ore.UnmetPerMinute, Precision);
 
         ItemRequirement part = Req(plan, "i-part");

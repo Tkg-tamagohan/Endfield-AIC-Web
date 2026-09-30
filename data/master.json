@@ -3,8 +3,8 @@
   "DataVersion": "0.2.0",
   "Items": [
     {
-      "Category": "基礎素材",
-      "IsBaseMaterial": true,
+      "Category": "採取素材",
+      "IsGatherable": true,
       "TransportKind": "Belt",
       "GameEventId": null,
       "Id": "item-ore",
@@ -15,8 +15,8 @@
       "VersionRemoved": null
     },
     {
-      "Category": "基礎素材",
-      "IsBaseMaterial": true,
+      "Category": "採取素材",
+      "IsGatherable": true,
       "TransportKind": "Belt",
       "GameEventId": null,
       "Id": "item-fuel",
@@ -27,8 +27,8 @@
       "VersionRemoved": null
     },
     {
-      "Category": "基礎素材",
-      "IsBaseMaterial": true,
+      "Category": "採取素材",
+      "IsGatherable": true,
       "TransportKind": "Pipe",
       "GameEventId": null,
       "Id": "item-gas",
@@ -40,7 +40,7 @@
     },
     {
       "Category": "エネルギー",
-      "IsBaseMaterial": false,
+      "IsGatherable": false,
       "TransportKind": "None",
       "GameEventId": null,
       "Id": "item-power",
@@ -52,7 +52,7 @@
     },
     {
       "Category": "部品",
-      "IsBaseMaterial": false,
+      "IsGatherable": false,
       "TransportKind": "Belt",
       "GameEventId": null,
       "Id": "item-part",
@@ -64,7 +64,7 @@
     },
     {
       "Category": "部品",
-      "IsBaseMaterial": false,
+      "IsGatherable": false,
       "TransportKind": "Belt",
       "GameEventId": null,
       "Id": "item-part-hp",
@@ -76,7 +76,7 @@
     },
     {
       "Category": "イベント",
-      "IsBaseMaterial": false,
+      "IsGatherable": false,
       "TransportKind": "Belt",
       "GameEventId": "ev-first",
       "Id": "item-limited",
@@ -115,7 +115,7 @@
     {
       "ProviderFacilityId": "fac-dispenser",
       "ConsumeItemId": "item-gas",
-      "ConsumeRatePerSecond": 6,
+      "ConsumeRatePerMinute": 360,
       "GameEventId": null,
       "Id": "env-gas",
       "Name": "ガス環境",
@@ -166,7 +166,7 @@
           "EnvironmentId": "env-gas",
           "FixedConsumption": {
             "ItemId": "item-fuel",
-            "RatePerSecond": 0.5
+            "RatePerMinute": 30
           }
         }
       ],

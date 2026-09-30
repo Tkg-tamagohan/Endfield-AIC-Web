@@ -12,8 +12,8 @@ public class Environment : MasterEntity
     /// <summary>継続消費するアイテム（ガス等）。</summary>
     public required string ConsumeItemId { get; set; }
 
-    /// <summary>消費速度（個/s）。</summary>
-    public double ConsumeRatePerSecond { get; set; }
+    /// <summary>消費速度（個/分）。</summary>
+    public double ConsumeRatePerMinute { get; set; }
 
     /// <summary>所属イベント。null は常設。</summary>
     public string? GameEventId { get; set; }
