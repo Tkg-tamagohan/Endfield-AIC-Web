@@ -13,7 +13,7 @@
 2026-09-30 に検討した改善方針（末尾「改善方針の検討」節）の実施は、次の PR で完了した。
 
 - A 構造上の小改善 4 件（`ProductionCalculator` の static 化、`PairSelector.Select` の警告を戻り値へ集約、`ContextFilter` の record 化、`IconResolver` のキャッシュ）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/18>
-- B アイコン規格の一元化（文字種はスキーマの `pattern`、マニフェスト整合は `BundledMasterDataTests`、正規化規格は requirements §5.10）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/19>
+- B アイコン規格の一元化（文字種はスキーマの `pattern`、マニフェスト整合は `BundledMasterDataTests`、正規化規格は requirements §5.11）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/19>
 - C 時刻規約（仕様決定 Z。瞬間として解釈して閲覧者のローカル暦日で判定し、オフセット無しは検証エラー。既定判定のたびに当日を再評価）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/20>
 - D 判定ロジックの抽出（散布機台数の検証とコンボの選択解除判定を Application の純粋関数へ移し xUnit でテスト化）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/21>
 - E 可変性の境界明文化（requirements §6.2）・F スキルへのゴールデンパス期待値表追記: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/22>
@@ -37,6 +37,12 @@
 一方、razor の `@code` に残る UI 状態遷移（チェック切り替え、行の追加削除、イベントハンドラ）は依然としてテスト対象外である。
 カバーする場合は bUnit などのコンポーネントテスト基盤の導入が要になり、`IJSRuntime` のモック（confirm、ダウンロード、ファイル選択）と `AdminDocumentService` の注入差し替えを含む基盤整備が先行して要る。
 UI 層の変更頻度が上がった時点で再検討とする。
+
+### 公開版と管理ツールの計算ページ UI の共有化
+
+公開アプリ（`src/EndfieldAicWeb.App/Pages/Home.razor`）と管理ツールの計算プレビュー（`src/EndfieldAicWeb.Admin/Pages/PreviewPage.razor`）は、目標入力・ペア選択・散布機台数・単位切替・結果表示など同型の UI をページごとに別実装している。
+仕様決定 AG では管理ツール側への機能移植はコピー追従で行い、razor の共有化（Razor Class Library 化）は見送る方針とした。
+共有ロジックは Application 層（`ResultViewBuilder` 等）に寄せる現状維持で、差分の取りこぼしや修正の二重化が実害として現れた時点で RCL 化を再検討する。
 
 ## 改善方針の検討
 

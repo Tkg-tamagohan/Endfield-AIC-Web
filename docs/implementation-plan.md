@@ -60,40 +60,41 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 | エンティティ | フィールド | 備考 |
 |---|---|---|
 | 共通属性 | Id, Name, Description, IconKey(null 可), VersionAdded, VersionRemoved(null 可) | 全マスタエンティティに付与（仕様決定 N）。 |
-| Item | 共通属性, Category, IsBaseMaterial, TransportKind, GameEventId(null=常設) | Category は表示用タグ、`IsBaseMaterial=true` が需要展開の終端（外部調達扱い）。`TransportKind=None` は仮想アイテム（輸送容量対象外）。非有効イベント配下は生産・外部調達とも不可（仕様決定 X）。 |
-| Environment | 共通属性, ProviderFacilityId, ConsumeItemId, ConsumeRatePerSecond, GameEventId(null=常設) | 環境を供給する設備（散布機）・継続消費アイテム・消費速度を持つ（仕様決定 H）。カバー範囲は持たない（W）。 |
+| Item | 共通属性, Category, IsGatherable, TransportKind, GameEventId(null=常設) | Category は表示用タグ、`IsGatherable=true` が需要展開の終端（採取扱い。マップ選択時は採取上限が適用、仕様決定 AC/AD）。`TransportKind=None` は仮想アイテム（輸送容量対象外）。非有効イベント配下は生産・外部調達とも不可（仕様決定 X）。 |
+| Environment | 共通属性, ProviderFacilityId, ConsumeItemId, ConsumeRatePerMinute, GameEventId(null=常設) | 環境を供給する設備（散布機）・継続消費アイテム・消費速度（個/分）を持つ（仕様決定 H、単位は AF）。カバー範囲は持たない（W）。 |
 | Recipe | 共通属性, Inputs, Outputs, Facilities(RecipeFacility[]), GameEventId(null=常設) | `CycleTime`・`FacilityId` はレシピ本体からペアへ移動。Outputs は `ItemId＋Quantity＋SortOrder`（SortOrder=0 が主産物）。 |
 | Facility | 共通属性, Width, Height, PowerConsumption | 縦横は「設備面積最小」最適化（F）のために保持。発電識別・保持枠・ポート・衝突クラスは持たない（G/W/Y）。 |
-| RecipeFacility | RecipeId, FacilityId, CycleTime, EnvironmentId(null=不要), FixedConsumption(null 可) | レシピ×設備の紐付け。一意性は全要素の組で判定（仕様決定 P）。`FixedConsumption` は `(ItemId, 個/s)`。 |
+| RecipeFacility | RecipeId, FacilityId, CycleTime, EnvironmentId(null=不要), FixedConsumption(null 可) | レシピ×設備の紐付け。一意性は全要素の組で判定（仕様決定 P）。`FixedConsumption` は `(ItemId, 個/分)`（単位は AF）。 |
 | GameEvent | Id, Name, ActiveFrom(null 可), ActiveTo(null 可) | 両 null は常設（仕様決定 T）。 |
-| マスタ文書 | SchemaVersion(=1), DataVersion, Items, Facilities, Environments, GameEvents, Recipes, Icons | スキーマは新系統で v1 に振り直す（C）。Icons は `Key/File/Sha256/Bytes` のマニフェスト（R で旧規約継承）。 |
+| GameMap | 共通属性, GatherRates, GameEventId(null=常設) | マップごとの採取上限。`GatherRate` は `{ ItemId, IsUnlimited, RatePerMinute }`（IsUnlimited=true なら上限なし、false なら有限の正値の個/分）。採取素材のみを指し、同一マップ内で ItemId 重複不可（仕様決定 AC）。イベント限定マップは現状存在しないが同型で用意。 |
+| マスタ文書 | SchemaVersion(=1), DataVersion, Items, Facilities, Environments, GameEvents, Recipes, Maps, Icons | スキーマは新系統で v1 に振り直す（C）。Icons は `Key/File/Sha256/Bytes` のマニフェスト（R で旧規約継承）。 |
 
 ## 3. 計算エンジン仕様（Domain.Calculation）
 
-**入力**: `ProductionTarget[] { ItemId, 個/分 }`（複数目標可）、`ContextFilter { ActiveGameEventIds }`、アイテム単位のペア上書き `PairOverride[] { ItemId → 選択ペア }`、環境ごとの散布機台数上書き `EnvironmentCountOverride[] { EnvironmentId → 台数 }`。
+**入力**: `ProductionTarget[] { ItemId, 個/分 }`（複数目標可）、`ContextFilter { ActiveGameEventIds, MapId }`、アイテム単位のペア上書き `PairOverride[] { ItemId → 選択ペア }`、環境ごとの散布機台数上書き `EnvironmentCountOverride[] { EnvironmentId → 台数 }`、採取素材ごとのレート上書き `GatherRateOverride[] { ItemId → 個/分 }`（仕様決定 AE）。
 
 **出力**: `ProductionPlan`
 
-- `ItemRequirement[] { ItemId, 毎分要求量, 供給内訳(レシピ/副産物/基礎素材), 未充足量 }`
+- `ItemRequirement[] { ItemId, 毎分要求量, 供給内訳(レシピ/副産物/採取素材), 未充足量 }`
 - `FacilityRequirement[] { FacilityId, 実数台数, 切上げ台数 }` — 散布機を含む
 - `RecipeRun[] { RecipeId, FacilityId, CyclesPerMinute }` — ペア単位で保持
 - `EnvironmentRequirement[] { EnvironmentId, 散布機台数, 消費アイテム流量 }`
 - `TotalPowerConsumption` — Σ(PowerConsumption × 切上げ台数)、散布機分を含む。発電側は計算しない（Q/Y）
 - `Surplus[] { ItemId, 毎分余剰量 }`
 - `FlowAdjustment[] { RecipeId, InputItemId, 要求流量(個/s), 推奨制限(個/s) }` — 「調整済」表示に使う（O）
-- `Warning[]` — 循環依存・レシピ未登録・輸送容量超過・イベント非有効による未充足・収束失敗 等
+- `Warning[]` — 循環依存・レシピ未登録・輸送容量超過・イベント非有効による未充足・採取上限超過で代替不可・収束失敗 等
 
 **アルゴリズム概要**:
 
 1. 目標から net demand マップを構築し、展開（選択ペアで仮実行し入力を需要へ加算）と引き戻し（後供給の副産物で過剰化した稼働の取り消し）を固定点まで反復する。骨格は旧 `ProductionCalculator` の Session を移植する。
 2. 需要アイテムごとの選択は「レシピ → ペア」の二段とする。レシピはコンテキスト適格候補から `VersionAdded` 最新（同率は Id 昇順）を選び、そのレシピのペアから `CycleTime` 最小を選ぶ（F）。同一 (RecipeId, FacilityId) で属性の異なるペア行が複数ある場合も `CycleTime` 最小を既定とし、同率は `EnvironmentId=null` → `FixedConsumption` なし/小の順（U）。ペア上書きはペア行単位で適用し、不適格な上書きは警告して既定へフォールバックする。
-3. 適格判定: レシピの `GameEventId` が非有効なら候補外。ペアの `EnvironmentId` が指す環境の `GameEventId` が非有効ならそのペアも候補外。アイテム自体の `GameEventId` が非有効なら生産・外部調達とも不可とし、需要は未充足＋警告とする（X）。
+3. 適格判定: レシピの `GameEventId` が非有効なら候補外。ペアの `EnvironmentId` が指す環境の `GameEventId` が非有効ならそのペアも候補外。アイテム自体の `GameEventId` が非有効なら生産・外部調達とも不可とし、需要は未充足＋警告とする（X）。選択したマップが非有効イベント所属の場合も同様に、全採取素材を採取不可（上限 0）として警告する（AD、X と同型）。この場合の採取レート上書きは適用しない。
 4. 循環依存は展開スタック上の再要求で検出し、警告してその需要を未充足として打ち切る。副産物は他素材需要へ充当し、充当残は余剰として出力する。1 アイテムの需要を複数設備へ分割しない（R で旧 BE 継承）。
 5. 設備台数はレシピのペアごとに `需要レート ÷ (60/CycleTime × 出力数量)` の実数を求め、設備単位に合算して切上げ台数を併記する。
-6. 環境計上（I）: 稼働が確定したペアの `EnvironmentId` ごとに散布機台数を確定する。既定はその環境を必要とする稼働中レシピ数（レシピにつき 1 台）、ユーザー上書きを優先する。散布機は設備要件・消費電力に計上し、`ConsumeRatePerSecond × 台数` を環境の消費アイテム需要へ追加する。
-7. 固定消費（J/V）: 確定した各ペアの `FixedConsumption` について `個/s × 切上げ台数` を需要へ追加する。調整済モードでも基準は切上台数のままとする（V）。
+6. 環境計上（I）: 稼働が確定したペアの `EnvironmentId` ごとに散布機台数を確定する。既定はその環境を必要とする稼働中レシピ数（レシピにつき 1 台）、ユーザー上書きを優先する。散布機は設備要件・消費電力に計上し、`ConsumeRatePerMinute × 台数` を環境の消費アイテム需要へ追加する（単位は AF）。
+7. 固定消費（J/V）: 確定した各ペアの `FixedConsumption` について `個/分 × 切上げ台数` を需要へ追加する（単位は AF）。調整済モードでも基準は切上台数のままとする（V）。
 8. 環境消費と固定消費の需要追加は台数確定後に行うため、これらの需要自体が新たなレシピ稼働（→台数変化）を生みうる。展開→台数確定→追加需要 の一巡を収束するまで反復する（上限は旧発電反復と同じく 10 回とし、収束しない場合は警告を返す）。技術的改善として旧電力収束ループの構造を流用する。
-9. 基礎素材は「個/分」のまま残す（R で旧 C 継承）。輸送容量は `Item.TransportKind` でベルト 30 個/s・パイプ 60 個/s を判定し、超過は警告（超過自体は許容）。
+9. 採取素材は「個/分」のまま残す（R で旧 C 継承、AB で改称）。採取上限（AC/AD）: 選択マップの有効採取レート（ユーザー上書きを優先、未定義の行は「無限」か「上限値」、行のない採取素材は 0、マップ未選択は無制限）までを採取とし、超過分は当該アイテムを産出するレシピへ展開する。代替レシピがなければ未充足＋警告とする。輸送容量は `Item.TransportKind` でベルト 30 個/s・パイプ 60 個/s を判定し、超過は警告（超過自体は許容）。
 10. 出力は未調整・調整済の両方を表示可能な形で返す。2 状態の切替は UI の表示切替であり、計算結果は共用する（O）。期間換算（M）は表示層で `個/分` に係数を掛けて行い、設備の消費電力合計は換算しない。
 
 ## 4. Phase 別タスク
@@ -162,8 +163,45 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 
 - [x] 正規化規則を「出力は一辺 128px 以下の正方形とし、128 ピクセル超は縮小・以下は拡大もパディングもせず原寸で保存」へ変更する（仕様決定 AA）
 - [x] アニメーション画像（GIF・APNG 入力）をフレーム単位で同一規則に適用し APNG で取り込めるようにする（`UPNG.js`（MIT）を同梱。保存は `icons/<Key>.png`・`image/png` のまま）
-- [x] ブラウザプレビューでのユーザー確認を経て、requirements §5.10・decision-records（AA）を含めて PR を作成する
+- [x] ブラウザプレビューでのユーザー確認を経て、requirements §5.11・decision-records（AA）を含めて PR を作成する
 - **受け入れ条件**: 128 ピクセル未満の画像が拡大されずに登録される。アニメーション画像が管理ツール・公開アプリの双方で動いて表示される。
+
+### Phase 9: 用語・単位の整理（PR: 基礎素材→採取素材の改称＋レート単位の毎分統一）
+
+- [ ] 「基礎素材」→「採取素材」の改称（仕様決定 AB）。`Item.IsBaseMaterial` → `IsGatherable`、`SupplyKind.RawMaterial` → `Gathered`、JSON フィールド名・`Category` 値・UI ラベル・テスト・フィクスチャを追従する
+- [ ] レート単位の毎分統一（仕様決定 AF）。`Environment.ConsumeRatePerSecond` → `ConsumeRatePerMinute`、`FixedConsumption.RatePerSecond` → `RatePerMinute`。`data/master.json` の値を換算（6 → 360）、計算内の ×60 換算を除去する。出力側も `EnvironmentRequirement.ConsumeRatePerSecondTotal` → `ConsumeRatePerMinuteTotal` に改名して個/分へ統一し、Admin 入力ラベルと App の表示を個/分へ追従する
+- [ ] `SchemaVersion` は 1 のままとする（仕様決定 AF）
+- **受け入れ条件**: `dotnet test` 全緑、`tools/validate_master.py` 通過。挙動変更を伴わない改名・単位変換のみ。
+
+### Phase 10: マップモデル（PR: GameMap＋スキーマ＋管理ツールのマップ編集）
+
+- [ ] `GameMap` エンティティと `GatherRate` 行の新設（仕様決定 AC）。`MasterDocument.Maps`、`MasterDataSnapshot.Maps`、`MasterValidator` のマップ検証、JSON 入出力、`data/master.schema.json` の `Maps` 節を整備する
+- [ ] 管理ツールにマップ編集ページ（一覧・共通属性・採取レート行の編集）を追加し、ナビと文書件数表示を追従する。アイテム削除時の参照検出に採取レート行を含める
+- [ ] `data/master.json` に Maps サンプルを追加し、`tools/validate_master.py` の `ENTITY_SECTIONS` に `Maps` を加える
+- **受け入れ条件**: `dotnet test` 全緑、`tools/validate_master.py` 通過。計算結果は変わらない（マップはまだ計算へ未接続）。
+
+### Phase 11: 採取上限の計算（PR: 上限・代替レシピ展開・警告・ユーザー上書き）
+
+- [ ] 計算入力に `ContextFilter.MapId` と `GatherRateOverride[]` を追加し、`ProductionCalculator` の採取素材終端処理を変更する（仕様決定 AD）。有効採取レート（上書き → マップ行 → 未定義は 0、無限行は上限なし、マップ未選択は無制限）までを採取とし、超過分を当該アイテムを産出するレシピへ展開、代替レシピなしなら未充足＋警告コード `GatherCapExceeded` とする。非有効イベント所属のマップが選択状態で残った場合は全採取素材を採取不可（上限 0）として警告し、採取レート上書きは適用しない
+- [ ] 採取素材を上限まで採取し超過をレシピへ展開する採取優先へ変更する（従来のレシピ優先からの仕様変更。`FIX-03` 系の期待値を更新）
+- [ ] `CalculationService` の引数に採取上書きを追加し、入力ビルダ（`CalculationInputBuilder` への採取レート入力パース）を Application に追加する
+- [ ] Domain テストに ID 採番の新規ケースを追加する（上限内は採取、超過はレシピ、代替なしは未充足＋警告、ユーザー上書き、マップ未選択、未定義アイテム、無限行、非有効マップ選択時の採取不可と上書き無効化、連鎖展開・副産物・循環との相互作用）
+- **受け入れ条件**: `dotnet test` 全緑。採取上限・代替展開・警告が仕様どおりに動く。
+
+### Phase 12: 公開アプリ UI（PR: マップ選択＋採取レート入力）
+
+- [ ] 入力パネルにマップ選択を追加する（未選択=無制限）。候補は有効イベントで絞り込み、非有効イベント所属のマップは候補から外す（イベント切替時の扱いは公開版・Admin 共通とする）
+- [ ] 結果パネルに採取素材ごとの利用可能レート入力行を追加する（散布機台数入力と同型: 空欄=マップ既定値、再計算後も入力を保持。仕様決定 AE）
+- [ ] 供給内訳の表示を採取素材へ追従する（表示名「採取素材」→「採取」等の整理、上限の可視化は必要に応じて）
+- [ ] ブラウザプレビューでのユーザー確認を挟む（Phase 4 と同様）
+- **受け入れ条件**: プレビューでのユーザー確認を経て、マップ選択・採取レート指定を含む主要フローが動作する。
+
+### Phase 13: Admin 計算プレビューの公開版追従（PR: プレビュー機能の同等化）
+
+- [ ] `PreviewPage` に公開版の機能を移植する: ペア代替選択ドロップダウン、散布機台数入力、単位切替（毎分/毎秒/期間）、期間入力（仕様決定 AG）
+- [ ] Phase 12 で追加したマップ選択・採取レート入力を Admin 側にも実装する
+- [ ] razor ページの共有化（RCL 化）は見送り、`remaining-issues.md` に残課題として記録する
+- **受け入れ条件**: 公開版と同等の機能が管理ツールの計算プレビューで動作する。
 
 ## 5. 実装メモ・規約
 
