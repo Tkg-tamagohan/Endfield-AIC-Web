@@ -169,4 +169,59 @@ internal static class ApplicationFixtures
                     [Pair("f-asm", 6)]),
             ]);
     }
+
+    /// <summary>
+    /// A-06: マップ候補。A-01 のアイテム・施設・環境・レシピにイベントとマップを追加する。
+    /// </summary>
+    public static MasterDataSnapshot A06()
+    {
+        MasterDataSnapshot base_ = A01();
+
+        return Snapshot(
+            base_.Items,
+            base_.Facilities,
+            base_.Environments,
+            [Event("ev-on", "有効イベント"), Event("ev-off", "無効イベント")],
+            base_.Recipes,
+            [
+                new GameMap
+                {
+                    Id = "m-cap",
+                    Name = "上限マップ",
+                    Description = "",
+                    VersionAdded = "1.0.0",
+                    GatherRates =
+                    [
+                        new GatherRate { ItemId = "i-ore", RatePerMinute = 60 },
+                        new GatherRate { ItemId = "i-gas", IsUnlimited = true, RatePerMinute = null },
+                    ],
+                },
+                new GameMap
+                {
+                    Id = "m-on",
+                    Name = "有効イベントマップ",
+                    Description = "",
+                    VersionAdded = "1.0.0",
+                    GameEventId = "ev-on",
+                    GatherRates = [new GatherRate { ItemId = "i-ore", RatePerMinute = 120 }],
+                },
+                new GameMap
+                {
+                    Id = "m-off",
+                    Name = "無効イベントマップ",
+                    Description = "",
+                    VersionAdded = "1.0.0",
+                    GameEventId = "ev-off",
+                    GatherRates = [new GatherRate { ItemId = "i-ore", RatePerMinute = 999 }],
+                },
+                new GameMap
+                {
+                    Id = "m-empty",
+                    Name = "空マップ",
+                    Description = "",
+                    VersionAdded = "1.0.0",
+                    GatherRates = [],
+                },
+            ]);
+    }
 }
