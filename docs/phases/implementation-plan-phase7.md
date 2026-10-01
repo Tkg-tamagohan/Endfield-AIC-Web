@@ -35,10 +35,10 @@
 
 ## 2. 仕様の確定事項
 
-上位文書と旧版の仕様決定（R で継承する旧 AM〜AQ）から確定済みの内容:
+上位文書と旧版の仕様決定（R で継承する旧 AM〜AQ）から確定済みの内容は次のとおり。
 
 - 全マスタエンティティが `IconKey`（null 可）を持つ（仕様決定 N）。キー文字種は `^[A-Za-z0-9_-]{1,64}$` で、読み込み・保存・解決の各層で同一規則を適用する（旧 AP、実装済みの `IconKeyRules`）。
-- 画像実体は `data/icons/<IconKey>.png` としてリポジトリ管理し、正本 JSON の `Icons` 節が `Key`・`File`（`icons/<Key>.png` 固定）・`Sha256`・`Bytes` を持つ（旧 AO。`IconResolver`・`IconManifestVerifier`・`ValidateIconManifestValues` は Phase 3 で実装済み）。
+- 画像実体は `data/icons/<IconKey>.png` としてリポジトリ管理し、マスタ JSON の `Icons` 節が `Key`・`File`（`icons/<Key>.png` 固定）・`Sha256`・`Bytes` を持つ（旧 AO。`IconResolver`・`IconManifestVerifier`・`ValidateIconManifestValues` は Phase 3 で実装済み）。
 - 管理ツールの取り込みは PNG・正方形へ正規化して 128×128 とする（旧 AP）。`IconKey` が空なら `icon-<Id>` を補完する。
 - エクスポート時は `IconKey` → マニフェスト → ファイル実在の整合を検証し、不整合を拒否する（旧 AP）。マニフェストの `Sha256`/`Bytes` は実ファイルから再計算して出力し、どのエンティティからも参照されない孤立エントリは出力しない。
 - マニフェスト収録キーの表示はハッシュ一致ファイルのみ採用し、収録外キーはファイル名一致で解決する（`IconResolver` の既存挙動）。未設定・`icon-placeholder`・未解決はすべてプレースホルダ表示へ落とす。

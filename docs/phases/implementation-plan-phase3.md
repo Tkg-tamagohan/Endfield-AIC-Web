@@ -12,7 +12,7 @@
 ### 作るもの
 
 - `EndfieldAicWeb.Infrastructure` の 2 サブフォルダ
-  - `Transfer/`：正本 JSON の読み込み（構文・構造・意味の三段検証）とエクスポート
+  - `Transfer/`：マスタ JSON の読み込み（構文・構造・意味の三段検証）とエクスポート
     - `MasterJsonDto.cs`：JSON トップレベル構造とエンティティの DTO。デシリアライズ用の nullable フィールドとし、欠落フィールドを構造検証で検出できるようにする
     - `MasterJsonReader.cs`：構文解析・構造検証・実体化・`MasterValidator` 呼び出しの共有経路（internal）
     - `MasterJsonLoader.cs`：公開 API。`MasterJsonLoadResult { Document, Errors }` を返し、違反は例外ではなくエラー一覧で返す
@@ -40,7 +40,7 @@
 2. **構造検証**：`SchemaVersion == 1`・`DataVersion` 非空・必須配列の存在・null 要素・必須フィールド・enum 値・Icons 節の構造を検査する。スキーマ未定義プロパティは DTO の `[JsonExtensionData]` で捕捉しここで拒否する（スキーマ `additionalProperties:false`/`unevaluatedProperties:false` 準拠）。ここを通過したドキュメントのみ安全に実体化できる。エラーは `MasterValidationError` に統一して返す。
 3. **意味検証**：実体化したエンティティへ `MasterValidator.ValidateAll` を適用する（値域・参照整合性・ペア一意性・仮想アイテム規則など、Phase 2 と同一規則）。
 
-`MasterJsonLoadResult` の規約：
+`MasterJsonLoadResult` の規約は次のとおり。
 
 - `Errors` は三段すべての違反を集約した読み取り専用一覧。
 - `Document` は構造検証を通過して実体化できた場合にのみ非 null とする。意味検証の違反が残る場合も返すため、利用側は `Success`（`Errors` が空）を確認してから使う。
@@ -79,7 +79,7 @@
 旧 `IconCatalog` の解決規則を新モデル（`IconEntry`＝`Key/File/Sha256/Bytes`）へ適合する。Blazor WASM ではファイル I/O が HTTP 取得に変わるため、ファイル内容の取得を `IIconFileProvider` に抽象化する。
 
 - `IconManifestVerifier.Verify(manifest, provider)`：各エントリの `File` 実体が存在し、`Bytes`・`Sha256` が一致するかを検査し、違反をエラー一覧で返す（「マニフェスト不一致は明示的に拒否する」の担い手）。
-- `IconResolver.Resolve(iconKey)`：
+- `IconResolver.Resolve(iconKey)` の返り値は次のとおり。
   - `iconKey` が null・空・予約キー・文字種違反 → null（フォールバック表示）。
   - マニフェスト収録キー：`File` の実体が `Bytes`・`Sha256` に一致する場合のみ `File` を返す。欠落・不一致は null。
   - 収録外キー：`icons/<Key>.png` が存在すればそのパスを返す（旧 AO のローカル差し込み運用を継承）。存在しなければ null。

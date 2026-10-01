@@ -77,7 +77,7 @@ public class GatherRate
 
 エンティティ種別名は `"GameMap"`、コレクション名は `"Maps"` とする。
 
-単体規則（`ValidateGameMap`）:
+単体規則（`ValidateGameMap`）は次のとおり。
 
 - 共通属性（Id、Name 必須、IconKey 文字種、VersionAdded/VersionRemoved）
 - `GatherRates[i].ItemId` は必須
@@ -85,7 +85,7 @@ public class GatherRate
 - `IsUnlimited=false` の行は `RatePerMinute` が null でない 0 より大きい有限値であること（Field は `GatherRates[i].RatePerMinute`）
 - `IsUnlimited=true` の行は `RatePerMinute` が null であること（同上。§4 暫定解釈）
 
-文書全体の規則（`ValidateAll` に `maps` 引数を追加）:
+文書全体の規則（`ValidateAll` に `maps` 引数を追加）は次のとおり。
 
 - `Maps` 内の Id 重複は不可
 - `GameEventId` が存在するイベントを参照すること

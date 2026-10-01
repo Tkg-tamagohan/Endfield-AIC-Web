@@ -250,7 +250,7 @@ flowchart LR
         PubApp[計算アプリ<br/>Blazor WASM] --> MasterJson[(マスタ JSON<br/>Pages に同梱)]
     end
     subgraph 非公開
-        AdminApp[管理ツール<br/>Blazor WASM] -->|JSON エクスポート| Repo[(リポジトリ<br/>正本 JSON)]
+        AdminApp[管理ツール<br/>Blazor WASM] -->|JSON エクスポート| Repo[(リポジトリ<br/>マスタ JSON)]
     end
     Access[Cloudflare Access] -.->|メール OTP| AdminApp
     Repo -->|PR + デプロイ| MasterJson
@@ -280,7 +280,7 @@ EF Core・SQLite・Layout・WPF・旧 JSON 相互互換は移植しない。
 
 ## 7. データ投入ワークフロー
 
-1. 管理者が管理ツールで正本 JSON を読み込み（デプロイ済みまたはファイル選択）。
+1. 管理者が管理ツールでマスタ JSON を読み込み（デプロイ済みまたはファイル選択）。
 2. ブラウザ内でエンティティを編集し、保存時に整合性検証を実行（参照整合・ペア一意・仮想アイテム規則等、旧 Z 相当を継承）。
 3. 計算プレビューで投入データの妥当性を確認（旧 BQ 相当）。
 4. JSON をエクスポートしてリポジトリへコミットし、PR でレビュー・CI 検証後にマージ。

@@ -99,11 +99,11 @@
 | MN-04 | 未エクスポートの変更時はダーティ表示が出て、再読み込みに確認ダイアログが挟まる | OK（Devin 実機確認） |
 | MN-05 | 計算プレビューで編集中データの計算結果（素材・設備・環境・電力・余剰）が見える | OK（Devin 実機確認、ユーザー確認） |
 | MN-06 | エクスポートで全置換 JSON がダウンロードされ、DataVersion が更新される。違反時はブロックされる | OK（Devin 実機確認） |
-| MN-07 | URL 入力からデプロイ済み正本を読める（App 側の `Access-Control-Allow-Origin` 併用） | OK（Devin 実機確認。localhost・本番の両経路で成功） |
+| MN-07 | URL 入力からデプロイ済みのマスタ JSON を読める（App 側の `Access-Control-Allow-Origin` 併用） | OK（Devin 実機確認。localhost・本番の両経路で成功） |
 | MN-08 | `endfield-aic-admin.pages.dev` へアクセスすると Cloudflare Access のメール OTP を要求され、非許可メールは入れない | OK（302 リダイレクト・OTP 画面の表示を実機確認。非許可メール `not-an-admin@example.com` ではコードが送信されず先へ進めないことも確認。Cloudflare の仕様で非許可メールにも「送信済み」と出るため、実効拒否はコード非配信という形になる。管理者メールでの OTP 完了は管理者側で確認） |
 | MN-09 | 非公式ファンツール向け管理ツールの明記・非公開であることが見える | OK（ヘッダ・フッタ表示） |
 
 ## 6. 備考
 
-- Admin WASM のビルド成果物には `data/master.json` が同梱コピーされ、初期読み込み元はデプロイ時点の正本になる。URL・ファイル読み込みはその代替経路である。
+- Admin WASM のビルド成果物には `data/master.json` が同梱コピーされ、初期読み込み元はデプロイ時点の原本のコピーになる。URL・ファイル読み込みはその代替経路である。
 - URL 読み込みは別オリジン（`endfield-aic.pages.dev`）への取得のため、App 側 `_headers` に `/data/*` への `Access-Control-Allow-Origin: *` を追加する（公開データのため * でよい）。CORS は取得先オリジンの応答ヘッダで判定されるため、localhost の dev server からも本番 URL の読み込みは成功する（ローカル `_headers` は関係しない）。

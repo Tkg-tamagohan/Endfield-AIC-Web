@@ -69,11 +69,11 @@
 
 | ID | 内容 | 入力 | 期待 |
 |---|---|---|---|
-| ZIP-01 | 生成→読み取りの往復 | 正本 JSON 文字列と I-01 のマニフェスト・ファイル群 | `TryReadZip` が true、JSON が一致、アイコンが `icons/<名>.png` キーで全件取れる |
+| ZIP-01 | 生成→読み取りの往復 | マスタ JSON 文字列と I-01 のマニフェスト・ファイル群 | `TryReadZip` が true、JSON が一致、アイコンが `icons/<名>.png` キーで全件取れる |
 | ZIP-02 | zip 内の配置 | 同上 | エントリ名が `data/master.json` と `data/icons/<名>.png` |
 | ZIP-03 | `data/` 前置きなしの読み取り | `master.json`・`icons/a.png` のみの zip | `TryReadZip` が true で両方取れる |
 | ZIP-04 | 壊れた zip | 非 zip のバイト列 | `TryReadZip` が false |
-| ZIP-05 | 正本なし | アイコンのみの zip | `TryReadZip` が false |
+| ZIP-05 | マスタ JSON なし | アイコンのみの zip | `TryReadZip` が false |
 
 ### ADM: AdminDocumentService のアイコン操作
 

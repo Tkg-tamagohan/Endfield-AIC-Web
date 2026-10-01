@@ -51,7 +51,7 @@ implementation-plan.md が提示する 2 方式（Pages の Git 連携、GitHub 
 ### `_headers` の内容
 
 Pages の既定ヘッダはキャッシュ可能な応答に `Cache-Control: public, max-age=0, must-revalidate` を付ける。
-`_headers` ではこの挙動を `data/` と `_framework/` に明示しておき、正本 JSON やフレームワーク更新がブラウザの強いキャッシュに滞留しないことを保証する。
+`_headers` ではこの挙動を `data/` と `_framework/` に明示しておき、マスタ JSON やフレームワーク更新がブラウザの強いキャッシュに滞留しないことを保証する。
 .NET 8 の発行成果物はファイル名にコンテンツハッシュを含まないため、immutable 系の長期キャッシュは設定しない。
 
 ```
@@ -74,7 +74,7 @@ main での実行は本番デプロイ、それ以外のブランチでの dispa
 1. `actions/checkout`
 2. `actions/setup-dotnet`（`8.0.x`）
 3. `dotnet test -c Release`
-4. `tools/validate_master.py`（CI と同じく `jsonschema[format]==4.25.1` で正本検証）
+4. `tools/validate_master.py`（CI と同じく `jsonschema[format]==4.25.1` でマスタ JSON を検証）
 5. `dotnet publish src/EndfieldAicWeb.App -c Release -o artifacts/app`
 6. `cloudflare/wrangler-action@v3` で `wrangler pages deploy artifacts/app/wwwroot --project-name=endfield-aic`
    - wrangler のバージョンは公開から 7 日以上経過した安定版でピンする（`wranglerVersion`）
@@ -101,7 +101,7 @@ main での実行は本番デプロイ、それ以外のブランチでの dispa
 2. wrangler でプロジェクトを作成し、ローカルから初回デプロイする。
 3. 公開 URL を `curl` で検証する。
    - `/` が 200 で `index.html` を返す
-   - `/data/master.json` が 200 で正本を返す
+   - `/data/master.json` が 200 でマスタ JSON を返す
    - `/_framework/blazor.webassembly.js` が 200 を返す
    - 存在しないパスが SPA フォールバックで `index.html` を返す
    - `/data/*` と `/_framework/*` の応答に設定した `Cache-Control` が出る
