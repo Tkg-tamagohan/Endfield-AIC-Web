@@ -35,7 +35,7 @@
 ## 2. 読み込み・検証・エクスポートの流れ（要件 §7-1/2/4）
 
 1. 読み込みは次の 3 系統。いずれも `MasterJsonLoader.Load` で構文・構造・意味を検証し、違反があれば一覧表示して編集状態へ入らない。
-   - 「同梱マスタを読み込む」：Admin 自体に同梱される `data/master.json`（デプロイ時点の原本）。
+   - 「同梱マスタを読み込む」：Admin 自体に同梱される `data/master.json`（デプロイ時点の原本のコピー）。
    - URL 指定：既定値は公開アプリの `https://endfield-aic.pages.dev/data/master.json`。App 側 `_headers` の `Access-Control-Allow-Origin: *` でオリジン横断の取得を可能にする。
    - ファイル選択：`InputFile` でローカルの JSON を読む。
 2. 編集は読み込んだ `MasterDocument` を直接書き換える。変更のたびに全体検証を走らせず、「検証を実行」ボタンとエクスポート時の 2 箇所で `MasterValidator` 相当の規則を適用する。
