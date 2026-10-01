@@ -98,7 +98,7 @@ Admin の計算プレビュー（/preview）のアイテム選択はネイティ
 
 ```json
 // Maps に追加
-{"GameEventId": null, "GatherRates": [{"ItemId": "item-originiumOre", "IsUnlimited": true, "RatePerMinute": null}], "Id": "map-check", "Name": "採取確認地", "Description": "採取節の表示確認用（計算プレビュー確認用）", "IconKey": null, "VersionAdded": "0.1.0", "VersionRemoved": null}
+{"GameEventId": null, "GatherRates": [{"ItemId": "item-originiumOre", "IsUnlimited": true, "RatePerMinute": null}, {"ItemId": "item-cleanWater", "IsUnlimited": true, "RatePerMinute": null}], "Id": "map-check", "Name": "採取確認地", "Description": "採取節の表示確認用（計算プレビュー確認用）", "IconKey": null, "VersionAdded": "0.1.0", "VersionRemoved": null}
 // Recipes に追加（採取上限超過分のレシピ展開確認用）
 {"GameEventId": null, "Inputs": [{"ItemId": "item-cleanWater", "Quantity": 1}], "Outputs": [{"ItemId": "item-originiumOre", "Quantity": 1, "SortOrder": 0}], "Facilities": [{"FacilityId": "fac-refining", "CycleTime": 4, "EnvironmentId": null, "FixedConsumption": null}], "Id": "recipe-ore", "Name": "鉱物代替レシピ", "Description": "採取上限超過分のレシピ展開確認用（計算プレビュー確認用）", "IconKey": null, "VersionAdded": "0.1.0", "VersionRemoved": null}
 ```
