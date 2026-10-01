@@ -11,19 +11,17 @@
 else
 {
     <div class="admin-layout">
-        <ListPane TItem="Recipe" Items="Store.Document!.Recipes"
-                  KeyOf="r => r.Id" TextOf="r => r.Name" SubOf="r => r.Id"
-                  SelectedKey="@_selected?.Id"
-                  OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
-
-        <section class="panel" @key="_selected">
+        <section class="panel" @key="_selected" @ref="_panelRef">
+            <div class="panel-head">
+                <h2 class="panel-title">レシピ編集</h2>
+                <button class="btn" @onclick="New">＋ 新規</button>
+            </div>
             @if (_selected is null)
             {
-                <p class="muted">左の一覧からレシピを選ぶか、新規追加してください。</p>
+                <p class="muted">下の一覧からレシピを選ぶか、新規追加してください。</p>
             }
             else
             {
-                <h2 class="panel-title">レシピ編集</h2>
                 <CommonFieldsEditor Entity="_selected" OnChanged="Changed" />
                 <div class="form-grid">
                     <label>所属イベント</label>
@@ -121,6 +119,11 @@ else
                 <p class="hint">変更は即時反映されます。ホームの「検証を実行」で整合性を確認してください。</p>
             }
         </section>
+
+        <ListPane TItem="Recipe" Items="Store.Document!.Recipes"
+                  KeyOf="r => r.Id" TextOf="r => r.Name" SubOf="r => r.Id"
+                  SelectedKey="@_selected?.Id"
+                  OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
     </div>
 }
 
@@ -129,6 +132,8 @@ else
     public string? Select { get; set; }
 
     private Recipe? _selected;
+    private ElementReference _panelRef;
+    private bool _scrollToPanel;
     private IReadOnlyList<SelectOption> _itemOptions = [];
     private IReadOnlyList<SelectOption> _facilityOptions = [];
     private IReadOnlyList<SelectOption> _envOptions = [];
@@ -155,6 +160,7 @@ else
     private void SelectEntity(string id)
     {
         _selected = Store.Document!.Recipes.FirstOrDefault(r => r.Id == id);
+        _scrollToPanel = true;
     }
 
     private void New()
@@ -169,6 +175,7 @@ else
         doc.Recipes.Add(recipe);
         Store.NotifyChanged();
         _selected = recipe;
+        _scrollToPanel = true;
     }
 
     private async Task Delete(Recipe recipe)
@@ -298,5 +305,14 @@ else
         }
 
         Store.NotifyChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_scrollToPanel)
+        {
+            _scrollToPanel = false;
+            await JS.InvokeVoidAsync("scrollElementIntoView", _panelRef);
+        }
     }
 }

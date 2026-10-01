@@ -127,6 +127,18 @@ h1:focus {
     margin-top: 0;
 }
 
+.panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.panel-head .panel-title {
+    margin: 0;
+}
+
 .input {
     background: var(--panel-deep);
     border: 1px solid var(--border);
@@ -435,7 +447,7 @@ select.input {
 /* エンティティ編集 */
 .admin-layout {
     display: grid;
-    grid-template-columns: minmax(240px, 300px) 1fr;
+    grid-template-columns: 1fr;
     gap: 16px;
     align-items: start;
 }
