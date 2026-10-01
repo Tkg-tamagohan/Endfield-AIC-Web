@@ -11,7 +11,7 @@
 else
 {
     <div class="admin-layout">
-        <section class="panel" @key="_selected">
+        <section class="panel" @key="_selected" @ref="_panelRef">
             <div class="panel-head">
                 <h2 class="panel-title">設備編集</h2>
                 <button class="btn" @onclick="New">＋ 新規</button>
@@ -49,6 +49,8 @@ else
     public string? Select { get; set; }
 
     private Facility? _selected;
+    private ElementReference _panelRef;
+    private bool _scrollToPanel;
 
     protected override void OnParametersSet()
     {
@@ -61,6 +63,7 @@ else
     private void SelectEntity(string id)
     {
         _selected = Store.Document!.Facilities.FirstOrDefault(f => f.Id == id);
+        _scrollToPanel = true;
     }
 
     private void New()
@@ -70,6 +73,7 @@ else
         Store.Document.Facilities.Add(facility);
         Store.NotifyChanged();
         _selected = facility;
+        _scrollToPanel = true;
     }
 
     private async Task Delete(Facility facility)
@@ -102,4 +106,13 @@ else
     }
 
     private void Changed(string? _) => Store.NotifyChanged();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_scrollToPanel)
+        {
+            _scrollToPanel = false;
+            await JS.InvokeVoidAsync("scrollElementIntoView", _panelRef);
+        }
+    }
 }

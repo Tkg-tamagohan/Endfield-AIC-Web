@@ -11,7 +11,7 @@
 else
 {
     <div class="admin-layout">
-        <section class="panel" @key="_selected">
+        <section class="panel" @key="_selected" @ref="_panelRef">
             <div class="panel-head">
                 <h2 class="panel-title">アイテム編集</h2>
                 <button class="btn" @onclick="New">＋ 新規</button>
@@ -64,6 +64,8 @@ else
 
     private Item? _selected;
     private IReadOnlyList<SelectOption> _eventOptions = [];
+    private ElementReference _panelRef;
+    private bool _scrollToPanel;
 
     protected override void OnParametersSet()
     {
@@ -82,6 +84,7 @@ else
     private void SelectEntity(string id)
     {
         _selected = Store.Document!.Items.FirstOrDefault(i => i.Id == id);
+        _scrollToPanel = true;
     }
 
     private void New()
@@ -91,6 +94,7 @@ else
         Store.Document.Items.Add(item);
         Store.NotifyChanged();
         _selected = item;
+        _scrollToPanel = true;
     }
 
     private async Task Delete(Item item)
@@ -144,6 +148,15 @@ else
     }
 
     private void Changed(string? _) => Store.NotifyChanged();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_scrollToPanel)
+        {
+            _scrollToPanel = false;
+            await JS.InvokeVoidAsync("scrollElementIntoView", _panelRef);
+        }
+    }
 
     private static string TransportLabel(TransportKind kind) => kind switch
     {

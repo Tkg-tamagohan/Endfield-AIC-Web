@@ -11,7 +11,7 @@
 else
 {
     <div class="admin-layout">
-        <section class="panel" @key="_selected">
+        <section class="panel" @key="_selected" @ref="_panelRef">
             <div class="panel-head">
                 <h2 class="panel-title">レシピ編集</h2>
                 <button class="btn" @onclick="New">＋ 新規</button>
@@ -132,6 +132,8 @@ else
     public string? Select { get; set; }
 
     private Recipe? _selected;
+    private ElementReference _panelRef;
+    private bool _scrollToPanel;
     private IReadOnlyList<SelectOption> _itemOptions = [];
     private IReadOnlyList<SelectOption> _facilityOptions = [];
     private IReadOnlyList<SelectOption> _envOptions = [];
@@ -158,6 +160,7 @@ else
     private void SelectEntity(string id)
     {
         _selected = Store.Document!.Recipes.FirstOrDefault(r => r.Id == id);
+        _scrollToPanel = true;
     }
 
     private void New()
@@ -172,6 +175,7 @@ else
         doc.Recipes.Add(recipe);
         Store.NotifyChanged();
         _selected = recipe;
+        _scrollToPanel = true;
     }
 
     private async Task Delete(Recipe recipe)
@@ -301,5 +305,14 @@ else
         }
 
         Store.NotifyChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_scrollToPanel)
+        {
+            _scrollToPanel = false;
+            await JS.InvokeVoidAsync("scrollElementIntoView", _panelRef);
+        }
     }
 }
