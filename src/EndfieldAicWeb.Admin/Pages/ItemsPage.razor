@@ -11,26 +11,23 @@
 else
 {
     <div class="admin-layout">
-        <ListPane TItem="Item" Items="Store.Document!.Items"
-                  KeyOf="i => i.Id" TextOf="i => i.Name" SubOf="i => i.Id"
-                  ExtraSearchOf="i => i.Category"
-                  SelectedKey="@_selected?.Id"
-                  OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
-
         <section class="panel" @key="_selected">
+            <div class="panel-head">
+                <h2 class="panel-title">アイテム編集</h2>
+                <button class="btn" @onclick="New">＋ 新規</button>
+            </div>
             @if (_selected is null)
             {
-                <p class="muted">左の一覧からアイテムを選ぶか、新規追加してください。</p>
+                <p class="muted">下の一覧からアイテムを選ぶか、新規追加してください。</p>
             }
             else
             {
-                <h2 class="panel-title">アイテム編集</h2>
                 <CommonFieldsEditor Entity="_selected" OnChanged="Changed" />
                 <div class="form-grid">
                     <label>カテゴリ</label>
                     <input class="input" value="@_selected.Category" @onchange="e => ApplyText(v => _selected.Category = v, e)" />
 
-                    <label>採取素材</label>
+                    <label>天然資源</label>
                     <span class="check">
                         <input type="checkbox" checked="@_selected.IsGatherable"
                                @onchange="e => ApplyBool(v => _selected.IsGatherable = v, e)" />
@@ -52,6 +49,12 @@ else
                 <p class="hint">変更は即時反映されます。ホームの「検証を実行」で整合性を確認してください。</p>
             }
         </section>
+
+        <ListPane TItem="Item" Items="Store.Document!.Items"
+                  KeyOf="i => i.Id" TextOf="i => i.Name" SubOf="i => i.Id"
+                  ExtraSearchOf="i => i.Category"
+                  SelectedKey="@_selected?.Id"
+                  OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
     </div>
 }
 

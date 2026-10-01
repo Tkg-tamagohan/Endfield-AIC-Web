@@ -11,19 +11,17 @@
 else
 {
     <div class="admin-layout">
-        <ListPane TItem="GameMap" Items="Store.Document!.Maps"
-                  KeyOf="map => map.Id" TextOf="map => map.Name" SubOf="map => map.Id"
-                  SelectedKey="@_selected?.Id"
-                  OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
-
         <section class="panel" @key="_selected">
+            <div class="panel-head">
+                <h2 class="panel-title">マップ編集</h2>
+                <button class="btn" @onclick="New">＋ 新規</button>
+            </div>
             @if (_selected is null)
             {
-                <p class="muted">左の一覧からマップを選ぶか、新規追加してください。</p>
+                <p class="muted">下の一覧からマップを選ぶか、新規追加してください。</p>
             }
             else
             {
-                <h2 class="panel-title">マップ編集</h2>
                 <CommonFieldsEditor Entity="_selected" OnChanged="Changed" />
                 <div class="form-grid">
                     <label>所属イベント</label>
@@ -66,10 +64,15 @@ else
                     </table>
                     <button class="btn" @onclick="AddRate">＋ 採取レートを追加</button>
                 </div>
-                <p class="hint">行のない採取素材は、このマップでは採取できません（上限 0）。候補は採取素材のアイテムだけです。</p>
+                <p class="hint">行のない天然資源は、このマップでは採取できません（上限 0）。候補は天然資源のアイテムだけです。</p>
                 <p class="hint">変更は即時反映されます。ホームの「検証を実行」で整合性を確認してください。</p>
             }
         </section>
+
+        <ListPane TItem="GameMap" Items="Store.Document!.Maps"
+                  KeyOf="map => map.Id" TextOf="map => map.Name" SubOf="map => map.Id"
+                  SelectedKey="@_selected?.Id"
+                  OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
     </div>
 }
 
