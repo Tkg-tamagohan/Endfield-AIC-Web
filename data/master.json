@@ -1,89 +1,473 @@
 {
   "SchemaVersion": 1,
-  "DataVersion": "0.2.0",
+  "DataVersion": "0.2.2",
   "Items": [
     {
-      "Category": "採取素材",
+      "Category": "鉱物",
       "IsGatherable": true,
       "TransportKind": "Belt",
       "GameEventId": null,
-      "Id": "item-ore",
-      "Name": "原鉱石",
-      "Description": "採取される基礎的な鉱石",
-      "IconKey": "icon-item-ore",
-      "VersionAdded": "0.1.0",
+      "Id": "item-originiumOre",
+      "Name": "源石鉱物",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
       "VersionRemoved": null
     },
     {
-      "Category": "採取素材",
+      "Category": "鉱物",
       "IsGatherable": true,
       "TransportKind": "Belt",
       "GameEventId": null,
-      "Id": "item-fuel",
-      "Name": "固形燃料",
-      "Description": "設備の動力として継続消費される燃料",
-      "IconKey": "icon-item-fuel",
-      "VersionAdded": "0.1.0",
+      "Id": "item-amethystOre",
+      "Name": "紫晶鉱物",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
       "VersionRemoved": null
     },
     {
-      "Category": "採取素材",
+      "Category": "鉱物",
+      "IsGatherable": true,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-ferriumOre",
+      "Name": "青鉄鉱物",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "鉱物",
+      "IsGatherable": true,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-cupriumOre",
+      "Name": "赤銅鉱物",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.1.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "液体",
       "IsGatherable": true,
       "TransportKind": "Pipe",
       "GameEventId": null,
-      "Id": "item-gas",
-      "Name": "活性ガス",
-      "Description": "散布機が環境維持のために消費するガス",
+      "Id": "item-cleanWater",
+      "Name": "水",
+      "Description": "",
       "IconKey": null,
-      "VersionAdded": "0.1.0",
+      "VersionAdded": "1.0.0",
       "VersionRemoved": null
     },
     {
-      "Category": "エネルギー",
-      "IsGatherable": false,
-      "TransportKind": "None",
+      "Category": "液体",
+      "IsGatherable": true,
+      "TransportKind": "Pipe",
       "GameEventId": null,
-      "Id": "item-power",
-      "Name": "電力",
-      "Description": "輸送できない仮想アイテム",
-      "IconKey": "icon-item-power",
-      "VersionAdded": "0.1.0",
+      "Id": "item-precipitationAcid",
+      "Name": "沈殿酸",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.2.0",
       "VersionRemoved": null
     },
     {
-      "Category": "部品",
+      "Category": "気体",
+      "IsGatherable": true,
+      "TransportKind": "Pipe",
+      "GameEventId": null,
+      "Id": "item-inergen",
+      "Name": "不活性ガス",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.4.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "気体",
+      "IsGatherable": true,
+      "TransportKind": "Pipe",
+      "GameEventId": null,
+      "Id": "item-xiragen",
+      "Name": "息壌ガス",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.4.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "植物",
       "IsGatherable": false,
       "TransportKind": "Belt",
       "GameEventId": null,
-      "Id": "item-part",
-      "Name": "汎用部品",
-      "Description": "各種加工に使う汎用的な部品",
-      "IconKey": "icon-item-part",
-      "VersionAdded": "0.1.0",
+      "Id": "item-sandlraf",
+      "Name": "サンドリーフ",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
       "VersionRemoved": null
     },
     {
-      "Category": "部品",
+      "Category": "種",
       "IsGatherable": false,
       "TransportKind": "Belt",
       "GameEventId": null,
-      "Id": "item-part-hp",
-      "Name": "高純度部品",
-      "Description": "ガス環境下で精製される高純度の部品",
+      "Id": "item-sandleafSeed",
+      "Name": "サンドリーフの種",
+      "Description": "",
       "IconKey": null,
-      "VersionAdded": "0.1.0",
+      "VersionAdded": "1.0.0",
       "VersionRemoved": null
     },
     {
-      "Category": "イベント",
+      "Category": "植物",
       "IsGatherable": false,
       "TransportKind": "Belt",
-      "GameEventId": "ev-first",
-      "Id": "item-limited",
-      "Name": "祝祭の勲章",
-      "Description": "イベント期間限定の記念品",
+      "GameEventId": null,
+      "Id": "item-jincao",
+      "Name": "錦草",
+      "Description": "",
       "IconKey": null,
-      "VersionAdded": "0.1.0",
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "種",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-jincaoSeed",
+      "Name": "錦草の種",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "植物",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-yanzen",
+      "Name": "芽針",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "種",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-yanzenSeed",
+      "Name": "芽針の種",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "精錬素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-carbon",
+      "Name": "炭塊",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "精錬素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-stabilizedCarbon",
+      "Name": "安定炭塊",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "精錬素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-origocrust",
+      "Name": "結晶外殻",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "精錬素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-amethystFiber",
+      "Name": "紫晶繊維",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "精錬素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-ferrium",
+      "Name": "青鉄塊",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "精錬素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-cuprium",
+      "Name": "赤銅塊",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.1.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "精錬素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-packedOrigocrust",
+      "Name": "特製結晶",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "精錬素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-crystonFiber",
+      "Name": "高晶繊維",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "精錬素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-steel",
+      "Name": "鋼",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "沈殿素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-hetonite",
+      "Name": "緋銅塊",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.2.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "転換素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-pyrrolite",
+      "Name": "焔銅塊",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.4.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "粉末素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-carbonPowder",
+      "Name": "炭塊粉末",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "粉末素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-originiumPowder",
+      "Name": "源石粉末",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "粉末素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-origocrustPowder",
+      "Name": "結晶外殻粉末",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "粉末素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-amethystPowder",
+      "Name": "紫晶粉末",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "粉末素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-ferriumPowder",
+      "Name": "青鉄粉末",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "粉末素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-cupriumPowder",
+      "Name": "赤銅粉末",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "粉末素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-sandleafPowder",
+      "Name": "サンドリーフ粉末",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "0.2.1",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "研磨素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-denceCarbonPowder",
+      "Name": "高密度炭塊粉末",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "研磨素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-denceOriginiumPowder",
+      "Name": "高密度源石粉末",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "研磨素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-denceOrigocrustPowder",
+      "Name": "高密度結晶粉末",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "研磨素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-cystonPowder",
+      "Name": "高晶粉末",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "研磨素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-denceFerriumPowder",
+      "Name": "高密度青鉄粉末",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "息壌",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-xiranite",
+      "Name": "息壌",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "息壌",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-heavyXiranite",
+      "Name": "重息壌",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "0.2.1",
       "VersionRemoved": null
     }
   ],
@@ -91,240 +475,60 @@
     {
       "Width": 3,
       "Height": 3,
-      "PowerConsumption": 50,
-      "Id": "fac-assembler",
-      "Name": "加工機",
-      "Description": "素材を加工する汎用設備",
-      "IconKey": "icon-fac-assembler",
-      "VersionAdded": "0.1.0",
+      "PowerConsumption": 5,
+      "Id": "fac-refining",
+      "Name": "精錬炉",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
       "VersionRemoved": null
     },
     {
-      "Width": 2,
-      "Height": 2,
-      "PowerConsumption": 20,
-      "Id": "fac-dispenser",
-      "Name": "ガス散布機",
-      "Description": "ガスを散布してガス環境を供給する設備",
+      "Width": 3,
+      "Height": 3,
+      "PowerConsumption": 5,
+      "Id": "fac-shredding",
+      "Name": "粉砕機",
+      "Description": "",
       "IconKey": null,
-      "VersionAdded": "0.1.0",
+      "VersionAdded": "1.0.0",
       "VersionRemoved": null
     }
   ],
-  "Environments": [
-    {
-      "ProviderFacilityId": "fac-dispenser",
-      "ConsumeItemId": "item-gas",
-      "ConsumeRatePerMinute": 360,
-      "GameEventId": null,
-      "Id": "env-gas",
-      "Name": "ガス環境",
-      "Description": "ガスが充満した環境。専用レシピを開放する",
-      "IconKey": null,
-      "VersionAdded": "0.1.0",
-      "VersionRemoved": null
-    }
-  ],
-  "GameEvents": [
-    {
-      "ActiveFrom": "2025-01-01T00:00:00Z",
-      "ActiveTo": "2025-01-31T23:59:59Z",
-      "Id": "ev-first",
-      "Name": "初回開放イベント",
-      "Description": "最初の期間限定イベント",
-      "IconKey": null,
-      "VersionAdded": "0.1.0",
-      "VersionRemoved": null
-    }
-  ],
+  "Environments": [],
+  "GameEvents": [],
   "Recipes": [
     {
       "GameEventId": null,
       "Inputs": [
         {
-          "ItemId": "item-ore",
-          "Quantity": 2
+          "ItemId": "item-originiumOre",
+          "Quantity": 1
         }
       ],
       "Outputs": [
         {
-          "ItemId": "item-part",
+          "ItemId": "item-origocrust",
           "Quantity": 1,
           "SortOrder": 0
         }
       ],
       "Facilities": [
         {
-          "FacilityId": "fac-assembler",
-          "CycleTime": 4,
-          "EnvironmentId": null,
-          "FixedConsumption": null
-        },
-        {
-          "FacilityId": "fac-assembler",
-          "CycleTime": 3,
-          "EnvironmentId": "env-gas",
-          "FixedConsumption": {
-            "ItemId": "item-fuel",
-            "RatePerMinute": 30
-          }
-        }
-      ],
-      "Id": "recipe-part",
-      "Name": "汎用部品",
-      "Description": "原鉱石から汎用部品を加工する",
-      "IconKey": null,
-      "VersionAdded": "0.1.0",
-      "VersionRemoved": null
-    },
-    {
-      "GameEventId": null,
-      "Inputs": [
-        {
-          "ItemId": "item-part",
-          "Quantity": 1
-        },
-        {
-          "ItemId": "item-gas",
-          "Quantity": 1
-        }
-      ],
-      "Outputs": [
-        {
-          "ItemId": "item-part-hp",
-          "Quantity": 1,
-          "SortOrder": 0
-        }
-      ],
-      "Facilities": [
-        {
-          "FacilityId": "fac-assembler",
-          "CycleTime": 6,
-          "EnvironmentId": "env-gas",
-          "FixedConsumption": null
-        }
-      ],
-      "Id": "recipe-part-hp",
-      "Name": "高純度部品",
-      "Description": "ガス環境下で汎用部品を精製する",
-      "IconKey": null,
-      "VersionAdded": "0.1.0",
-      "VersionRemoved": null
-    },
-    {
-      "GameEventId": "ev-first",
-      "Inputs": [
-        {
-          "ItemId": "item-ore",
-          "Quantity": 1
-        }
-      ],
-      "Outputs": [
-        {
-          "ItemId": "item-part",
-          "Quantity": 1,
-          "SortOrder": 0
-        }
-      ],
-      "Facilities": [
-        {
-          "FacilityId": "fac-assembler",
+          "FacilityId": "fac-refining",
           "CycleTime": 2,
           "EnvironmentId": null,
           "FixedConsumption": null
         }
       ],
-      "Id": "recipe-part-event",
-      "Name": "汎用部品（イベント）",
-      "Description": "イベント期間限定の高効率レシピ",
+      "Id": "recipe-origocrust01",
+      "Name": "結晶外殻",
+      "Description": "",
       "IconKey": null,
-      "VersionAdded": "0.1.0",
-      "VersionRemoved": null
-    },
-    {
-      "GameEventId": "ev-first",
-      "Inputs": [
-        {
-          "ItemId": "item-part",
-          "Quantity": 2
-        }
-      ],
-      "Outputs": [
-        {
-          "ItemId": "item-limited",
-          "Quantity": 1,
-          "SortOrder": 0
-        }
-      ],
-      "Facilities": [
-        {
-          "FacilityId": "fac-assembler",
-          "CycleTime": 8,
-          "EnvironmentId": null,
-          "FixedConsumption": null
-        }
-      ],
-      "Id": "recipe-limited",
-      "Name": "祝祭の勲章",
-      "Description": "イベント期間限定の記念品を鋳造する",
-      "IconKey": null,
-      "VersionAdded": "0.1.0",
+      "VersionAdded": "1.0.0",
       "VersionRemoved": null
     }
   ],
-  "Maps": [
-    {
-      "GameEventId": null,
-      "GatherRates": [
-        {
-          "ItemId": "item-ore",
-          "IsUnlimited": false,
-          "RatePerMinute": 240
-        },
-        {
-          "ItemId": "item-fuel",
-          "IsUnlimited": true,
-          "RatePerMinute": null
-        }
-      ],
-      "Id": "map-sample",
-      "Name": "サンプル採取地",
-      "Description": "採取上限の動作確認用サンプル（ゲーム実データではない）",
-      "IconKey": null,
-      "VersionAdded": "0.1.0",
-      "VersionRemoved": null
-    }
-  ],
-  "Icons": [
-    {
-      "Key": "icon-item-ore",
-      "File": "icons/icon-item-ore.png",
-      "Sha256": "570eac0e5f37fdaab671e914f9d1937af147933d5afd31b87de0f099b0d70840",
-      "Bytes": 988
-    },
-    {
-      "Key": "icon-item-fuel",
-      "File": "icons/icon-item-fuel.png",
-      "Sha256": "419e31083aa53e59622b6c45b7a08c2014b7667a44870a36bc7bbec5c3d90491",
-      "Bytes": 1021
-    },
-    {
-      "Key": "icon-item-power",
-      "File": "icons/icon-item-power.png",
-      "Sha256": "7b2850179e825150a6c0c248df48b5b211659dae7a9b89d6029c1b32b48db84f",
-      "Bytes": 860
-    },
-    {
-      "Key": "icon-item-part",
-      "File": "icons/icon-item-part.png",
-      "Sha256": "9df8f922bb3bca2aa467a284115c7f34b5da59f98749354bfcdbb3e9daa24c81",
-      "Bytes": 1124
-    },
-    {
-      "Key": "icon-fac-assembler",
-      "File": "icons/icon-fac-assembler.png",
-      "Sha256": "de18333b31a98183b7c133b605aac78f2b712154b306c812c48bfb2ade3b27ca",
-      "Bytes": 729
-    }
-  ]
+  "Maps": [],
+  "Icons": []
 }

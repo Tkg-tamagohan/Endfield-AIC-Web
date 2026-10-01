@@ -52,17 +52,24 @@ dotnet run --project src/EndfieldAicWeb.Admin --no-launch-profile --urls http://
 
 ## ゴールデンパスの期待値（同梱マスタ基準）
 
-`data/master.json`（DataVersion 0.2.0）を対象に、基本導線で期待される表示の基準。マスタ更新で件数が変わったら本表も更新する。
+`data/master.json`（DataVersion 0.2.2）を対象に、基本導線で期待される表示の基準。マスタ更新で件数が変わったら本表も更新する。
 
 | 確認箇所 | 期待値 |
 |---|---|
-| 生産リストのアイテム候補 | 6 件（全 7 アイテムから仮想アイテム `item-power` を除く） |
-| イベント | `ev-first` のみ。期間外のため期間外イベント側（折りたたみ）で、既定チェックは外れている |
-| 計算結果（例: アイテム選択＋数量入力後） | 素材・設備・消費電力の各節が出る（既定は個/分表示） |
-| Admin「現在の文書」パネル | アイコン: 5 件（ファイル取得 5/5）。検証実行後は違反 0 |
-| フッター | 非公式ファンツールの明記がある |
+| 生産リストのアイテム候補 | 39 件（TransportKind=Belt/Pipe の全アイテムが選択可。仮想アイテムは未登録） |
+| イベント | GameEvents 0 件のため「有効イベント」節自体が非表示 |
+| 採取マップ select | Maps 0 件のため「未選択（採取無制限）」1 件のみ |
+| アイコン | Icons 0 件・全エンティティ IconKey=null のため全て「?」プレースホルダ |
+| 計算結果（例: 結晶外殻を 60/分で計算） | 素材「源石鉱物 60/分＝採取」・設備「精錬炉 2 台」・消費電力 10・環境節なし |
+| Admin「現在の文書」パネル | アイテム 39・設備 2・環境 0・イベント 0・マップ 0・レシピ 1・アイコン 0 件（ファイル取得 0/0）。検証実行後は違反 0 |
+| フッター | 非公式ファンツールの明記とデータ版 0.2.2 の表示がある |
 
-## 環境付き計算のゴールデンパス（Phase 9 以降）
+アイテム検索コンボは日本語名だけでなく Id の部分一致でも絞り込める（`ItemSearch.Filter` は Name/Id を OrdinalIgnoreCase で検索）。日本語入力が不安定な環境では ASCII の Id 断片（例: `origocrust` → 結晶外殻が先頭候補）でフィルタするのが確実。
+Admin の計算プレビュー（/preview）のアイテム選択はネイティブ `<select>` で、全アイテムが option として列挙される。
+
+## 環境付き計算のゴールデンパス（旧同梱マスタ 0.2.0 での実測例）
+
+同梱マスタ 0.2.2 には Environments・環境ペアを持つレシピがなく、本節の値は旧サンプルデータでの実測例である。環境行・固定消費・フロー制限ヒントの表示形式の目安として残す。再検証には環境フィクスチャ（環境エンティティ・散布機・環境ペアを持つレシピ）が必要で、投入は後述の採取フィクスチャと同じく稼働中 `wwwroot/data/master.json` への注入で行う。
 
 汎用部品（item-part）を数量 10 で計算すると、環境・固定消費・フロー制限ヒントの表示を 1 回の計算で確認できる。App・Admin プレビュー共通の期待値:
 
@@ -74,9 +81,9 @@ dotnet run --project src/EndfieldAicWeb.Admin --no-launch-profile --urls http://
 - 毎秒トグルは素材の数量・チップのみ /秒 換算する。環境行（個/分）とペアラベル（/分）は表示単位トグルの対象外で変わらない。
 - Admin の計算プレビュー（/preview）は Phase 13 で公開版へ追従し、ペア選択・散布機台数入力・単位トグル・期間入力・採取マップ/レート入力がある。残る意図的差異はアイテム選択が検索コンボではなくネイティブ `<select>`（RefSelect）な点のみ。
 
-### 散布機台数の上限変動シナリオ（フィクスチャ不要）
+### 散布機台数の上限変動シナリオ（旧同梱マスタでの実測例）
 
-同梱マスタは `env-gas` を使うレシピを 2 つ含むため、台数の自動上限が 2→1 に下がるケースをマスタ改変なしで再現できる。
+旧同梱マスタは `env-gas` を使うレシピを 2 つ含んでいたため、台数の自動上限が 2→1 に下がるケースをマスタ改変なしで再現できた。同梱マスタ 0.2.2 では環境関連エンティティが未登録のため、本シナリオは環境フィクスチャの投入後にのみ再現できる。
 
 - `recipe-part`（汎用部品）: 環境ペア（加工機 3秒・ガス環境・固形燃料30/分）が既定、環境なしペア（4秒）へ切替可能。
 - `recipe-part-hp`（高純度部品）: 環境ペア（加工機 6秒・ガス環境）のみ。
@@ -87,23 +94,25 @@ dotnet run --project src/EndfieldAicWeb.Admin --no-launch-profile --urls http://
 
 ## 採取機能の手動確認用フィクスチャ（Phase 12/13）
 
-同梱マスタにはイベント所属マップと「採取素材を産出するレシピ」がない。採取節の全要素（候補外保持・上限到達・レシピ展開）を見るには、稼働中 dev server の `src/EndfieldAicWeb.*/wwwroot/data/master.json` に次を追加して即時配信させる（`dotnet run` 再起動は CopyMasterJson が正本で上書きするため不可。再起動なしで反映）:
+同梱マスタ 0.2.2 にはマップ自体がなく、イベントも未登録である。採取節の要素（上限到達・レシピ展開）を見るには、稼働中 dev server の `src/EndfieldAicWeb.*/wwwroot/data/master.json` に次を追加して即時配信させる（`dotnet run` 再起動は CopyMasterJson が原本で上書きするため不可。再起動なしで反映される）。
 
 ```json
 // Maps に追加
-{"GameEventId": "ev-first", "GatherRates": [{"ItemId": "item-ore", "IsUnlimited": true, "RatePerMinute": null}], "Id": "map-event", "Name": "イベント採取地", "Description": "イベント期間限定の採取地（計算プレビュー確認用）", "IconKey": null, "VersionAdded": "0.1.0", "VersionRemoved": null}
-// Recipes に追加
-{"GameEventId": null, "Inputs": [{"ItemId": "item-fuel", "Quantity": 1}], "Outputs": [{"ItemId": "item-ore", "Quantity": 1, "SortOrder": 0}], "Facilities": [{"FacilityId": "fac-assembler", "CycleTime": 4, "EnvironmentId": null, "FixedConsumption": null}], "Id": "recipe-ore", "Name": "原鉱石採掘", "Description": "採取上限超過分のレシピ展開確認用（計算プレビュー確認用）", "IconKey": null, "VersionAdded": "0.1.0", "VersionRemoved": null}
+{"GameEventId": null, "GatherRates": [{"ItemId": "item-originiumOre", "IsUnlimited": true, "RatePerMinute": null}, {"ItemId": "item-cleanWater", "IsUnlimited": true, "RatePerMinute": null}], "Id": "map-check", "Name": "採取確認地", "Description": "採取節の表示確認用（計算プレビュー確認用）", "IconKey": null, "VersionAdded": "0.1.0", "VersionRemoved": null}
+// Recipes に追加（採取上限超過分のレシピ展開確認用）
+{"GameEventId": null, "Inputs": [{"ItemId": "item-cleanWater", "Quantity": 1}], "Outputs": [{"ItemId": "item-originiumOre", "Quantity": 1, "SortOrder": 0}], "Facilities": [{"FacilityId": "fac-refining", "CycleTime": 4, "EnvironmentId": null, "FixedConsumption": null}], "Id": "recipe-ore", "Name": "鉱物代替レシピ", "Description": "採取上限超過分のレシピ展開確認用（計算プレビュー確認用）", "IconKey": null, "VersionAdded": "0.1.0", "VersionRemoved": null}
 ```
 
-検証後は正本へ戻す。glob が App と Admin の 2 ディレクトリに展開されるため、`for d in src/EndfieldAicWeb.*/wwwroot/data/; do cp data/master.json "$d"; done` とループで両アプリ分を戻す（`cp 対象 .../data/` の形は最後の 1 件にしか効かない）。
+イベント所属マップの候補外保持を再現するには、上記に加えて GameEvents 節へイベントエンティティを投入し、マップの `GameEventId` をその Id に変える。
+
+検証後は原本へ戻す。glob が App と Admin の 2 ディレクトリに展開されるため、`for d in src/EndfieldAicWeb.*/wwwroot/data/; do cp data/master.json "$d"; done` とループで両アプリ分を戻す（`cp 対象 .../data/` の形は最後の 1 件にしか効かない）。
 
 フィクスチャ適用時の期待値（App/Admin 共通）:
 
-- `map-event` は所属イベント `ev-first` を有効にしたときだけ候補に出る。選択中にイベントを外すと「〈名〉（イベント無効）」で候補外保持され `GatherMapUnavailable` 警告＋採取節消失になる。
+- イベント所属マップ（GameEventId 設定済みのマップ）は所属イベントを有効にしたときだけ候補に出る。選択中にイベントを外すと「〈名〉（イベント無効）」で候補外保持され `GatherMapUnavailable` 警告＋採取節消失になる。
 - 採取素材の利用可能レート上書きを既定値より下げると超過分が代替レシピへ展開され採取行に「上限到達」が付く。非数値・負値は「〈名〉 の利用可能レートは 0 以上の数値で入力してください。」で再計算されず前回結果が残る。
 - 採取レート・散布機台数の入力値は数量変更・ペア切替・マップ切替をまたいで保持される。
-- FixedConsumption は施設の合計台数（ceil）請求。例: 加工機 1.17 台 → 2 台で固定消費 30/分 × 2 = 60/分。直感より大きい値が正しいことがある。
+- FixedConsumption は施設の合計台数（ceil）請求。例: 固定消費 30/分を持つ設備が 1.17 台必要なら 2 台分の 60/分が請求される。直感より大きい値が正しいことがある。
 - 単位切替は素材・チップ・未充足・余剰のみ換算。採取節・環境行・消費電力・ペアラベル・フロー制限ヒントは 個/分・/秒 のまま換算対象外。
 - エラー表示が出ると要素が下にずれる。`@onchange` 入力のクリック座標はエラー行の有無で変わるので、エラー中は最新スクリーンショットで位置を取り直す。
 
@@ -142,7 +151,7 @@ Admin ホームのファイル選択で、旧名（IsBaseMaterial / ConsumeRateP
 - エクスポートされた zip の検証は `unzip -o ~/Downloads/master-export*.zip -d <dir>` + Python で sha256/Bytes を `data/master.json` の Icons マニフェストと照合する。連続 DL すると `master-export (1).zip` 等にリネームされるので glob で拾う。
 - file input の `accept=".json,.zip"` 経路は両方テスト可能。`.json` 単体読み込みはアイコンストアを温存する（前回読み込みの zip 由来アイコンが残る）ため、X/Y が前回値を引き継ぐ表示になるのは仕様。
 - `Icons[].File` は `icons/<Key>.png` 形式がロード時の構造検証で強制される。再照合（ストア温存分を新マニフェストの Sha256/Bytes で数え直す処理）の不一致系をテストするために File を改名すると、読み込み自体が違反で失敗して再照合まで辿り着かない。読み込みは通るが再照合だけ落ちる JSON を作るには、File は正しい形のまま `Bytes`/`Sha256` を実体とずらす（例: Bytes を +1）。
-- 同梱マスタには IconKey 未設定のエンティティがいるためフォールバック検証に使える（例: recipe-part は主出力 item-part の icon-item-part にフォールバック、recipe-part-hp は主出力 item-part-hp が未設定なので「?」のまま）。エディタでヒント「主出力アイテムのアイコンが使われます。」の有無が判定材料。
+- 同梱マスタ 0.2.2 は全エンティティが IconKey 未設定のため、一覧は全件「?」プレースホルダになる。レシピは主出力アイテムの IconKey へフォールバックする（例: recipe-origocrust01 は主出力 item-origocrust も未設定のため「?」のまま）。フォールバック対象があるかはエディタのヒント「主出力アイテムのアイコンが使われます。」の有無で判定できる。
 - 提案キー衝突（`icon-<Id>` の -n 連番）は種別またぎで作れる: 別エンティティの IconKey 欄に占有したいキー（例: icon-fac-dispenser）を手入力+Tab 確定 → 対象エンティティに画像登録 → icon-fac-dispenser-2 が補完される。後始末として占有側を「クリア」で null に戻さないと、エクスポートが未登録キー違反で止まる。
 ## エクスポート物を App 側で e2e 確認する手順（Phase 8 以降）
 
@@ -151,8 +160,8 @@ Admin ホームのファイル選択で、旧名（IsBaseMaterial / ConsumeRateP
   1. Admin で master-export.zip を出力し `unzip` する
   2. `cp 展開dir/data/master.json src/EndfieldAicWeb.App/wwwroot/data/` と `cp 展開dir/data/icons/*.png src/EndfieldAicWeb.App/wwwroot/data/icons/`
   3. App を ctrl+shift+r でハードリロード（fetch は `data/master.json` 相対パス、IconCatalog が `data/icons/<Key>.png` を個別取得）
-  4. 検証後は `cp data/master.json ...`＋追加アイコン削除で元に戻す（次回ビルド時にも CopyMasterJson が正本で上書きする）
-- **注意**: `dotnet run` を再起動すると CopyMasterJson が wwwroot/data を正本で上書きするため、コピーはサーバー稼働中に行う。
+  4. 検証後は `cp data/master.json ...`＋追加アイコン削除で元に戻す（次回ビルド時にも CopyMasterJson が原本で上書きする）
+- **注意**: `dotnet run` を再起動すると CopyMasterJson が wwwroot/data を原本で上書きするため、コピーはサーバー稼働中に行う。
 
 ## APNG アニメーションの検証（Phase 8）
 

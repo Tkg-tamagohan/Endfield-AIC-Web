@@ -45,14 +45,12 @@ public class BundledMasterDataTests
         Assert.NotEmpty(document.Recipes);
     }
 
-    [Fact(DisplayName = "MJS-09: 同梱 Maps は map-sample と 2 行を含む")]
-    public void BundledMapSampleHasExactlyTwoGatherRates()
+    [Fact(DisplayName = "MJS-09: 同梱データは Maps を含めて読み込み検証を通過する")]
+    public void BundledMapsPassLoadValidation()
     {
         MasterDocument document = LoadBundledMaster();
 
-        GameMap map = Assert.Single(document.Maps);
-        Assert.Equal("map-sample", map.Id);
-        Assert.Equal(2, map.GatherRates.Count);
+        Assert.All(document.Maps, map => Assert.NotEmpty(map.GatherRates));
     }
 
     [Fact(DisplayName = "CIV-06: Icons マニフェストは data/icons/ の実体と Bytes/Sha256 が一致する")]
