@@ -27,6 +27,10 @@ else
                     <label>所属イベント</label>
                     <RefSelect Value="@_selected.GameEventId" Options="_eventOptions" EmptyLabel="（常設）"
                                ValueChanged="SetGameEvent" />
+
+                    <label>アイテム絞り込み</label>
+                    <RefSelect Value="@_itemCategoryFilter" Options="_categoryOptions" EmptyLabel="すべてのカテゴリ"
+                               ValueChanged="SetItemCategoryFilter" />
                 </div>
 
                 <h3 class="panel-title">入力（Inputs）</h3>
@@ -37,7 +41,7 @@ else
                             @foreach (RecipeInput input in _selected.Inputs)
                             {
                                 <tr @key="input">
-                                    <td><RefSelect Value="@input.ItemId" Options="_itemOptions" EmptyLabel="（未選択）"
+                                    <td><RefSelect Value="@input.ItemId" Options="ItemOptionsFor(input.ItemId)" EmptyLabel="（未選択）"
                                                    ValueChanged="v => SetInputItem(input, v)" /></td>
                                     <td><NumberInput Value="@input.Quantity" Owner="input" Field="Quantity" CssClass="input num"
                                                      ValueChanged="v => SetInputQuantity(input, v)" /></td>
@@ -57,7 +61,7 @@ else
                             @foreach (RecipeOutput output in _selected.Outputs)
                             {
                                 <tr @key="output">
-                                    <td><RefSelect Value="@output.ItemId" Options="_itemOptions" EmptyLabel="（未選択）"
+                                    <td><RefSelect Value="@output.ItemId" Options="ItemOptionsFor(output.ItemId)" EmptyLabel="（未選択）"
                                                    ValueChanged="v => SetOutputItem(output, v)" /></td>
                                     <td><NumberInput Value="@output.Quantity" Owner="output" Field="Quantity" CssClass="input num"
                                                      ValueChanged="v => SetOutputQuantity(output, v)" /></td>
@@ -100,7 +104,7 @@ else
                                         @if (pair.FixedConsumption is { } fc)
                                         {
                                             <div class="fc-row">
-                                                <RefSelect Value="@fc.ItemId" Options="_itemOptions" EmptyLabel="（未選択）"
+                                                <RefSelect Value="@fc.ItemId" Options="ItemOptionsFor(fc.ItemId)" EmptyLabel="（未選択）"
                                                            ValueChanged="v => SetFcItem(fc, v)" />
                                                 <NumberInput Value="@fc.RatePerMinute" Owner="fc" Field="RatePerMinute" CssClass="input tiny"
                                                              ValueChanged="v => SetFcRate(fc, v)" />
@@ -134,7 +138,8 @@ else
     private Recipe? _selected;
     private ElementReference _panelRef;
     private bool _scrollToPanel;
-    private IReadOnlyList<SelectOption> _itemOptions = [];
+    private string? _itemCategoryFilter;
+    private IReadOnlyList<SelectOption> _categoryOptions = [];
     private IReadOnlyList<SelectOption> _facilityOptions = [];
     private IReadOnlyList<SelectOption> _envOptions = [];
     private IReadOnlyList<SelectOption> _eventOptions = [];
@@ -147,7 +152,7 @@ else
         }
 
         MasterDocument doc = Store.Document!;
-        _itemOptions = doc.Items.Select(i => new SelectOption(i.Id, i.Name)).ToList();
+        _categoryOptions = ItemCatalog.Categories(doc.Items).Select(c => new SelectOption(c, c)).ToList();
         _facilityOptions = doc.Facilities.Select(f => new SelectOption(f.Id, f.Name)).ToList();
         _envOptions = doc.Environments.Select(e => new SelectOption(e.Id, e.Name)).ToList();
         _eventOptions = doc.GameEvents.Select(e => new SelectOption(e.Id, e.Name)).ToList();
@@ -200,7 +205,7 @@ else
     {
         _selected!.Inputs.Add(new RecipeInput
         {
-            ItemId = Store.Document!.Items.FirstOrDefault()?.Id ?? "",
+            ItemId = FilteredItems.FirstOrDefault()?.Id ?? "",
             Quantity = 1,
         });
         Store.NotifyChanged();
@@ -218,7 +223,7 @@ else
         int nextSort = _selected!.Outputs.Count == 0 ? 0 : _selected.Outputs.Max(o => o.SortOrder) + 1;
         _selected.Outputs.Add(new RecipeOutput
         {
-            ItemId = Store.Document!.Items.FirstOrDefault()?.Id ?? "",
+            ItemId = FilteredItems.FirstOrDefault()?.Id ?? "",
             Quantity = 1,
             SortOrder = nextSort,
         });
@@ -260,11 +265,24 @@ else
         pair.FixedConsumption = enabled
             ? new FixedConsumption
             {
-                ItemId = Store.Document!.Items.FirstOrDefault()?.Id ?? "",
+                ItemId = FilteredItems.FirstOrDefault()?.Id ?? "",
                 RatePerMinute = 60,
             }
             : null;
         Store.NotifyChanged();
+    }
+
+    private IReadOnlyList<Item> FilteredItems =>
+        ItemCatalog.FilterByCategory(Store.Document!.Items, _itemCategoryFilter);
+
+    private IReadOnlyList<SelectOption> ItemOptionsFor(string? currentItemId) =>
+        ItemCatalog.OptionsForSelection(Store.Document!.Items, _itemCategoryFilter, currentItemId)
+            .Select(i => new SelectOption(i.Id, i.Name))
+            .ToList();
+
+    private void SetItemCategoryFilter(string? value)
+    {
+        _itemCategoryFilter = value;
     }
 
     private void SetInputItem(RecipeInput input, string? value) { input.ItemId = value ?? ""; Store.NotifyChanged(); }

@@ -25,7 +25,17 @@ else
                 <CommonFieldsEditor Entity="_selected" OnChanged="Changed" />
                 <div class="form-grid">
                     <label>カテゴリ</label>
-                    <input class="input" value="@_selected.Category" @onchange="e => ApplyText(v => _selected.Category = v, e)" />
+                    <div>
+                        <input class="input" list="item-category-list" value="@_selected.Category"
+                               @onchange="e => ApplyText(v => _selected.Category = v, e)" />
+                        <datalist id="item-category-list">
+                            @foreach (string category in ItemCatalog.Categories(Store.Document!.Items))
+                            {
+                                <option value="@category"></option>
+                            }
+                        </datalist>
+                        <p class="hint">既存のカテゴリが候補に出ます。新しい名前も入力できます。</p>
+                    </div>
 
                     <label>天然資源</label>
                     <span class="check">
