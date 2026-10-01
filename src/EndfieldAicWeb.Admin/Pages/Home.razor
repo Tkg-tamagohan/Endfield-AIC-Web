@@ -5,7 +5,7 @@
 <PageTitle>データ管理 - Endfield AIC 管理ツール</PageTitle>
 
 <section class="panel">
-    <h2 class="panel-title">正本 JSON の読み込み</h2>
+    <h2 class="panel-title">マスタ JSON の読み込み</h2>
     @if (Store.IsDirty)
     {
         <p class="error">未エクスポートの変更があります。読み込み直すと変更は失われます。</p>
@@ -13,7 +13,7 @@
     <div class="load-grid">
         <div class="load-row">
             <button class="btn" @onclick="LoadBundled">同梱マスタを読み込む</button>
-            <span class="hint">このツールに同梱されているデプロイ時点の正本</span>
+            <span class="hint">このツールに同梱されているデプロイ時点の原本のコピー</span>
         </div>
         <div class="load-row">
             <input class="input" @bind="_urlText" @bind:event="oninput" placeholder="https://…/master.json" />
