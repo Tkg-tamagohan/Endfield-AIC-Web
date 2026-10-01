@@ -37,7 +37,7 @@ Endfield-AIC-Web/
 │   ├── EndfieldAicWeb.Domain.Tests/    # 計算・検証の単体テスト（旧 Core.Tests 移植＋新規）
 │   └── EndfieldAicWeb.Infrastructure.Tests/ # JSON I/O・スキーマ検証のテスト
 ├── data/
-│   ├── master.json                     # 正本 JSON（SchemaVersion=1 新系統、DataVersion 付き。仕様決定 C/D）
+│   ├── master.json                     # マスタ JSON（SchemaVersion=1 新系統、DataVersion 付き。仕様決定 C/D）
 │   └── icons/                          # アイコン画像（<Key> 対応 PNG。権利クリアなもののみ、仕様決定 R）
 └── docs/
     ├── requirements.md                 # 確定版要件定義書
@@ -51,7 +51,7 @@ Endfield-AIC-Web/
 
 **依存方向**: `App → Application → Domain` / `Admin → Application → Domain`、`Infrastructure → Domain`（要件 §6.2）。
 Domain は UI・保存実装から完全に分離し、WASM 上でそのまま動く外部依存ゼロの純粋クラスライブラリとする。
-旧リポジトリの `EndfieldAicPlanner.Core`（Models・Calculation・Validation）を土台に新モデルへ適合させる（仕様決定 C）。
+旧リポジトリの `EndfieldAicPlanner.Core`（Models・Calculation・Validation）を基礎に新モデルへ適合させる（仕様決定 C）。
 
 **移植しないもの**（仕様決定 C/K/Q/W/Y/S）: EF Core・SQLite・Layout 系（Layout/PlacedObject/CollisionClass/PlacementGeometry）・WPF（App/Admin）・`RecordOrigin`・発電モデル（PowerCalculator の発電反復・`PowerSupplyRange`・発電レシピ規則）・合成設備の保持枠・ポート（`InternalSlots`/`InputPorts`/`OutputPorts`/`ReactorUnitPacker`）・`CollisionClass`・旧 JSON 相互互換。
 
@@ -76,15 +76,15 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 **出力**: `ProductionPlan`
 
 - `ItemRequirement[] { ItemId, 毎分要求量, 供給内訳(レシピ/副産物/採取素材), 未充足量 }`
-- `FacilityRequirement[] { FacilityId, 実数台数, 切上げ台数 }` — 散布機を含む
-- `RecipeRun[] { RecipeId, FacilityId, CyclesPerMinute }` — ペア単位で保持
+- `FacilityRequirement[] { FacilityId, 実数台数, 切上げ台数 }`： 散布機を含む
+- `RecipeRun[] { RecipeId, FacilityId, CyclesPerMinute }`： ペア単位で保持
 - `EnvironmentRequirement[] { EnvironmentId, 散布機台数, 消費アイテム流量 }`
-- `TotalPowerConsumption` — Σ(PowerConsumption × 切上げ台数)、散布機分を含む。発電側は計算しない（Q/Y）
+- `TotalPowerConsumption`： Σ(PowerConsumption × 切上げ台数)、散布機分を含む。発電側は計算しない（Q/Y）
 - `Surplus[] { ItemId, 毎分余剰量 }`
-- `FlowAdjustment[] { RecipeId, InputItemId, 要求流量(個/s), 推奨制限(個/s) }` — 「調整済」表示に使う（O）
-- `Warning[]` — 循環依存・レシピ未登録・輸送容量超過・イベント非有効による未充足・採取上限超過で代替不可・収束失敗 等
+- `FlowAdjustment[] { RecipeId, InputItemId, 要求流量(個/s), 推奨制限(個/s) }`： 「調整済」表示に使う（O）
+- `Warning[]`： 循環依存・レシピ未登録・輸送容量超過・イベント非有効による未充足・採取上限超過で代替不可・収束失敗 等
 
-**アルゴリズム概要**:
+**アルゴリズム概要**。
 
 1. 目標から net demand マップを構築し、展開（選択ペアで仮実行し入力を需要へ加算）と引き戻し（後供給の副産物で過剰化した稼働の取り消し）を固定点まで反復する。骨格は旧 `ProductionCalculator` の Session を移植する。
 2. 需要アイテムごとの選択は「レシピ → ペア」の二段とする。レシピはコンテキスト適格候補から `VersionAdded` 最新（同率は Id 昇順）を選び、そのレシピのペアから `CycleTime` 最小を選ぶ（F）。同一 (RecipeId, FacilityId) で属性の異なるペア行が複数ある場合も `CycleTime` 最小を既定とし、同率は `EnvironmentId=null` → `FixedConsumption` なし/小の順（U）。ペア上書きはペア行単位で適用し、不適格な上書きは警告して既定へフォールバックする。
@@ -99,7 +99,7 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 
 ## 4. Phase 別タスク
 
-### Phase 1: 基盤（PR: ソリューション雛形＋正本 JSON スキーマ＋CI）
+### Phase 1: 基盤（PR: ソリューション雛形＋マスタ JSON スキーマ＋CI）
 
 - [x] `EndfieldAicWeb.sln` と 7 プロジェクト（src: Domain / Application / Infrastructure / App / Admin、tests: Domain.Tests / Infrastructure.Tests）を作成。App・Admin は Blazor WebAssembly スタンドアロン（net8.0）
 - [x] NuGet パッケージ導入（固定バージョン）

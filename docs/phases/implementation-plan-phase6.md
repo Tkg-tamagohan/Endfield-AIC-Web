@@ -12,7 +12,7 @@
 ### 作るもの
 
 - `EndfieldAicWeb.Admin` の管理 UI（Blazor WASM）
-  - ホーム `/`：正本 JSON の読み込み（同梱のデプロイ済み・URL 指定・ファイル選択）、DataVersion の編集、整合性検証の実行と結果一覧、JSON エクスポート（ファイルダウンロード）
+  - ホーム `/`：マスタ JSON の読み込み（同梱のデプロイ済み・URL 指定・ファイル選択）、DataVersion の編集、整合性検証の実行と結果一覧、JSON エクスポート（ファイルダウンロード）
   - エンティティ編集ページ `/items`・`/facilities`・`/environments`・`/events`・`/recipes`：左ペイン一覧（検索・新規・削除）＋右ペイン編集フォーム
   - 計算プレビュー `/preview`：編集中データで Domain の計算を実行し、素材・設備・環境・電力・余剰・警告を表示する（投入データの妥当性確認用、要件 §7-3）
 - `EndfieldAicWeb.Application` の管理用ユースケース群（§8）
@@ -21,7 +21,7 @@
   - `data/master.json`・`data/icons/` の同梱ターゲット（App と同じ方式。アイコン自体の取り込みは Phase 7）
   - `wwwroot/_headers`・`wwwroot/js/download.js`
 - `deploy-pages.yml` の `deploy-admin` ジョブ追加（Pages プロジェクト `endfield-aic-admin` への配信）
-- App 側 `wwwroot/_headers` の `/data/*` への `Access-Control-Allow-Origin: *` 追加（Admin から公開アプリの正本 JSON を URL 指定で読めるようにするため。公開データのため `*` でよい）
+- App 側 `wwwroot/_headers` の `/data/*` への `Access-Control-Allow-Origin: *` 追加（Admin から公開アプリのマスタ JSON を URL 指定で読めるようにするため。公開データのため `*` でよい）
 - Cloudflare 側の設定：Pages プロジェクト `endfield-aic-admin`、および同ドメインへの Access アプリケーション（メール OTP）
 
 ### 作らないもの
@@ -35,7 +35,7 @@
 ## 2. 読み込み・検証・エクスポートの流れ（要件 §7-1/2/4）
 
 1. 読み込みは次の 3 系統。いずれも `MasterJsonLoader.Load` で構文・構造・意味を検証し、違反があれば一覧表示して編集状態へ入らない。
-   - 「同梱マスタを読み込む」：Admin 自体に同梱される `data/master.json`（デプロイ時点の正本）。
+   - 「同梱マスタを読み込む」：Admin 自体に同梱される `data/master.json`（デプロイ時点の原本）。
    - URL 指定：既定値は公開アプリの `https://endfield-aic.pages.dev/data/master.json`。App 側 `_headers` の `Access-Control-Allow-Origin: *` でオリジン横断の取得を可能にする。
    - ファイル選択：`InputFile` でローカルの JSON を読む。
 2. 編集は読み込んだ `MasterDocument` を直接書き換える。変更のたびに全体検証を走らせず、「検証を実行」ボタンとエクスポート時の 2 箇所で `MasterValidator` 相当の規則を適用する。
@@ -87,7 +87,7 @@ Phase 4 と同じシェル（`site-header`・`site-main`・`site-footer`）と�
 
 - Pages プロジェクト `endfield-aic-admin` は作成済みで、初回デプロイ済み（`https://endfield-aic-admin.pages.dev`）。
 - Zero Trust 組織はチーム名 `tkgtamagohan`（`tkgtamagohan.cloudflareaccess.com`）で有効化済み。
-- Access 設定は API で実施済み:
+- Access 設定は API で実施済み。
   - Self-hosted アプリケーション「Endfield AIC 管理ツール」（`endfield-aic-admin.pages.dev`、セッション 24h、アプリ ID `5a57a87c-dc1a-4073-9bbb-d882597febd2`）
   - ポリシー「管理者メールのみ」（Allow + Include: Emails = 管理者の Gmail アドレス 1 件、ポリシー ID `bdd6e282-31bf-4239-b88f-e06f2807a3e1`）。ログイン方式は既定の One-time PIN（メール OTP）
 - ログイン方式は One-time PIN（メール OTP）を API で追加済み（IdP ID `4abccc65-1077-4b15-9b4f-b1a141cb685e`。新規組織は OTP が自動追加されないため IdP として別途作成が必要）。Cloudflare アカウント IdP も残置（どちらでも許可メールでのみ通過可）。
