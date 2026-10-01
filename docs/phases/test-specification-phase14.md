@@ -1,7 +1,7 @@
 # Phase 14 テスト仕様書
 
 **対象**: Phase 14 成果物（管理ツールのアイテム選択簡易化）
-**前提ドキュメント**: [implementation-plan-phase14.md](implementation-plan-phase14.md)（§6 の暫定解釈を含む）
+**前提ドキュメント**: [implementation-plan-phase14.md](implementation-plan-phase14.md)（§6 の確定判断を含む）
 
 > 本書は Phase 14 の受け入れ条件を検証するためのテスト項目と仕様を定める。
 > 項目 ID は `分類-連番` で採番し、要件との対応をトレースできるようにする。
