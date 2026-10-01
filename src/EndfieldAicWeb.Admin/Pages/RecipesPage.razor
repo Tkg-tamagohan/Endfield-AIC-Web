@@ -41,7 +41,7 @@ else
                             @foreach (RecipeInput input in _selected.Inputs)
                             {
                                 <tr @key="input">
-                                    <td><RefSelect Value="@input.ItemId" Options="ItemOptionsFor(input.ItemId)" EmptyLabel="（未選択）"
+                                    <td><RefSelect @key="_itemCategoryFilter" Value="@input.ItemId" Options="ItemOptionsFor(input.ItemId)" EmptyLabel="（未選択）"
                                                    ValueChanged="v => SetInputItem(input, v)" /></td>
                                     <td><NumberInput Value="@input.Quantity" Owner="input" Field="Quantity" CssClass="input num"
                                                      ValueChanged="v => SetInputQuantity(input, v)" /></td>
@@ -61,7 +61,7 @@ else
                             @foreach (RecipeOutput output in _selected.Outputs)
                             {
                                 <tr @key="output">
-                                    <td><RefSelect Value="@output.ItemId" Options="ItemOptionsFor(output.ItemId)" EmptyLabel="（未選択）"
+                                    <td><RefSelect @key="_itemCategoryFilter" Value="@output.ItemId" Options="ItemOptionsFor(output.ItemId)" EmptyLabel="（未選択）"
                                                    ValueChanged="v => SetOutputItem(output, v)" /></td>
                                     <td><NumberInput Value="@output.Quantity" Owner="output" Field="Quantity" CssClass="input num"
                                                      ValueChanged="v => SetOutputQuantity(output, v)" /></td>
@@ -104,7 +104,7 @@ else
                                         @if (pair.FixedConsumption is { } fc)
                                         {
                                             <div class="fc-row">
-                                                <RefSelect Value="@fc.ItemId" Options="ItemOptionsFor(fc.ItemId)" EmptyLabel="（未選択）"
+                                                <RefSelect @key="_itemCategoryFilter" Value="@fc.ItemId" Options="ItemOptionsFor(fc.ItemId)" EmptyLabel="（未選択）"
                                                            ValueChanged="v => SetFcItem(fc, v)" />
                                                 <NumberInput Value="@fc.RatePerMinute" Owner="fc" Field="RatePerMinute" CssClass="input tiny"
                                                              ValueChanged="v => SetFcRate(fc, v)" />
