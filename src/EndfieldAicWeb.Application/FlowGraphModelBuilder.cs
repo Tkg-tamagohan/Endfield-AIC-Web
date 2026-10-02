@@ -589,7 +589,9 @@ public static class FlowGraphModelBuilder
                     continue;
                 }
 
-                layer[id] = 1 + MaxAssignedSucc(id);
+                // 循環内の起点（目標など）は常に Layer0。前方への分岐を持つ起点を
+                // 後続の深さで埋めると Layer0 からずれる。
+                layer[id] = IsAnchor(id) ? 0 : 1 + MaxAssignedSucc(id);
             }
 
             if (next.Count == deferred.Count)
@@ -615,8 +617,10 @@ public static class FlowGraphModelBuilder
             foreach (string succ in effSuccs[id])
             {
                 int tail;
-                if (!deferredSet.Contains(succ))
+                if (!deferredSet.Contains(succ) || IsAnchor(succ))
                 {
+                    // Layer0 の起点は経路の端点。起点を通り越して奥の出口まで数えると、
+                    // 起点自身の層（0）と上流ノードの層の積算がずれる。
                     tail = layer[succ];
                 }
                 else

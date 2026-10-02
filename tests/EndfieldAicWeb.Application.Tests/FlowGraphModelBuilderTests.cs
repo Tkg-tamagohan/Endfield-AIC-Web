@@ -495,6 +495,91 @@ public class FlowGraphModelBuilderTests
         Assert.Equal(Node(model, "item:i-z").Rank - 6, Node(model, "item:i-v").Rank);
     }
 
+    // FG-34: 循環内の目標が別の出口へも分岐するとき、層はその目標を端点として数える（仕様決定 BH）。
+    [Fact]
+    public void CycleTargetStopsExitPath()
+    {
+        // i-a は目標かつ循環（i-a→f-1→i-b→f-2→i-a）の構成要素で、別目標 i-z への分岐（f-3）も持つ。
+        // i-b の層は「i-a までの 2 段」。i-a を通り越して i-z まで数えると 4 段に膨らむ。
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-a", "循環目標"), ApplicationFixtures.Item("i-b", "循環素材"),
+             ApplicationFixtures.Item("i-z", "最終目標")],
+            [ApplicationFixtures.Facility("f-1", "機1", 10), ApplicationFixtures.Facility("f-2", "機2", 10),
+             ApplicationFixtures.Facility("f-3", "機3", 10)],
+            [], [],
+            [
+                ApplicationFixtures.Recipe("r-1", "循環素材", [("i-a", 1)], [("i-b", 1)],
+                    [ApplicationFixtures.Pair("f-1", 6)]),
+                ApplicationFixtures.Recipe("r-2", "循環目標", [("i-b", 1)], [("i-a", 1)],
+                    [ApplicationFixtures.Pair("f-2", 6)]),
+                ApplicationFixtures.Recipe("r-3", "最終目標", [("i-a", 1)], [("i-z", 1)],
+                    [ApplicationFixtures.Pair("f-3", 6)]),
+            ]);
+        var plan = new ProductionPlan
+        {
+            ItemRequirements =
+            [
+                new ItemRequirement("i-a", 20, [new SupplyPortion(SupplyKind.Recipe, "r-2", 20)], 0),
+                new ItemRequirement("i-b", 10, [new SupplyPortion(SupplyKind.Recipe, "r-1", 10)], 0),
+                new ItemRequirement("i-z", 10, [new SupplyPortion(SupplyKind.Recipe, "r-3", 10)], 0),
+            ],
+            FacilityRequirements =
+            [
+                new FacilityRequirement("f-1", 1, 1), new FacilityRequirement("f-2", 1, 1),
+                new FacilityRequirement("f-3", 1, 1),
+            ],
+            RecipeRuns =
+            [
+                new RecipeRun("r-1", "f-1", 10), new RecipeRun("r-2", "f-2", 20),
+                new RecipeRun("r-3", "f-3", 10),
+            ],
+            PairSelections =
+            [
+                new PairSelection("i-a", "r-2", ApplicationFixtures.Pair("f-2", 6, recipeId: "r-2")),
+                new PairSelection("i-b", "r-1", ApplicationFixtures.Pair("f-1", 6, recipeId: "r-1")),
+                new PairSelection("i-z", "r-3", ApplicationFixtures.Pair("f-3", 6, recipeId: "r-3")),
+            ],
+            EnvironmentRequirements = [],
+            TotalPowerConsumption = 0,
+            Surpluses = [],
+            FlowAdjustments = [],
+            Warnings = [new CalculationWarning(WarningCode.CycleDetected, "cycle")],
+        };
+
+        FlowGraphModel model = FlowGraphModelBuilder.Build(
+            plan, snapshot, new ContextFilter(), [new ProductionTarget("i-a", 10), new ProductionTarget("i-z", 10)], false);
+
+        // 循環内の目標 i-a は Layer0（右端）に留まり、i-b はその 2 段上流。
+        Assert.Equal(model.Nodes.Max(n => n.Rank), Node(model, "item:i-a").Rank);
+        Assert.Equal(Node(model, "item:i-a").Rank - 2, Node(model, "item:i-b").Rank);
+    }
+
+    // FG-35: 計算機が生成した循環プランでも、目標は右端に留まり循環閉鎖だけが後退する（仕様決定 BH）。
+    [Fact]
+    public void CalculatedCyclePlanKeepsTargetRightmost()
+    {
+        // 種↔製品の相互生産（実データの芽針循環と同じ形）。r-p は外部投入 i-u を必要とする。
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-seed", "種"), ApplicationFixtures.Item("i-u", "水", gatherable: true),
+             ApplicationFixtures.Item("i-y", "製品")],
+            [ApplicationFixtures.Facility("f-p", "栽培機", 10), ApplicationFixtures.Facility("f-s", "採種機", 10)],
+            [], [],
+            [
+                ApplicationFixtures.Recipe("r-p", "製品", [("i-seed", 1), ("i-u", 1)], [("i-y", 1)],
+                    [ApplicationFixtures.Pair("f-p", 6)]),
+                ApplicationFixtures.Recipe("r-s", "種", [("i-y", 1)], [("i-seed", 1)],
+                    [ApplicationFixtures.Pair("f-s", 6)]),
+            ]);
+
+        (_, FlowGraphModel model) = Build(snapshot, targets: new ProductionTarget("i-y", 10));
+
+        // 消費される目標 i-y は Layer0（最右列）。後退するのは循環を閉じる i-y→f-s だけ。
+        Assert.Equal(model.Nodes.Max(n => n.Rank), Node(model, "item:i-y").Rank);
+        Assert.True(Node(model, "item:i-y").Rank > Node(model, "fac:f-s").Rank);
+        Assert.True(Node(model, "item:i-seed").Rank < Node(model, "fac:f-p").Rank);
+        Assert.Equal(0, Node(model, "gather").Rank);
+    }
+
     // FG-11: 余剰のみに登場するアイテムもノード化する。
     [Fact]
     public void SurplusOnlyItemBecomesNode()
