@@ -161,3 +161,6 @@ FIL-05 は選択解除判定として `ItemDeselectTests`（CalculationInputBuil
 | MN-08 | スマートフォン幅で入力・結果が 1 列に落ち、操作が潰れない |
 | MN-09 | 非公式ファンツールの明記が見える。不正入力（空行・非数値）がエラー表示になる |
 | MN-10 | アイテム検索で絞り込んで選択できる。選択済み名を編集すると選択が解除される |
+
+MN-10 はテキスト検索コンボを前提とする項目で、Phase 20（仕様決定 AU）でアイテム選択がカテゴリ・アイテムの select ペアへ替わったため手動確認の対象外である。
+絞り込み・選択の確認は [test-specification-phase20.md](test-specification-phase20.md) の MN-62・MN-63 に移り、選択解除判定 `ShouldDeselectItem` は UI 呼び出し元を持たず `ItemDeselectTests`（CalculationInputBuilderTests.cs）のみで担保する。
