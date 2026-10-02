@@ -63,7 +63,7 @@
 |---|---|
 | `tests/EndfieldAicWeb.Domain.Tests/TransportCapacityTests.cs` | TRN-01〜04 の流量値を新単位の期待へ更新（45/分・90/分・500/分・30/分）。警告文の単位表記検証を追加 |
 | `tests/EndfieldAicWeb.Domain.Tests/FlowAdjustmentTests.cs` | FLW-01/02/04/05 の期待値を個/分へ更新し、フィールド名を追従 |
-| `tests/EndfieldAicWeb.Application.Tests/FlowGraphModelBuilderTests.cs` | FG-13 のコメントの単位を追従 |
+| `tests/EndfieldAicWeb.Application.Tests/FlowGraphModelBuilderTests.cs` | FG-13 の入力を新旧閾値を区別できる流量（`i-t` 60/分）へ変更し、コメントの単位を追従 |
 | `Assert.Empty(plan.Warnings)` を持つ既存テスト | 容量 30/分・60/分 化で新たに発火する分を洗い出し、容量警告のみを許容する形へ見直す。対象は `dotnet test` の全件結果で確定する |
 
 ### 文書（先行 PR で実施済み）

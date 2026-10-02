@@ -29,9 +29,9 @@
 | TRN-02 | パイプ超過は警告 | F-08、`i-pipe-item` 90/分 → 警告（2 レーン）（同上） |
 | TRN-03 | TransportKind=None は対象外 | F-08、`i-none-item` 500/分 → 容量警告なし。上流 `i-belt-src` の流量が容量未満に収まる値を選ぶ（同上） |
 | TRN-04 | 上限ちょうどは警告なし | F-08、`i-belt-item` 30/分 → 警告なし（同上） |
-| FLW-01/02/04 | 推奨制限の期待値 | 個/分値（1240・1280・540。同 §FLW） |
+| FLW-01/02/04 | 推奨制限の期待値 | 個/分値（1240・1280.5・540。同 §FLW。FLW-02 は非整数値で丸めなしを検査） |
 | FLW-05 | ランごとの推奨制限 | 個/分値 5（同 §FLW） |
-| FG-13 | 輸送容量超過の簡易判定 | `max(RequiredPerMinute, 生産量, 採取量)` が新容量を超えるアイテムでフラグ（[test-specification-phase15.md](test-specification-phase15.md) §FG） |
+| FG-13 | 輸送容量超過の簡易判定 | `max(RequiredPerMinute, 生産量, 採取量)` が新容量を超えるアイテムでフラグ（[test-specification-phase15.md](test-specification-phase15.md) §FG）。入力は旧 30 個/s（=1800/分）では発火せず新 30 個/分で発火する値（`i-t` 60/分）とし、/60 残存を検出できるようにする |
 
 ### 新規テスト
 
