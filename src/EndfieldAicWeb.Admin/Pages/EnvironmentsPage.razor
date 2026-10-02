@@ -90,9 +90,8 @@ else
         string id = EntityFactory.SuggestId(Store.Document!.Environments.Select(e => e.Id), "env");
         var env = EntityFactory.NewEnvironment(
             id,
-            Store.Document.DataVersion,
-            Store.Document.Facilities.FirstOrDefault()?.Id,
-            ItemCatalog.FuelItems(Store.Document.Items).FirstOrDefault()?.Id);
+            providerFacilityId: Store.Document.Facilities.FirstOrDefault()?.Id,
+            consumeItemId: ItemCatalog.FuelItems(Store.Document.Items).FirstOrDefault()?.Id);
         Store.Document.Environments.Add(env);
         Store.NotifyChanged();
         _selected = env;

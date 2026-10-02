@@ -68,7 +68,7 @@ else
     private void New()
     {
         string id = EntityFactory.SuggestId(Store.Document!.GameEvents.Select(e => e.Id), "ev");
-        var gameEvent = EntityFactory.NewGameEvent(id, Store.Document.DataVersion);
+        var gameEvent = EntityFactory.NewGameEvent(id);
         Store.Document.GameEvents.Add(gameEvent);
         Store.NotifyChanged();
         _selected = gameEvent;

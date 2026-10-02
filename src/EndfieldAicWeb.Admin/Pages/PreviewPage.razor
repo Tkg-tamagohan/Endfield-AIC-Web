@@ -26,7 +26,7 @@ else
             {
                 <div class="target-row" @key="row">
                     <ItemPicker Value="@row.ItemId" Items="_productionItems" LookupItems="_allItems"
-                                EmptyLabel="（アイテムを選択）" ValueChanged="v => row.ItemId = v" />
+                                ValueChanged="v => row.ItemId = v" />
                     <input class="input rate" @bind="row.RateText" @bind:event="oninput" inputmode="decimal" placeholder="0" />
                     <button class="btn ghost" title="行を削除" @onclick="() => RemoveRow(row)">×</button>
                 </div>
@@ -263,7 +263,7 @@ else
     private sealed class TargetRow
     {
         public string? ItemId;
-        public string RateText = "60";
+        public string RateText = "30";
     }
 
     private sealed class EnvInput(DomainEnv environment, int max)

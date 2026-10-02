@@ -69,7 +69,7 @@ else
     private void New()
     {
         string id = EntityFactory.SuggestId(Store.Document!.Facilities.Select(f => f.Id), "fac");
-        var facility = EntityFactory.NewFacility(id, Store.Document.DataVersion);
+        var facility = EntityFactory.NewFacility(id);
         Store.Document.Facilities.Add(facility);
         Store.NotifyChanged();
         _selected = facility;

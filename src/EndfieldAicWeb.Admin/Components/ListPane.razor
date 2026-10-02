@@ -6,7 +6,7 @@
         @if (CategoryOf is not null)
         {
             <select class="input pane-category" value="@(_category ?? "")" @onchange="OnCategoryChanged">
-                <option value="">すべてのカテゴリ</option>
+                <option value="">カテゴリ</option>
                 @foreach (string category in Categories())
                 {
                     <option value="@category">@category</option>

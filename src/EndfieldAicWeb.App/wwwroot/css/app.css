@@ -126,7 +126,7 @@ select.input {
 }
 
 .input.rate {
-    width: 84px;
+    width: 56px;
     flex: none;
     text-align: right;
 }
@@ -201,9 +201,14 @@ select.input {
     margin-bottom: 8px;
 }
 
-/* 生産リスト行のカテゴリ絞り込み（仕様決定 AQ） */
+/* 生産リスト行のカテゴリ絞り込み＋アイテム選択（仕様決定 AS・AU）。左にカテゴリ、右にアイテム。 */
 .target-row .row-category {
     flex: 0 0 8em;
+    min-width: 0;
+}
+
+.target-row .row-item {
+    flex: 1;
     min-width: 0;
 }
 
@@ -230,41 +235,6 @@ select.input {
 .env-row .label {
     flex: 1;
     min-width: 0;
-}
-
-.combo {
-    position: relative;
-    flex: 1;
-    min-width: 0;
-}
-
-.combo-list {
-    position: absolute;
-    top: calc(100% + 2px);
-    left: 0;
-    right: 0;
-    max-height: 15rem;
-    overflow-y: auto;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    z-index: 20;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
-}
-
-.combo-item {
-    padding: 7px 10px;
-    cursor: pointer;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.combo-item:hover {
-    background: var(--chip);
 }
 
 .past-events {
@@ -342,7 +312,7 @@ select.input {
 }
 
 .period-inputs .input {
-    width: 56px;
+    width: 44px;
     text-align: right;
 }
 

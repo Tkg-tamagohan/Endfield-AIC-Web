@@ -169,6 +169,34 @@ public class AdminToolsTests
             && (e.Field == "Outputs" || e.Field == "Facilities"));
     }
 
+    [Fact]
+    public void ENT08_VersionAdded省略時の既定は1_0_0()
+    {
+        // Phase 20 テスト仕様 ENT-08（仕様決定 AV）
+        Assert.Equal("1.0.0", EntityFactory.NewItem("item-x").VersionAdded);
+    }
+
+    [Fact]
+    public void ENT09_新規レシピの初期ペアのサイクル秒は2()
+    {
+        // Phase 20 テスト仕様 ENT-09（仕様決定 AW）
+        Recipe recipe = EntityFactory.NewRecipe("recipe-x", outputItemId: "i-part", facilityId: "f-asm");
+
+        RecipeFacility pair = Assert.Single(recipe.Facilities);
+        Assert.Equal(2, pair.CycleTime);
+    }
+
+    [Fact]
+    public void ENT10_VersionAdded既定値は種別を問わず1_0_0()
+    {
+        // Phase 20 テスト仕様 ENT-10（仕様決定 AV）
+        Assert.Equal("1.0.0", EntityFactory.NewFacility("fac-x").VersionAdded);
+        Assert.Equal("1.0.0", EntityFactory.NewEnvironment("env-x").VersionAdded);
+        Assert.Equal("1.0.0", EntityFactory.NewGameEvent("ev-x").VersionAdded);
+        Assert.Equal("1.0.0", EntityFactory.NewGameMap("map-x").VersionAdded);
+        Assert.Equal("1.0.0", EntityFactory.NewRecipe("recipe-x").VersionAdded);
+    }
+
     // VER: DataVersion 提案
 
     [Theory]

@@ -1,6 +1,6 @@
 @* カテゴリ絞り込み付きアイテム選択（仕様決定 AS）。カテゴリとアイテムを横並びに置く。 *@
 <div class="item-picker">
-    <RefSelect Value="@_category" Options="_categoryOptions" EmptyLabel="すべてのカテゴリ"
+    <RefSelect Value="@_category" Options="_categoryOptions" EmptyLabel="カテゴリ"
                ValueChanged="v => _category = v" />
     <RefSelect @key="_category" Value="@Value" Options="_itemOptions" EmptyLabel="@EmptyLabel"
                ValueChanged="ValueChanged" />
@@ -23,7 +23,7 @@
 
     /// <summary>アイテム欄の空選択時の表示。</summary>
     [Parameter]
-    public string EmptyLabel { get; set; } = "（未選択）";
+    public string EmptyLabel { get; set; } = "アイテム";
 
     private string? _category;
 

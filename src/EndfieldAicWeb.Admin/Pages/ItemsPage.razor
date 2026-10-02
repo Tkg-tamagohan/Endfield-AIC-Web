@@ -100,7 +100,7 @@ else
     private void New()
     {
         string id = EntityFactory.SuggestId(Store.Document!.Items.Select(i => i.Id), "item");
-        var item = EntityFactory.NewItem(id, Store.Document.DataVersion);
+        var item = EntityFactory.NewItem(id);
         Store.Document.Items.Add(item);
         Store.NotifyChanged();
         _selected = item;

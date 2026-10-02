@@ -291,7 +291,7 @@ select.input {
 }
 
 .period-inputs .input {
-    width: 56px;
+    width: 44px;
     text-align: right;
 }
 
@@ -370,7 +370,7 @@ select.input {
     flex-wrap: wrap;
 }
 
-/* カテゴリ絞り込み付きアイテム選択（仕様決定 AQ）。左にカテゴリ、右にアイテム。 */
+/* カテゴリ絞り込み付きアイテム選択（仕様決定 AS）。左にカテゴリ、右にアイテム。 */
 .item-picker {
     display: flex;
     gap: 6px;
@@ -641,7 +641,7 @@ select.input {
 }
 
 .input.rate {
-    width: 84px;
+    width: 56px;
     flex: none;
     text-align: right;
 }
