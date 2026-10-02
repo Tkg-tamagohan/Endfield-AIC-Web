@@ -1,88 +1,67 @@
 @page "/maps"
 @inject AdminDocumentService Store
-@inject IJSRuntime JS
 
 <PageTitle>マップ - Endfield AIC 管理ツール</PageTitle>
 
-@if (!Store.IsLoaded)
-{
-    <section class="panel"><p class="muted">ホームでマスタ JSON を読み込んでください。</p></section>
-}
-else
-{
-    <div class="admin-layout">
-        <section class="panel" @key="_selected" @ref="_panelRef">
-            <div class="panel-head">
-                <h2 class="panel-title">マップ編集</h2>
-                <button class="btn" @onclick="New">＋ 新規</button>
-            </div>
-            @if (_selected is null)
-            {
-                <p class="muted">下の一覧からマップを選ぶか、新規追加してください。</p>
-            }
-            else
-            {
-                <CommonFieldsEditor Entity="_selected" OnChanged="Changed" />
-                <div class="form-grid">
-                    <label>所属イベント</label>
-                    <RefSelect Value="@_selected.GameEventId" Options="_eventOptions" EmptyLabel="（常設）"
-                               ValueChanged="SetGameEvent" />
-                </div>
+<EntityEditLayout TEntity="GameMap"
+                  EditorTitle="マップ編集"
+                  EmptyHint="下の一覧からマップを選ぶか、新規追加してください。"
+                  @bind-Selected="_selected"
+                  Collection="doc => doc.Maps"
+                  IdPrefix="map"
+                  CreateEntity="(_, id) => EntityFactory.NewGameMap(id)"
+                  RelatedOwnersOf="map => map.GatherRates">
+    <EntityFields Context="map">
+        <div class="form-grid">
+            <label>所属イベント</label>
+            <RefSelect Value="@map.GameEventId" Options="_eventOptions" EmptyLabel="（常設）"
+                       ValueChanged="SetGameEvent" />
+        </div>
 
-                <h3 class="panel-title">採取レート</h3>
-                <div class="sub-block">
-                    <table class="sub-table">
-                        <thead><tr><th>アイテム</th><th>無限</th><th>上限（個/分）</th><th></th></tr></thead>
-                        <tbody>
-                            @foreach (GatherRate rate in _selected.GatherRates)
-                            {
-                                <tr @key="rate">
-                                    <td>
-                                        <ItemPicker Value="@rate.ItemId" Items="_gatherableItems" LookupItems="_allItems"
-                                                    ValueChanged="value => SetItem(rate, value)" />
-                                    </td>
-                                    <td>
-                                        <input type="checkbox" checked="@rate.IsUnlimited"
-                                               @onchange="e => ToggleUnlimited(rate, e)" />
-                                    </td>
-                                    <td>
-                                        @if (rate.IsUnlimited)
-                                        {
-                                            <span>—</span>
-                                        }
-                                        else
-                                        {
-                                            <NumberInput Value="@(rate.RatePerMinute ?? 0)"
-                                                         ValueChanged="value => SetRate(rate, value)"
-                                                         Owner="rate" Field="@nameof(GatherRate.RatePerMinute)" />
-                                        }
-                                    </td>
-                                    <td><button class="btn ghost" @onclick="() => RemoveRate(rate)">×</button></td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                    <button class="btn" @onclick="AddRate">＋ 採取レートを追加</button>
-                </div>
-                <p class="hint">行のない天然資源は、このマップでは採取できません（上限 0）。候補は天然資源のアイテムだけです。</p>
-                <p class="hint">変更は即時反映されます。ホームの「検証を実行」で整合性を確認してください。</p>
-            }
-        </section>
-
-        <ListPane TItem="GameMap" Items="Store.Document!.Maps"
-                  KeyOf="map => map.Id" TextOf="map => map.Name" SubOf="map => map.Id"
-                  SelectedKey="@_selected?.Id"
-                  OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
-    </div>
-}
+        <h3 class="panel-title">採取レート</h3>
+        <div class="sub-block">
+            <table class="sub-table">
+                <thead><tr><th>アイテム</th><th>無限</th><th>上限（個/分）</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (GatherRate rate in map.GatherRates)
+                    {
+                        <tr @key="rate">
+                            <td>
+                                <ItemPicker Value="@rate.ItemId" Items="_gatherableItems" LookupItems="_allItems"
+                                            ValueChanged="value => SetItem(rate, value)" />
+                            </td>
+                            <td>
+                                <input type="checkbox" checked="@rate.IsUnlimited"
+                                       @onchange="e => ToggleUnlimited(rate, e)" />
+                            </td>
+                            <td>
+                                @if (rate.IsUnlimited)
+                                {
+                                    <span>—</span>
+                                }
+                                else
+                                {
+                                    <NumberInput Value="@(rate.RatePerMinute ?? 0)"
+                                                 ValueChanged="value => SetRate(rate, value)"
+                                                 Owner="rate" Field="@nameof(GatherRate.RatePerMinute)" />
+                                }
+                            </td>
+                            <td><button class="btn ghost" @onclick="() => RemoveRate(rate)">×</button></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <button class="btn" @onclick="AddRate">＋ 採取レートを追加</button>
+        </div>
+        <p class="hint">行のない天然資源は、このマップでは採取できません（上限 0）。候補は天然資源のアイテムだけです。</p>
+    </EntityFields>
+</EntityEditLayout>
 
 @code {
     [SupplyParameterFromQuery]
     public string? Select { get; set; }
 
     private GameMap? _selected;
-    private ElementReference _panelRef;
-    private bool _scrollToPanel;
     private IReadOnlyList<SelectOption> _eventOptions = [];
     private IReadOnlyList<Item> _allItems = [];
     private IReadOnlyList<Item> _gatherableItems = [];
@@ -95,47 +74,13 @@ else
         }
 
         MasterDocument document = Store.Document!;
-        _eventOptions = document.GameEvents.Select(e => new SelectOption(e.Id, e.Name)).ToList();
+        _eventOptions = SelectOption.Of(document.GameEvents);
         _allItems = document.Items;
         _gatherableItems = document.Items.Where(item => item.IsGatherable).ToList();
         if (Select is { } id)
         {
             _selected = document.Maps.FirstOrDefault(map => map.Id == id);
         }
-    }
-
-    private void SelectEntity(string id)
-    {
-        _selected = Store.Document!.Maps.FirstOrDefault(map => map.Id == id);
-        _scrollToPanel = true;
-    }
-
-    private void New()
-    {
-        MasterDocument document = Store.Document!;
-        string id = EntityFactory.SuggestId(document.Maps.Select(map => map.Id), "map");
-        var map = EntityFactory.NewGameMap(id);
-        document.Maps.Add(map);
-        Store.NotifyChanged();
-        _selected = map;
-        _scrollToPanel = true;
-    }
-
-    private async Task Delete(GameMap map)
-    {
-        if (!await JS.InvokeAsync<bool>("confirm", $"{map.Name}（{map.Id}）を削除しますか？"))
-        {
-            return;
-        }
-
-        Store.Document!.Maps.Remove(map);
-        Store.ClearInvalidOwners([map, ..map.GatherRates]);
-        if (_selected == map)
-        {
-            _selected = null;
-        }
-
-        Store.NotifyChanged();
     }
 
     private void AddRate()
@@ -187,16 +132,5 @@ else
     {
         rate.RatePerMinute = value;
         Store.NotifyChanged();
-    }
-
-    private void Changed(string? _) => Store.NotifyChanged();
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (_scrollToPanel)
-        {
-            _scrollToPanel = false;
-            await JS.InvokeVoidAsync("scrollElementIntoView", _panelRef);
-        }
     }
 }

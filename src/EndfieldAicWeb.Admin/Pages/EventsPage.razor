@@ -1,55 +1,35 @@
 @page "/events"
 @inject AdminDocumentService Store
-@inject IJSRuntime JS
 
 <PageTitle>イベント - Endfield AIC 管理ツール</PageTitle>
 
-@if (!Store.IsLoaded)
-{
-    <section class="panel"><p class="muted">ホームでマスタ JSON を読み込んでください。</p></section>
-}
-else
-{
-    <div class="admin-layout">
-        <section class="panel" @key="_selected" @ref="_panelRef">
-            <div class="panel-head">
-                <h2 class="panel-title">イベント編集</h2>
-                <button class="btn" @onclick="New">＋ 新規</button>
-            </div>
-            @if (_selected is null)
-            {
-                <p class="muted">下の一覧からイベントを選ぶか、新規追加してください。</p>
-            }
-            else
-            {
-                <CommonFieldsEditor Entity="_selected" OnChanged="Changed" />
-                <div class="form-grid">
-                    <label>開始（UTC）</label>
-                    <input class="input" type="datetime-local" value="@DateText(_selected.ActiveFrom)"
-                           @onchange="e => ApplyDate(v => _selected.ActiveFrom = v, e)" />
+<EntityEditLayout TEntity="GameEvent"
+                  EditorTitle="イベント編集"
+                  EmptyHint="下の一覧からイベントを選ぶか、新規追加してください。"
+                  @bind-Selected="_selected"
+                  Collection="doc => doc.GameEvents"
+                  IdPrefix="ev"
+                  CreateEntity="(_, id) => EntityFactory.NewGameEvent(id)"
+                  FindReferences="MasterReferenceFinder.FindGameEventReferences"
+                  HintPrefix="両方空欄は常設イベントです。">
+    <EntityFields Context="gameEvent">
+        <div class="form-grid">
+            <label>開始（UTC）</label>
+            <input class="input" type="datetime-local" value="@DateText(gameEvent.ActiveFrom)"
+                   @onchange="e => Store.ApplyDate(v => gameEvent.ActiveFrom = v, e)" />
 
-                    <label>終了（UTC）</label>
-                    <input class="input" type="datetime-local" value="@DateText(_selected.ActiveTo)"
-                           @onchange="e => ApplyDate(v => _selected.ActiveTo = v, e)" />
-                </div>
-                <p class="hint">両方空欄は常設イベントです。変更は即時反映されます。ホームの「検証を実行」で整合性を確認してください。</p>
-            }
-        </section>
-
-        <ListPane TItem="GameEvent" Items="Store.Document!.GameEvents"
-                  KeyOf="e => e.Id" TextOf="e => e.Name" SubOf="e => e.Id"
-                  SelectedKey="@_selected?.Id"
-                  OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
-    </div>
-}
+            <label>終了（UTC）</label>
+            <input class="input" type="datetime-local" value="@DateText(gameEvent.ActiveTo)"
+                   @onchange="e => Store.ApplyDate(v => gameEvent.ActiveTo = v, e)" />
+        </div>
+    </EntityFields>
+</EntityEditLayout>
 
 @code {
     [SupplyParameterFromQuery]
     public string? Select { get; set; }
 
     private GameEvent? _selected;
-    private ElementReference _panelRef;
-    private bool _scrollToPanel;
 
     protected override void OnParametersSet()
     {
@@ -59,70 +39,6 @@ else
         }
     }
 
-    private void SelectEntity(string id)
-    {
-        _selected = Store.Document!.GameEvents.FirstOrDefault(e => e.Id == id);
-        _scrollToPanel = true;
-    }
-
-    private void New()
-    {
-        string id = EntityFactory.SuggestId(Store.Document!.GameEvents.Select(e => e.Id), "ev");
-        var gameEvent = EntityFactory.NewGameEvent(id);
-        Store.Document.GameEvents.Add(gameEvent);
-        Store.NotifyChanged();
-        _selected = gameEvent;
-        _scrollToPanel = true;
-    }
-
-    private async Task Delete(GameEvent gameEvent)
-    {
-        IReadOnlyList<MasterReference> refs = MasterReferenceFinder.FindGameEventReferences(Store.Document!, gameEvent.Id);
-        string message = refs.Count == 0
-            ? $"{gameEvent.Name}（{gameEvent.Id}）を削除しますか？"
-            : $"{gameEvent.Name}（{gameEvent.Id}）は {refs.Count} 箇所から参照されています:\n"
-                + string.Join("\n", refs.Select(r => $"・{r.EntityKind} {r.EntityId} の {r.Field}"))
-                + "\n\n参照が残るため検証違反になります。削除しますか？";
-        if (!await JS.InvokeAsync<bool>("confirm", message))
-        {
-            return;
-        }
-
-        Store.Document!.GameEvents.Remove(gameEvent);
-        Store.ClearInvalidOwner(gameEvent);
-        if (_selected == gameEvent)
-        {
-            _selected = null;
-        }
-
-        Store.NotifyChanged();
-    }
-
     private static string DateText(DateTime? value) =>
         value?.ToString("yyyy-MM-ddTHH:mm", System.Globalization.CultureInfo.InvariantCulture) ?? "";
-
-    /// <summary>datetime-local の入力を UTC として確定する（正本 JSON は Z 付き UTC 表記）。空欄は null。</summary>
-    private void ApplyDate(Action<DateTime?> apply, ChangeEventArgs e)
-    {
-        string text = e.Value?.ToString() ?? "";
-        apply(
-            string.IsNullOrWhiteSpace(text)
-                ? null
-                : DateTime.TryParse(text, System.Globalization.CultureInfo.InvariantCulture,
-                    System.Globalization.DateTimeStyles.None, out DateTime parsed)
-                    ? DateTime.SpecifyKind(parsed, DateTimeKind.Utc)
-                    : null);
-        Store.NotifyChanged();
-    }
-
-    private void Changed(string? _) => Store.NotifyChanged();
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (_scrollToPanel)
-        {
-            _scrollToPanel = false;
-            await JS.InvokeVoidAsync("scrollElementIntoView", _panelRef);
-        }
-    }
 }

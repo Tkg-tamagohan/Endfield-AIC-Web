@@ -1,72 +1,54 @@
 @page "/items"
 @inject AdminDocumentService Store
-@inject IJSRuntime JS
 
 <PageTitle>アイテム - Endfield AIC 管理ツール</PageTitle>
 
-@if (!Store.IsLoaded)
-{
-    <section class="panel"><p class="muted">ホームでマスタ JSON を読み込んでください。</p></section>
-}
-else
-{
-    <div class="admin-layout">
-        <section class="panel" @key="_selected" @ref="_panelRef">
-            <div class="panel-head">
-                <h2 class="panel-title">アイテム編集</h2>
-                <button class="btn" @onclick="New">＋ 新規</button>
+<EntityEditLayout TEntity="Item"
+                  EditorTitle="アイテム編集"
+                  EmptyHint="下の一覧からアイテムを選ぶか、新規追加してください。"
+                  @bind-Selected="_selected"
+                  Collection="doc => doc.Items"
+                  IdPrefix="item"
+                  CreateEntity="(_, id) => EntityFactory.NewItem(id)"
+                  FindReferences="MasterReferenceFinder.FindItemReferences"
+                  ExtraSearchOf="i => i.Category"
+                  CategoryOf="i => i.Category">
+    <EntityFields Context="item">
+        <div class="form-grid">
+            <label>カテゴリ</label>
+            <div>
+                <input class="input" list="item-category-list" value="@item.Category"
+                       @onchange="e => Store.ApplyText(v => item.Category = v, e)" />
+                <datalist id="item-category-list">
+                    @foreach (string category in ItemCatalog.Categories(Store.Document!.Items))
+                    {
+                        <option value="@category"></option>
+                    }
+                </datalist>
+                <p class="hint">既存のカテゴリが候補に出ます。新しい名前も入力できます。</p>
             </div>
-            @if (_selected is null)
-            {
-                <p class="muted">下の一覧からアイテムを選ぶか、新規追加してください。</p>
-            }
-            else
-            {
-                <CommonFieldsEditor Entity="_selected" OnChanged="Changed" />
-                <div class="form-grid">
-                    <label>カテゴリ</label>
-                    <div>
-                        <input class="input" list="item-category-list" value="@_selected.Category"
-                               @onchange="e => ApplyText(v => _selected.Category = v, e)" />
-                        <datalist id="item-category-list">
-                            @foreach (string category in ItemCatalog.Categories(Store.Document!.Items))
-                            {
-                                <option value="@category"></option>
-                            }
-                        </datalist>
-                        <p class="hint">既存のカテゴリが候補に出ます。新しい名前も入力できます。</p>
-                    </div>
 
-                    <label>天然資源</label>
-                    <span class="check">
-                        <input type="checkbox" checked="@_selected.IsGatherable"
-                               @onchange="e => ApplyBool(v => _selected.IsGatherable = v, e)" />
-                        <span>外部調達扱い（需要展開の終端）</span>
-                    </span>
+            <label>天然資源</label>
+            <span class="check">
+                <input type="checkbox" checked="@item.IsGatherable"
+                       @onchange="e => Store.ApplyBool(v => item.IsGatherable = v, e)" />
+                <span>外部調達扱い（需要展開の終端）</span>
+            </span>
 
-                    <label>輸送種別</label>
-                    <select class="input" value="@_selected.TransportKind" @onchange="OnTransportChanged">
-                        @foreach (TransportKind kind in Enum.GetValues<TransportKind>())
-                        {
-                            <option value="@kind">@TransportLabel(kind)</option>
-                        }
-                    </select>
+            <label>輸送種別</label>
+            <select class="input" value="@item.TransportKind" @onchange="OnTransportChanged">
+                @foreach (TransportKind kind in Enum.GetValues<TransportKind>())
+                {
+                    <option value="@kind">@TransportLabel(kind)</option>
+                }
+            </select>
 
-                    <label>所属イベント</label>
-                    <RefSelect Value="@_selected.GameEventId" Options="_eventOptions" EmptyLabel="（常設）"
-                               ValueChanged="v => ApplyRef(v => _selected.GameEventId = v, v)" />
-                </div>
-                <p class="hint">変更は即時反映されます。ホームの「検証を実行」で整合性を確認してください。</p>
-            }
-        </section>
-
-        <ListPane TItem="Item" Items="Store.Document!.Items"
-                  KeyOf="i => i.Id" TextOf="i => i.Name" SubOf="i => i.Id"
-                  ExtraSearchOf="i => i.Category" CategoryOf="i => i.Category"
-                  SelectedKey="@_selected?.Id"
-                  OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
-    </div>
-}
+            <label>所属イベント</label>
+            <RefSelect Value="@item.GameEventId" Options="_eventOptions" EmptyLabel="（常設）"
+                       ValueChanged="v => Store.ApplyRef(v => item.GameEventId = v, v)" />
+        </div>
+    </EntityFields>
+</EntityEditLayout>
 
 @code {
     [SupplyParameterFromQuery]
@@ -74,8 +56,6 @@ else
 
     private Item? _selected;
     private IReadOnlyList<SelectOption> _eventOptions = [];
-    private ElementReference _panelRef;
-    private bool _scrollToPanel;
 
     protected override void OnParametersSet()
     {
@@ -84,50 +64,11 @@ else
             return;
         }
 
-        _eventOptions = Store.Document!.GameEvents.Select(e => new SelectOption(e.Id, e.Name)).ToList();
+        _eventOptions = SelectOption.Of(Store.Document!.GameEvents);
         if (Select is { } id)
         {
             _selected = Store.Document.Items.FirstOrDefault(i => i.Id == id);
         }
-    }
-
-    private void SelectEntity(string id)
-    {
-        _selected = Store.Document!.Items.FirstOrDefault(i => i.Id == id);
-        _scrollToPanel = true;
-    }
-
-    private void New()
-    {
-        string id = EntityFactory.SuggestId(Store.Document!.Items.Select(i => i.Id), "item");
-        var item = EntityFactory.NewItem(id);
-        Store.Document.Items.Add(item);
-        Store.NotifyChanged();
-        _selected = item;
-        _scrollToPanel = true;
-    }
-
-    private async Task Delete(Item item)
-    {
-        IReadOnlyList<MasterReference> refs = MasterReferenceFinder.FindItemReferences(Store.Document!, item.Id);
-        string message = refs.Count == 0
-            ? $"{item.Name}（{item.Id}）を削除しますか？"
-            : $"{item.Name}（{item.Id}）は {refs.Count} 箇所から参照されています:\n"
-                + string.Join("\n", refs.Select(r => $"・{r.EntityKind} {r.EntityId} の {r.Field}"))
-                + "\n\n参照が残るため検証違反になります。削除しますか？";
-        if (!await JS.InvokeAsync<bool>("confirm", message))
-        {
-            return;
-        }
-
-        Store.Document!.Items.Remove(item);
-        Store.ClearInvalidOwner(item);
-        if (_selected == item)
-        {
-            _selected = null;
-        }
-
-        Store.NotifyChanged();
     }
 
     private void OnTransportChanged(ChangeEventArgs e)
@@ -136,35 +77,6 @@ else
         {
             _selected!.TransportKind = kind;
             Store.NotifyChanged();
-        }
-    }
-
-    private void ApplyText(Action<string> apply, ChangeEventArgs e)
-    {
-        apply(e.Value?.ToString() ?? "");
-        Store.NotifyChanged();
-    }
-
-    private void ApplyBool(Action<bool> apply, ChangeEventArgs e)
-    {
-        apply(e.Value is true);
-        Store.NotifyChanged();
-    }
-
-    private void ApplyRef(Action<string?> apply, string? value)
-    {
-        apply(value);
-        Store.NotifyChanged();
-    }
-
-    private void Changed(string? _) => Store.NotifyChanged();
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (_scrollToPanel)
-        {
-            _scrollToPanel = false;
-            await JS.InvokeVoidAsync("scrollElementIntoView", _panelRef);
         }
     }
 

@@ -1,0 +1,33 @@
+@typeparam TEntity
+
+@if (!Store.IsLoaded)
+{
+    <section class="panel"><p class="muted">ホームでマスタ JSON を読み込んでください。</p></section>
+}
+else
+{
+    <div class="admin-layout">
+        <section class="panel" @key="Selected" @ref="_panelRef">
+            <div class="panel-head">
+                <h2 class="panel-title">@EditorTitle</h2>
+                <button class="btn" @onclick="New">＋ 新規</button>
+            </div>
+            @if (Selected is null)
+            {
+                <p class="muted">@EmptyHint</p>
+            }
+            else
+            {
+                <CommonFieldsEditor Entity="Selected" OnChanged="Changed" />
+                @EntityFields(Selected)
+                <p class="hint">@(HintPrefix)変更は即時反映されます。ホームの「検証を実行」で整合性を確認してください。</p>
+            }
+        </section>
+
+        <ListPane TItem="TEntity" Items="Entities"
+                  KeyOf="e => e.Id" TextOf="e => e.Name" SubOf="e => e.Id"
+                  ExtraSearchOf="ExtraSearchOf" CategoryOf="CategoryOf"
+                  SelectedKey="@Selected?.Id"
+                  OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
+    </div>
+}
