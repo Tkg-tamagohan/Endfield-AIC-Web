@@ -653,10 +653,10 @@ public static class FlowGraphModelBuilder
             foreach (string succ in effSuccs[id])
             {
                 int tail;
-                if (!deferredSet.Contains(succ) || IsAnchor(succ))
+                if (!deferredSet.Contains(succ) || cycleAnchors.Contains(succ))
                 {
-                    // Layer0 の起点は経路の端点。起点を通り越して奥の出口まで数えると、
-                    // 起点自身の層（0）と上流ノードの層の積算がずれる。
+                    // 確定済みノードと循環内の起点は経路の端点。循環外の目標は仮の層が
+                    // 動きうるため端点にせず、経路の途中ノードとして再帰する。
                     tail = layer[succ];
                 }
                 else

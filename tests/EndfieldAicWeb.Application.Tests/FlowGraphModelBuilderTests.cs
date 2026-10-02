@@ -610,6 +610,46 @@ public class FlowGraphModelBuilderTests
         Assert.True(Node(model, "item:i-t").Rank < Node(model, "item:i-z").Rank);
     }
 
+    // FG-37: 生産される目標が別の循環へ供給するとき、層の引き直し後も生産設備が直上流に来る（BH）。
+    [Fact]
+    public void ProducedTargetKeepsProducerUpstream()
+    {
+        // i-t は f-t で生産される目標で、f-1 経由で i-a↔i-b 循環へ供給する。循環は浅い出口
+        //（f-3→i-z）と深い出口（f-4→i-m→f-5→i-z2）を持つ。深い出口で i-t の層が仮確定より
+        // 深く引き直されても、生産設備 f-t は i-t の直上流に追従する。
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-u", "原料", gatherable: true),
+             ApplicationFixtures.Item("i-t", "中間目標"), ApplicationFixtures.Item("i-a", "循環品A"),
+             ApplicationFixtures.Item("i-b", "循環品B"), ApplicationFixtures.Item("i-m", "中間品"),
+             ApplicationFixtures.Item("i-z", "製品Z"), ApplicationFixtures.Item("i-z2", "製品Z2")],
+            [ApplicationFixtures.Facility("f-t", "機T", 10), ApplicationFixtures.Facility("f-1", "機1", 10),
+             ApplicationFixtures.Facility("f-2", "機2", 10), ApplicationFixtures.Facility("f-3", "機3", 10),
+             ApplicationFixtures.Facility("f-4", "機4", 10), ApplicationFixtures.Facility("f-5", "機5", 10)],
+            [], [],
+            [
+                ApplicationFixtures.Recipe("r-t", "中間目標", [("i-u", 1)], [("i-t", 1)],
+                    [ApplicationFixtures.Pair("f-t", 6)]),
+                ApplicationFixtures.Recipe("r-1", "循環品A", [("i-t", 1), ("i-b", 1)], [("i-a", 1)],
+                    [ApplicationFixtures.Pair("f-1", 6)]),
+                ApplicationFixtures.Recipe("r-2", "循環品B", [("i-a", 1)], [("i-b", 1)],
+                    [ApplicationFixtures.Pair("f-2", 6)]),
+                ApplicationFixtures.Recipe("r-3", "製品Z", [("i-a", 1)], [("i-z", 1)],
+                    [ApplicationFixtures.Pair("f-3", 6)]),
+                ApplicationFixtures.Recipe("r-4", "中間品", [("i-b", 1)], [("i-m", 1)],
+                    [ApplicationFixtures.Pair("f-4", 6)]),
+                ApplicationFixtures.Recipe("r-5", "製品Z2", [("i-m", 1)], [("i-z2", 1)],
+                    [ApplicationFixtures.Pair("f-5", 6)]),
+            ]);
+
+        (_, FlowGraphModel model) = Build(
+            snapshot,
+            targets: [new ProductionTarget("i-t", 10), new ProductionTarget("i-z", 10), new ProductionTarget("i-z2", 10)]);
+
+        // 産出エッジ f-t→i-t は順方向のまま。i-t は最長出口経路の深さ（i-z2 から 8 段）に置かれる。
+        Assert.Equal(Node(model, "item:i-t").Rank - 1, Node(model, "fac:f-t").Rank);
+        Assert.Equal(Node(model, "item:i-z").Rank - 8, Node(model, "item:i-t").Rank);
+    }
+
     // FG-11: 余剰のみに登場するアイテムもノード化する。
     [Fact]
     public void SurplusOnlyItemBecomesNode()
