@@ -4,7 +4,7 @@ using static EndfieldAicWeb.Domain.Tests.PlanAssert;
 
 namespace EndfieldAicWeb.Domain.Tests;
 
-/// <summary>SEL: レシピとペアの選択（仕様決定 F/U、docs/phases/test-specification-phase2.md §3）。</summary>
+/// <summary>SEL: レシピとペアの選択（仕様決定 F/U/BA、docs/phases/test-specification-phase2.md §3・phase21 §3）。</summary>
 public class SelectionTests
 {
     [Fact(DisplayName = "SEL-01: 既定は VersionAdded 最新のレシピ")]
@@ -235,5 +235,91 @@ public class SelectionTests
 
         Assert.Equal("r-alpha", Assert.Single(plan.RecipeRuns).RecipeId);
         Assert.True(HasWarning(plan, WarningCode.InvalidVersionString));
+    }
+
+    [Fact(DisplayName = "SEL-14: 同 VersionAdded で出力量が異なる場合、高レート側が既定（BA）")]
+    public void HigherOutputRateWinsOnVersionTie()
+    {
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F18(), [("i-q1", 60.0)]);
+
+        Assert.Equal("r-q1-rich", Assert.Single(plan.RecipeRuns).RecipeId);
+    }
+
+    [Fact(DisplayName = "SEL-15: 同出力量で CycleTime が異なる場合、短サイクル側が既定（BA）")]
+    public void ShorterCycleWinsOnVersionTie()
+    {
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F18(), [("i-q2", 60.0)]);
+
+        Assert.Equal("r-q2-b-fast", Assert.Single(plan.RecipeRuns).RecipeId);
+    }
+
+    [Fact(DisplayName = "SEL-16: 同 VersionAdded・同実効レートは Id 昇順（BA）")]
+    public void SameRateFallsBackToIdAscending()
+    {
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F18(), [("i-q3", 60.0)]);
+
+        Assert.Equal("r-q3-a", Assert.Single(plan.RecipeRuns).RecipeId);
+    }
+
+    [Fact(DisplayName = "SEL-17: 複数ペアのレシピは最小 CycleTime ペアのレートで比較される（BA）")]
+    public void MultiPairRecipeUsesBestPairRate()
+    {
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F18(), [("i-q4", 60.0)]);
+
+        RecipeRun run = Assert.Single(plan.RecipeRuns);
+        Assert.Equal("r-q4-multi", run.RecipeId);
+        Assert.Equal("f-b", run.FacilityId);
+    }
+
+    [Fact(DisplayName = "SEL-18: 最速ペアが環境不適格なら次点ペアのレートで比較される（BA）")]
+    public void IneligibleFastestPairUsesNextPairRate()
+    {
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F18(), [("i-q5", 60.0)]);
+
+        Assert.Equal("r-q5-alt", Assert.Single(plan.RecipeRuns).RecipeId);
+    }
+
+    [Fact(DisplayName = "SEL-19: 適格ペア 0 件のレシピは実効レート 0 で最下位（BA）")]
+    public void NoEligiblePairIsLowestRate()
+    {
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F18(), [("i-q6", 60.0)]);
+
+        Assert.Equal("r-q6-slow", Assert.Single(plan.RecipeRuns).RecipeId);
+    }
+
+    [Fact(DisplayName = "SEL-20: VersionAdded は第一キーのまま（低レートの新版が優先）（BA）")]
+    public void VersionRemainsPrimaryKey()
+    {
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F18(), [("i-q7", 60.0)]);
+
+        Assert.Equal("r-q7-new", Assert.Single(plan.RecipeRuns).RecipeId);
+    }
+
+    [Fact(DisplayName = "SEL-21: ListCandidates の候補順と IsDefault が新規則と一致（BA）")]
+    public void CandidateListFollowsSameOrdering()
+    {
+        var candidates = PairSelector.ListCandidates(
+            "i-q1", CalculationFixtures.F18(), new ContextFilter());
+
+        Assert.Equal("r-q1-rich", candidates[0].Recipe.Id);
+        Assert.True(candidates[0].IsDefault);
+        Assert.Equal("r-q1-lean", candidates[1].Recipe.Id);
+        Assert.False(candidates[1].IsDefault);
+    }
+
+    [Fact(DisplayName = "SEL-22: 副産物としての出力も対象アイテムの出力量でレート計算（BA）")]
+    public void ByproductOutputUsesTargetItemQuantity()
+    {
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F18(), [("i-q8", 60.0)]);
+
+        Assert.Equal("r-q8-b-rich", Assert.Single(plan.RecipeRuns).RecipeId);
     }
 }
