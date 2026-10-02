@@ -145,4 +145,22 @@ public class PositiveCycleTests
         Assert.Null(RunOf(plan, "r-c"));
         Assert.False(HasWarning(plan, WarningCode.CycleDetected));
     }
+
+    [Fact(DisplayName = "NCP-11: 副産物余剰が残差より小さい混合循環はロールバックして未充足を維持する")]
+    public void SmallSurplusReleaseIsRolledBack()
+    {
+        // NCP-10 と同じ構造で副産物 i-c が 11（余剰 1）のケース。
+        // i-a の残差 5 を解放すると i-c 需要 15 > 供給 11 で r-c が復活し残差は増大するため、
+        // 解放を打ち切りつつ帳簿一式を解放前へ差し戻す（解放しなかった計算と一致）。
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F17MixedByproduct(), [("i-a", 10.0), ("i-x", 11.0)]);
+
+        Assert.Equal(15.0, Req(plan, "i-a").RequiredPerMinute, Precision);
+        Assert.Equal(5.0, Req(plan, "i-a").UnmetPerMinute, Precision);
+        Assert.Equal(10.0, RunOf(plan, "r-a")!.CyclesPerMinute, Precision);
+        Assert.Equal(5.0, RunOf(plan, "r-b")!.CyclesPerMinute, Precision);
+        Assert.Null(RunOf(plan, "r-c"));
+        Assert.True(HasWarning(plan, WarningCode.CycleDetected));
+        Assert.Equal(1.0, plan.Surpluses.Single(s => s.ItemId == "i-c").ExcessPerMinute, Precision);
+    }
 }

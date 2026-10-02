@@ -661,7 +661,8 @@ public static class ProductionCalculator
         /// 循環検出で未充足へ計上した残差を解放して再展開する（仕様決定 AQ）。
         /// 解放するのはライブな循環がすべて正味増のアイテムだけで、残差は反復のたびに
         /// おおよそゲイン倍に縮み、外部投入なしの定常解へ収束する。
-        /// 解放後も残差合計が縮まない場合は以後の解放を打ち切る（複雑に絡む循環の保険）。
+        /// 解放後も残差合計が縮まない場合は、解放と再展開の帳簿一式を解放前へ差し戻して
+        /// 以後の解放を打ち切る（複雑に絡む循環の保険。解放しなかった計算と同じ帳簿へ戻る）。
         /// </summary>
         private bool ReleaseCycleResiduals()
         {
@@ -676,6 +677,7 @@ public static class ProductionCalculator
                 return false;
             }
 
+            ReleaseSnapshot snapshot = CaptureReleaseState();
             bool released = false;
             foreach (string itemId in _cycleDeposits
                 .Where(id => Get(Unmet, id) > Epsilon && IsReleasable(id))
@@ -695,10 +697,97 @@ public static class ProductionCalculator
             double after = _cycleDeposits.Sum(id => Get(Unmet, id));
             if (after >= before - Epsilon)
             {
+                RestoreReleaseState(snapshot);
                 _cycleReleaseStopped = true;
+                return false;
             }
 
             return true;
+        }
+
+        /// <summary>解放ステップの帳簿一式の控え（仕様決定 AQ のロールバック保険）。</summary>
+        private sealed class ReleaseSnapshot
+        {
+            internal required Dictionary<string, double> Demand;
+            internal required Dictionary<string, double> Produced;
+            internal required Dictionary<string, double> Raw;
+            internal required Dictionary<string, double> Unmet;
+            internal required Dictionary<PairSelector.Selection, double> RunCycles;
+            internal required List<PairSelector.Selection> RunOrder;
+            internal required Dictionary<string, PairSelector.Selection?> Selection;
+            internal required List<string> DemandOrder;
+            internal required Dictionary<string, double> ExtraApplied;
+            internal required HashSet<string> GatherCapShortfall;
+            internal required HashSet<string> CycleDeposits;
+            internal required Dictionary<string, List<CycleDetection>> CycleDetections;
+            internal required List<CalculationWarning> Warnings;
+        }
+
+        private ReleaseSnapshot CaptureReleaseState() => new()
+        {
+            Demand = new Dictionary<string, double>(Demand),
+            Produced = new Dictionary<string, double>(Produced),
+            Raw = new Dictionary<string, double>(Raw),
+            Unmet = new Dictionary<string, double>(Unmet),
+            RunCycles = new Dictionary<PairSelector.Selection, double>(RunCycles),
+            RunOrder = [.. RunOrder],
+            Selection = new Dictionary<string, PairSelector.Selection?>(Selection),
+            DemandOrder = [.. DemandOrder],
+            ExtraApplied = new Dictionary<string, double>(ExtraApplied),
+            GatherCapShortfall = new HashSet<string>(_gatherCapShortfall, StringComparer.Ordinal),
+            CycleDeposits = new HashSet<string>(_cycleDeposits, StringComparer.Ordinal),
+            CycleDetections = _cycleDetections.ToDictionary(
+                kv => kv.Key, kv => new List<CycleDetection>(kv.Value), StringComparer.Ordinal),
+            Warnings = Warnings.AsList().ToList(),
+        };
+
+        private void RestoreReleaseState(ReleaseSnapshot snapshot)
+        {
+            static void RestoreMap(Dictionary<string, double> map, Dictionary<string, double> from)
+            {
+                map.Clear();
+                foreach (KeyValuePair<string, double> kv in from)
+                {
+                    map[kv.Key] = kv.Value;
+                }
+            }
+
+            RestoreMap(Demand, snapshot.Demand);
+            RestoreMap(Produced, snapshot.Produced);
+            RestoreMap(Raw, snapshot.Raw);
+            RestoreMap(Unmet, snapshot.Unmet);
+            RestoreMap(ExtraApplied, snapshot.ExtraApplied);
+            RunCycles.Clear();
+            foreach (KeyValuePair<PairSelector.Selection, double> kv in snapshot.RunCycles)
+            {
+                RunCycles[kv.Key] = kv.Value;
+            }
+
+            RunOrder.Clear();
+            RunOrder.AddRange(snapshot.RunOrder);
+            Selection.Clear();
+            foreach (KeyValuePair<string, PairSelector.Selection?> kv in snapshot.Selection)
+            {
+                Selection[kv.Key] = kv.Value;
+            }
+
+            DemandOrder.Clear();
+            DemandOrder.AddRange(snapshot.DemandOrder);
+            _gatherCapShortfall.Clear();
+            _gatherCapShortfall.UnionWith(snapshot.GatherCapShortfall);
+            _cycleDeposits.Clear();
+            _cycleDeposits.UnionWith(snapshot.CycleDeposits);
+            _cycleDetections.Clear();
+            foreach (KeyValuePair<string, List<CycleDetection>> kv in snapshot.CycleDetections)
+            {
+                _cycleDetections[kv.Key] = [.. kv.Value];
+            }
+
+            Warnings.Clear();
+            foreach (CalculationWarning warning in snapshot.Warnings)
+            {
+                Warnings.Add(warning);
+            }
         }
 
         private bool IsGatherable(string itemId) =>
