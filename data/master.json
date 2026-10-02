@@ -103,7 +103,7 @@
       "IsGatherable": false,
       "TransportKind": "Belt",
       "GameEventId": null,
-      "Id": "item-sandlraf",
+      "Id": "item-sandleaf",
       "Name": "サンドリーフ",
       "Description": "",
       "IconKey": null,
@@ -741,7 +741,7 @@
       "GameEventId": null,
       "Inputs": [
         {
-          "ItemId": "item-sandlraf",
+          "ItemId": "item-sandleaf",
           "Quantity": 1
         }
       ],
@@ -777,7 +777,7 @@
       ],
       "Outputs": [
         {
-          "ItemId": "item-sandlraf",
+          "ItemId": "item-sandleaf",
           "Quantity": 1,
           "SortOrder": 0
         }
@@ -801,7 +801,7 @@
       "GameEventId": null,
       "Inputs": [
         {
-          "ItemId": "item-sandlraf",
+          "ItemId": "item-sandleaf",
           "Quantity": 1
         }
       ],
