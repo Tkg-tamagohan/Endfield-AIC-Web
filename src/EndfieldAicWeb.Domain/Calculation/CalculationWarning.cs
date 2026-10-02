@@ -16,7 +16,7 @@ public enum WarningCode
     /// <summary>選択可能なレシピが存在しないアイテム（採取素材以外）。</summary>
     NoRecipeAvailable,
 
-    /// <summary>アイテム流量が輸送媒体（ベルト30個/分、パイプ60個/分）の容量を超過。</summary>
+    /// <summary>設備 1 ユニットへの入力流量が輸送媒体（ベルト30個/分、パイプ60個/分）の容量を超過（仕様決定 AN）。</summary>
     TransportCapacityExceeded,
 
     /// <summary>PairOverride が不適格でデフォルト選択へフォールバックした。</summary>

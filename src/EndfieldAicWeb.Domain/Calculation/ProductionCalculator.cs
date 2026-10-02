@@ -791,7 +791,7 @@ public static class ProductionCalculator
         var flowAdjustments = BuildFlowAdjustments(session);
 
         WarningBag warnings = session.Warnings;
-        AddTransportWarnings(master, session, warnings);
+        AddTransportWarnings(master, recipeRuns, facilityRequirements, environmentRequirements, pairSelections, warnings);
 
         return new ProductionPlan
         {
@@ -844,19 +844,102 @@ public static class ProductionCalculator
     }
 
     /// <summary>
-    /// 需要または生産のあったアイテムについて、その流量が
-    /// 輸送媒体（ベルト 30 個/分・パイプ 60 個/分）の上限を超える場合に警告を追加する。
+    /// 設備 1 ユニットへの入力流量が輸送媒体（ベルト 30 個/分・パイプ 60 個/分）の上限を
+    /// 超える場合に警告を追加する（仕様決定 AN）。
+    /// 台数・レーンを増やせば解消できる集計超過（需要・生産・採取の流量）は対象外。
     /// </summary>
     private static void AddTransportWarnings(
         MasterDataSnapshot master,
-        Session session,
+        IReadOnlyList<RecipeRun> recipeRuns,
+        IReadOnlyList<FacilityRequirement> facilityRequirements,
+        IReadOnlyList<EnvironmentRequirement> environmentRequirements,
+        IReadOnlyList<PairSelection> pairSelections,
         WarningBag warnings)
     {
-        IEnumerable<string> itemIds = session.Demand.Keys
-            .Union(session.Produced.Keys)
-            .Union(session.Raw.Keys);
+        Dictionary<string, List<FacilityUnitSlot>> unitsByFacility = FacilityUnitLayout.Allocate(
+            recipeRuns, facilityRequirements, environmentRequirements, master, pairSelections);
 
-        foreach (string itemId in itemIds)
+        var maxRateByItem = new Dictionary<string, double>(StringComparer.Ordinal);
+        foreach ((string facilityId, List<FacilityUnitSlot> units) in unitsByFacility)
+        {
+            var inputs = units
+                .Select(_ => new Dictionary<string, double>(StringComparer.Ordinal))
+                .ToList();
+
+            for (int runIndex = 0; runIndex < recipeRuns.Count; runIndex++)
+            {
+                RecipeRun run = recipeRuns[runIndex];
+                if (run.FacilityId != facilityId
+                    || !master.RecipesById.TryGetValue(run.RecipeId, out Recipe? recipe))
+                {
+                    continue;
+                }
+
+                // レシピ入力はユニットの占有比率で分かれる。
+                foreach (FacilityUnitSlot unit in units)
+                {
+                    double share = unit.RunShares.GetValueOrDefault(runIndex);
+                    if (share <= Epsilon)
+                    {
+                        continue;
+                    }
+
+                    Dictionary<string, double> unitInputs = inputs[unit.Index];
+                    foreach (RecipeInput input in recipe.Inputs)
+                    {
+                        unitInputs[input.ItemId] = unitInputs.GetValueOrDefault(input.ItemId)
+                            + run.CyclesPerMinute * input.Quantity * share;
+                    }
+                }
+
+                // 固定消費はユニットごとに同量を消費する。
+                RecipeFacility? pair = pairSelections
+                    .Where(s => s.RecipeId == run.RecipeId && s.Pair.FacilityId == run.FacilityId)
+                    .Select(s => s.Pair)
+                    .FirstOrDefault()
+                    ?? recipe.Facilities.FirstOrDefault(p => p.FacilityId == run.FacilityId);
+                if (pair?.FixedConsumption is { } fixedConsumption)
+                {
+                    foreach (Dictionary<string, double> unitInputs in inputs)
+                    {
+                        unitInputs[fixedConsumption.ItemId] =
+                            unitInputs.GetValueOrDefault(fixedConsumption.ItemId)
+                            + fixedConsumption.RatePerMinute;
+                    }
+                }
+            }
+
+            // 環境消費はその環境の散布機ユニットへ台数ぶん等量に分かれる。
+            foreach (EnvironmentRequirement env in environmentRequirements)
+            {
+                if (env.ProviderFacilityId != facilityId || env.DispenserCount <= 0)
+                {
+                    continue;
+                }
+
+                double perUnit = env.ConsumeRatePerMinuteTotal / env.DispenserCount;
+                foreach (FacilityUnitSlot unit in units
+                    .Where(u => u.DispenserEnvironmentId == env.EnvironmentId))
+                {
+                    Dictionary<string, double> unitInputs = inputs[unit.Index];
+                    unitInputs[env.ConsumeItemId] =
+                        unitInputs.GetValueOrDefault(env.ConsumeItemId) + perUnit;
+                }
+            }
+
+            foreach (Dictionary<string, double> unitInputs in inputs)
+            {
+                foreach ((string itemId, double rate) in unitInputs)
+                {
+                    if (rate > maxRateByItem.GetValueOrDefault(itemId))
+                    {
+                        maxRateByItem[itemId] = rate;
+                    }
+                }
+            }
+        }
+
+        foreach ((string itemId, double rate) in maxRateByItem.OrderBy(kv => kv.Key, StringComparer.Ordinal))
         {
             if (!master.ItemsById.TryGetValue(itemId, out Item? item))
             {
@@ -869,22 +952,14 @@ public static class ProductionCalculator
                 TransportKind.Pipe => PipeCapacityPerMinute,
                 _ => 0,
             };
-            if (limit <= 0)
+            if (limit <= 0 || rate <= limit + Epsilon)
             {
                 continue;
             }
 
-            double flowPerMinute = Math.Max(
-                GetFrom(session.Demand, itemId), GetFrom(session.Produced, itemId));
-            flowPerMinute = Math.Max(flowPerMinute, GetFrom(session.Raw, itemId));
-
-            if (flowPerMinute > limit + Epsilon)
-            {
-                int lanes = (int)Math.Ceiling(flowPerMinute / limit - 1e-9);
-                warnings.Add(new CalculationWarning(
-                    WarningCode.TransportCapacityExceeded,
-                    $"アイテム {itemId} の必要流量 {flowPerMinute:F2} 個/分 が輸送容量（{item.TransportKind} {limit:F0} 個/分）を超えています。必要レーン数: {lanes}"));
-            }
+            warnings.Add(new CalculationWarning(
+                WarningCode.TransportCapacityExceeded,
+                $"アイテム {itemId} の設備 1 台への入力流量 {rate:F2} 個/分 が輸送容量（{item.TransportKind} {limit:F0} 個/分）を超えています"));
         }
     }
 }

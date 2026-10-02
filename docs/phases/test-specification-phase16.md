@@ -25,7 +25,7 @@
 
 | ID | 内容 | 期待 |
 |---|---|---|
-| TRN-01 | ベルト超過は警告（レーン数付き） | F-08、`i-belt-item` 45/分 → `TransportCapacityExceeded`（2 レーン）（[test-specification-phase2.md](test-specification-phase2.md) §TRN） |
+| TRN-01 | ベルト超過は警告（レーン数付き）（Phase 17 の仕様決定 AN で判定基準をユニット入力へ改訂。新期待は [test-specification-phase17.md](test-specification-phase17.md) §2 を参照） | F-08、`i-belt-item` 45/分 → `TransportCapacityExceeded`（2 レーン）（[test-specification-phase2.md](test-specification-phase2.md) §TRN） |
 | TRN-02 | パイプ超過は警告 | F-08、`i-pipe-item` 90/分 → 警告（2 レーン）（同上） |
 | TRN-03 | TransportKind=None は対象外 | F-08、`i-none-item` 500/分 → 容量警告なし。上流 `i-belt-src` の流量が容量未満に収まる値を選ぶ（同上） |
 | TRN-04 | 上限ちょうどは警告なし | F-08、`i-belt-item` 30/分 → 警告なし（同上） |

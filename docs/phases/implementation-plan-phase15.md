@@ -79,6 +79,7 @@ Home.razor ── FlowGraphModelBuilder（Application・純粋関数）
 
 輸送容量超過フラグはアイテムごとに `max(RequiredPerMinute, 生産量, 採取量) > 容量` で判定する。容量はベルト 30 個/分・パイプ 60 個/分（Phase 16 の仕様決定 AM で単位を改訂）。
 計算本体の警告判定と同じ 3 系統の最大流量を見るため、警告発火とグラフの赤化は一致する。
+（Phase 17 の仕様決定 AN で、判定を設備への入力エッジ単位へ改訂。アイテム単位の集計判定は廃止された）
 容量定数は `ProductionCalculator` の `BeltCapacityPerMinute`・`PipeCapacityPerMinute`（Phase 16 で `BeltCapacityPerSecond`・`PipeCapacityPerSecond` から改名し `public`）を共用する。
 
 ## 4. 描画（flow-graph.js）
@@ -110,7 +111,7 @@ Home.razor ── FlowGraphModelBuilder（Application・純粋関数）
 3. アイコンはノード内 36px 表示とし、ズーム上限 1.5 を掛けても原寸を超えない（仕様決定 AL、ユーザー指針どおり大きく表示しない）
 4. 採取供給は共通の採取ノード 1 つに集約する。ラベルは「採取」とし、マップ選択は採取可否を決める条件として残すのでグラフにはマップ名を出さない
 5. 環境は供給設備ノードの注記（散布機台数）＋消費エッジ（EnvironmentConsume）で表し、環境自体のノードは作らない
-6. 輸送容量超過はアイテムノードの赤縁とその流入エッジの赤化で表す（§3 の判定は計算本体の警告と同じ基準）
+6. 輸送容量超過はアイテムノードの赤縁とその流入エッジの赤化で表す（§3 の判定は計算本体の警告と同じ基準。Phase 17 の仕様決定 AN で「設備への入力エッジとその両端ノードの赤化」へ改訂）
 7. グラフは「調整済／未調整」切替に追従して流量・台数を変える（§3 の倍率共有）
 8. エッジ色は種別で分ける：RecipeOutput はアクセント、Gathered は緑系、RecipeInput・FixedConsumption・EnvironmentConsume はミュート色、容量超過は赤
 9. 配置・寸法が変わらない再計算（表示単位や流量の変更など）では fitView せず、ユーザーのパン・ズーム位置を維持する

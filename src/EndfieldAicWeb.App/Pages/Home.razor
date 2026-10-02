@@ -147,6 +147,10 @@ else
                             <button class="seg @(!_graphOpen ? "on" : "")" @onclick="() => _graphOpen = false">リスト</button>
                         </div>
                     }
+                    @if (_graphSupported && _graphOpen && _flowModel is not null)
+                    {
+                        <label class="check"><input type="checkbox" checked="@_graphExpandFacilities" @onchange="OnGraphExpandChanged" /> 設備を台数分表示</label>
+                    }
                     @if (_unit == AmountUnit.Period)
                     {
                         <span class="period-inputs">
@@ -352,6 +356,7 @@ else
     private IJSObjectReference? _graphModule;
     private bool _graphSupported;
     private bool _graphOpen;
+    private bool _graphExpandFacilities;
     private ContextFilter _context = new();
     private string? _mapId;
     private string? _inputError;
@@ -477,6 +482,12 @@ else
     {
         _unadjusted = unadjusted;
         _viewTouched = true;
+        RebuildView();
+    }
+
+    private void OnGraphExpandChanged(ChangeEventArgs e)
+    {
+        _graphExpandFacilities = e.Value is true;
         RebuildView();
     }
 
@@ -614,7 +625,8 @@ else
         if (_outcome is not null && _snapshot is not null)
         {
             _view = ResultViewBuilder.Build(_outcome.Plan, _snapshot, _context, _unadjusted);
-            _flowModel = FlowGraphModelBuilder.Build(_outcome.Plan, _snapshot, _context, _targets, _unadjusted);
+            _flowModel = FlowGraphModelBuilder.Build(
+                _outcome.Plan, _snapshot, _context, _targets, _unadjusted, _graphExpandFacilities);
         }
     }
 
