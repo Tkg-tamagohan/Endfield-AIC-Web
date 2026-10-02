@@ -16,8 +16,9 @@ description: Endfield-AIC-Web の Blazor WASM プロジェクトでリポジト�
 
 ## 現行構成の確認先
 
-- `src/*/EndfieldAicWeb.*.csproj` の `CopyMasterJson`（開発用）と `CopyMasterJsonToPublish`（publish 用）。
-- `src/*/wwwroot/data/` はこのターゲットが `data/` からコピーする生成物で、gitignore 済み。直接編集しない。
+- `data/` の同梱経路を持つのは `src/EndfieldAicWeb.App` と `src/EndfieldAicWeb.Admin` の 2 プロジェクトのみ。各 csproj の `CopyMasterJson`（開発用）と `CopyMasterJsonToPublish`（publish 用）が `data/master.json` と `data/icons/` をコピーする。
+- `src/EndfieldAicWeb.{App,Admin}/wwwroot/data/` はこのターゲットが `data/` からコピーする生成物で、gitignore 済み。直接編集しない。
+- 共有 RCL `src/EndfieldAicWeb.SharedUi` はこの経路を持たず、`wwwroot/data` も存在しない。同プロジェクトの静的アセット（`wwwroot/js/flow-graph.js` など）は RCL の仕組みで `./_content/EndfieldAicWeb.SharedUi/` 配下に配信される（`FlowGraph.razor` が同パスを import）。`data/` のコピー経路とは別系統として扱う。
 
 ## 補足
 
