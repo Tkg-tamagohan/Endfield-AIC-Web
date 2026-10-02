@@ -39,7 +39,7 @@ else
             <p class="hint">アイテムと必要数（個/分）を入力してください。</p>
             @foreach (TargetRow row in _targetRows)
             {
-                <div class="target-row">
+                <div class="target-row" @key="row">
                     <select class="input row-category" value="@(row.Category ?? "")" @onchange="e => OnCategoryChanged(row, e)">
                         <option value="">すべてのカテゴリ</option>
                         @foreach (string category in _itemCategories)

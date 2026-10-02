@@ -76,6 +76,16 @@
     private string _filter = "";
     private string? _category;
 
+    /// <summary>Items 側で選択中のカテゴリが消えたとき絞り込みを解除し、一覧が空転しないようにする。</summary>
+    protected override void OnParametersSet()
+    {
+        if (_category is not null && CategoryOf is not null
+            && !Items.Select(CategoryOf).Contains(_category, StringComparer.Ordinal))
+        {
+            _category = null;
+        }
+    }
+
     private void OnFilterInput(ChangeEventArgs e) => _filter = e.Value?.ToString() ?? "";
 
     private void OnCategoryChanged(ChangeEventArgs e)

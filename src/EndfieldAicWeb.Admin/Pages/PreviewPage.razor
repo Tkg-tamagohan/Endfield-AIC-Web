@@ -24,7 +24,7 @@ else
             <p class="hint">編集中データで計算します。アイテムと必要数（個/分）を入力してください。</p>
             @foreach (TargetRow row in _targetRows)
             {
-                <div class="target-row">
+                <div class="target-row" @key="row">
                     <ItemPicker Value="@row.ItemId" Items="_productionItems" LookupItems="_allItems"
                                 EmptyLabel="（アイテムを選択）" ValueChanged="v => row.ItemId = v" />
                     <input class="input rate" @bind="row.RateText" @bind:event="oninput" inputmode="decimal" placeholder="0" />
