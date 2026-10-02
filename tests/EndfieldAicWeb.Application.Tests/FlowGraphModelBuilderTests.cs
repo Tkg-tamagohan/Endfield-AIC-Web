@@ -332,7 +332,10 @@ public class FlowGraphModelBuilderTests
         (_, FlowGraphModel model) = Build(snapshot, targets: new ProductionTarget("i-x", 10));
 
         // 散布機はガスの 1 列右。目標アイテムと同列の Layer0 には置かれない。
-        Assert.Equal(Node(model, "item:i-gas").Rank + 1, Node(model, "fac:f-disp").Rank);
+        // ガスはアイテムでは最右列に残り、散布機はそれよりさらに 1 列右（契約: Layer0 の右端はアイテムのみ）。
+        FlowGraphNode gas = Node(model, "item:i-gas");
+        Assert.Equal(model.Nodes.Where(n => n.Kind == FlowGraphNodeKind.Item).Max(n => n.Rank), gas.Rank);
+        Assert.Equal(gas.Rank + 1, Node(model, "fac:f-disp").Rank);
     }
 
     // FG-32: 複数の出口を持つ循環では、浅い出口で仮確定したノードを深い出口側へ緩和する（仕様決定 BH）。
@@ -409,6 +412,87 @@ public class FlowGraphModelBuilderTests
         Assert.True(Node(model, "item:i-a").Rank < Node(model, "fac:f-b").Rank);
         // 後退エッジになるのは i-b→f-a 側だけ。
         Assert.True(Node(model, "item:i-b").Rank > Node(model, "fac:f-a").Rank);
+    }
+
+    // FG-33: 重なった循環でも、自分を経由しない出口への最長単純経路で層を引き直す（仕様決定 BH）。
+    [Fact]
+    public void OverlappingCyclesKeepLongestExitPath()
+    {
+        // C1: i-v↔i-u（f-v/f-u）、C2: i-u→i-x→i-u（f-x/f-u2）。i-v は浅い出口（f-w→i-w→i-e）、
+        // i-x は目標 i-z への出口を持つ。i-u が i-v 経由で先に確定しても、i-v・i-x の層は
+        // 出口への最長単純経路（i-v→f-v→i-u→f-x→i-x→f-x2→i-z、i-x→f-u2→i-u→f-u→i-v→f-w→i-w→f-e→i-e）になる。
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-v", "素材V"), ApplicationFixtures.Item("i-u", "素材U"),
+             ApplicationFixtures.Item("i-x", "素材X"), ApplicationFixtures.Item("i-w", "中間品W"),
+             ApplicationFixtures.Item("i-z", "製品Z"), ApplicationFixtures.Item("i-e", "製品E")],
+            [ApplicationFixtures.Facility("f-v", "機V", 10), ApplicationFixtures.Facility("f-u", "機U", 10),
+             ApplicationFixtures.Facility("f-x", "機X", 10), ApplicationFixtures.Facility("f-u2", "機U2", 10),
+             ApplicationFixtures.Facility("f-x2", "機X2", 10), ApplicationFixtures.Facility("f-w", "機W", 10),
+             ApplicationFixtures.Facility("f-e", "機E", 10)],
+            [], [],
+            [
+                ApplicationFixtures.Recipe("r-vu", "素材U", [("i-v", 1)], [("i-u", 1)],
+                    [ApplicationFixtures.Pair("f-v", 6)]),
+                ApplicationFixtures.Recipe("r-uv", "素材V", [("i-u", 1)], [("i-v", 1)],
+                    [ApplicationFixtures.Pair("f-u", 6)]),
+                ApplicationFixtures.Recipe("r-ux", "素材X", [("i-u", 1)], [("i-x", 1)],
+                    [ApplicationFixtures.Pair("f-x", 6)]),
+                ApplicationFixtures.Recipe("r-xu", "素材U", [("i-x", 1)], [("i-u", 1)],
+                    [ApplicationFixtures.Pair("f-u2", 6)]),
+                ApplicationFixtures.Recipe("r-xz", "製品Z", [("i-x", 1)], [("i-z", 1)],
+                    [ApplicationFixtures.Pair("f-x2", 6)]),
+                ApplicationFixtures.Recipe("r-vw", "中間品W", [("i-v", 1)], [("i-w", 1)],
+                    [ApplicationFixtures.Pair("f-w", 6)]),
+                ApplicationFixtures.Recipe("r-we", "製品E", [("i-w", 1)], [("i-e", 1)],
+                    [ApplicationFixtures.Pair("f-e", 6)]),
+            ]);
+        var plan = new ProductionPlan
+        {
+            ItemRequirements =
+            [
+                new ItemRequirement("i-v", 20, [new SupplyPortion(SupplyKind.Recipe, "r-uv", 20)], 0),
+                new ItemRequirement("i-u", 20, [new SupplyPortion(SupplyKind.Recipe, "r-vu", 20)], 0),
+                new ItemRequirement("i-x", 20, [new SupplyPortion(SupplyKind.Recipe, "r-ux", 20)], 0),
+                new ItemRequirement("i-w", 10, [new SupplyPortion(SupplyKind.Recipe, "r-vw", 10)], 0),
+                new ItemRequirement("i-z", 10, [new SupplyPortion(SupplyKind.Recipe, "r-xz", 10)], 0),
+                new ItemRequirement("i-e", 10, [new SupplyPortion(SupplyKind.Recipe, "r-we", 10)], 0),
+            ],
+            FacilityRequirements =
+            [
+                new FacilityRequirement("f-v", 1, 1), new FacilityRequirement("f-u", 1, 1),
+                new FacilityRequirement("f-x", 1, 1), new FacilityRequirement("f-u2", 1, 1),
+                new FacilityRequirement("f-x2", 1, 1), new FacilityRequirement("f-w", 1, 1),
+                new FacilityRequirement("f-e", 1, 1),
+            ],
+            RecipeRuns =
+            [
+                new RecipeRun("r-vu", "f-v", 10), new RecipeRun("r-uv", "f-u", 10),
+                new RecipeRun("r-ux", "f-x", 10), new RecipeRun("r-xu", "f-u2", 10),
+                new RecipeRun("r-xz", "f-x2", 10), new RecipeRun("r-vw", "f-w", 10),
+                new RecipeRun("r-we", "f-e", 10),
+            ],
+            PairSelections =
+            [
+                new PairSelection("i-v", "r-uv", ApplicationFixtures.Pair("f-u", 6, recipeId: "r-uv")),
+                new PairSelection("i-u", "r-vu", ApplicationFixtures.Pair("f-v", 6, recipeId: "r-vu")),
+                new PairSelection("i-x", "r-ux", ApplicationFixtures.Pair("f-x", 6, recipeId: "r-ux")),
+                new PairSelection("i-w", "r-vw", ApplicationFixtures.Pair("f-w", 6, recipeId: "r-vw")),
+                new PairSelection("i-z", "r-xz", ApplicationFixtures.Pair("f-x2", 6, recipeId: "r-xz")),
+                new PairSelection("i-e", "r-we", ApplicationFixtures.Pair("f-e", 6, recipeId: "r-we")),
+            ],
+            EnvironmentRequirements = [],
+            TotalPowerConsumption = 0,
+            Surpluses = [],
+            FlowAdjustments = [],
+            Warnings = [new CalculationWarning(WarningCode.CycleDetected, "cycle")],
+        };
+
+        FlowGraphModel model = FlowGraphModelBuilder.Build(
+            plan, snapshot, new ContextFilter(), [new ProductionTarget("i-z", 10), new ProductionTarget("i-e", 10)], false);
+
+        // 最長単純経路どおり: i-x は出口 i-z から 8 段、i-v は 6 段の深さに置かれる。
+        Assert.Equal(Node(model, "item:i-z").Rank - 8, Node(model, "item:i-x").Rank);
+        Assert.Equal(Node(model, "item:i-z").Rank - 6, Node(model, "item:i-v").Rank);
     }
 
     // FG-11: 余剰のみに登場するアイテムもノード化する。

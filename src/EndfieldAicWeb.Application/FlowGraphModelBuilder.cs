@@ -493,10 +493,10 @@ public static class FlowGraphModelBuilder
     /// 層は Layer0（目標・未消費アイテム）から上流へ遡る距離で、同じノードが複数の層に
     /// 出る場合は大きい層にまとめる（仕様決定 BF）。消費される目標もこの規則に従う（BG）。
     /// 循環の残存ノードは後退エッジを無視し、確定済みの後続だけで層を決める（BH）。
-    /// 複数の出口を持つ循環では、自分自身を経由しない後続からより深い層が届く限り
-    /// 層を緩和して最深へ引き直す。散布機など出力を持たない設備ノードは層割りの
-    /// 対象外とし、消費アイテムの直下流に置く。表示は Layer0 を右端列とするため、
-    /// 返すランクは最大層からの反転値。
+    /// 仮確定より深い経路が残るときは、自分自身を経由しない出口への最長単純経路で
+    /// 層を引き直す。散布機など出力を持たない設備ノードは層割りの対象外とし、
+    /// 消費アイテムの直下流に置く。表示は Layer0 を右端列とするため、返すランクは
+    /// 最大層からの反転値。
     /// </summary>
     private static (Dictionary<string, int> Rank, Dictionary<string, int> Order) AssignRanks(
         IReadOnlyDictionary<string, FlowGraphNode> nodes,
@@ -543,16 +543,14 @@ public static class FlowGraphModelBuilder
             }
         }
 
-        int MaxAssignedSucc(string id, out string? via)
+        int MaxAssignedSucc(string id)
         {
-            via = null;
             int best = -1;
             foreach (string s in effSuccs[id])
             {
                 if (layer.TryGetValue(s, out int l) && l > best)
                 {
                     best = l;
-                    via = s;
                 }
             }
 
@@ -563,7 +561,7 @@ public static class FlowGraphModelBuilder
         {
             string id = queue.Min!;
             queue.Remove(id);
-            layer[id] = 1 + MaxAssignedSucc(id, out _);
+            layer[id] = 1 + MaxAssignedSucc(id);
             foreach (string pred in preds[id])
             {
                 if (--pending[pred] == 0)
@@ -579,9 +577,6 @@ public static class FlowGraphModelBuilder
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToList();
         var deferredSet = new HashSet<string>(deferred, StringComparer.Ordinal);
-        // support: そのノードの層がどの循環内後続を経由して決まったか。緩和で自分自身を
-        // 経由する後続を除外し、後退エッジを逆流させないために使う。
-        var support = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         while (deferred.Count > 0)
         {
             var next = new List<string>();
@@ -594,10 +589,7 @@ public static class FlowGraphModelBuilder
                     continue;
                 }
 
-                layer[id] = 1 + MaxAssignedSucc(id, out string? via);
-                support[id] = via is not null && deferredSet.Contains(via)
-                    ? new HashSet<string>(support[via], StringComparer.Ordinal) { via }
-                    : new HashSet<string>(StringComparer.Ordinal);
+                layer[id] = 1 + MaxAssignedSucc(id);
             }
 
             if (next.Count == deferred.Count)
@@ -605,8 +597,7 @@ public static class FlowGraphModelBuilder
                 // 起点に届かない閉じた循環（通常は発生しない）。確定済み後続だけで打ち切る。
                 foreach (string id in next)
                 {
-                    layer[id] = 1 + MaxAssignedSucc(id, out _);
-                    support[id] = new HashSet<string>(StringComparer.Ordinal);
+                    layer[id] = 1 + MaxAssignedSucc(id);
                 }
                 break;
             }
@@ -614,35 +605,57 @@ public static class FlowGraphModelBuilder
             deferred = next;
         }
 
-        // 緩和: 複数の出口を持つ循環では、仮確定より深い層が後続から届くことがある。
-        // 自分自身を経由しない後続（support に含まれない）からの更新だけを取り込み、
-        // 最長距離が確定するまで繰り返す。Layer0 の起点は固定のまま動かさない。
-        bool changed = true;
-        while (changed)
+        // 引き直し: 循環内ノードは、自分自身を経由しない出口への最長単純経路で層を決め直す。
+        // 確定順や重なった循環に左右されず、除外すべき後退エッジ以外のエッジが
+        // 後退しない。Layer0 の起点は固定のまま動かさない。探索は循環部分内だけに
+        // 限定し、呼び出し回数に上限を設ける。
+        int ProbeLayer(string id, HashSet<string> banned, ref int budget)
         {
-            changed = false;
-            foreach (string id in deferredSet)
+            int best = -1;
+            foreach (string succ in effSuccs[id])
             {
-                if (IsAnchor(id))
+                int tail;
+                if (!deferredSet.Contains(succ))
                 {
-                    continue;
+                    tail = layer[succ];
                 }
-
-                foreach (string succ in effSuccs[id])
+                else
                 {
-                    if (!deferredSet.Contains(succ) || support[succ].Contains(id))
+                    if (banned.Contains(succ) || budget <= 0)
                     {
                         continue;
                     }
 
-                    int candidate = 1 + layer[succ];
-                    if (candidate > layer[id])
+                    budget--;
+                    tail = ProbeLayer(
+                        succ, new HashSet<string>(banned, StringComparer.Ordinal) { succ }, ref budget);
+                    if (tail < 0)
                     {
-                        layer[id] = candidate;
-                        support[id] = new HashSet<string>(support[succ], StringComparer.Ordinal) { succ };
-                        changed = true;
+                        continue;
                     }
                 }
+
+                if (tail > best)
+                {
+                    best = tail;
+                }
+            }
+
+            return best < 0 ? -1 : best + 1;
+        }
+
+        foreach (string id in deferredSet)
+        {
+            if (IsAnchor(id))
+            {
+                continue;
+            }
+
+            int budget = 4096;
+            int probed = ProbeLayer(id, new HashSet<string>(StringComparer.Ordinal) { id }, ref budget);
+            if (probed > layer[id])
+            {
+                layer[id] = probed;
             }
         }
 
