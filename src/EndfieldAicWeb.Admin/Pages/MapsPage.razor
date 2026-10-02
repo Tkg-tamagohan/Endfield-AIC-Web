@@ -114,7 +114,7 @@ else
     {
         MasterDocument document = Store.Document!;
         string id = EntityFactory.SuggestId(document.Maps.Select(map => map.Id), "map");
-        var map = EntityFactory.NewGameMap(id, document.DataVersion);
+        var map = EntityFactory.NewGameMap(id);
         document.Maps.Add(map);
         Store.NotifyChanged();
         _selected = map;

@@ -10,6 +10,8 @@ namespace EndfieldAicWeb.Application;
 /// </summary>
 public static class EntityFactory
 {
+    /// <summary>新規エンティティの VersionAdded 既定値（仕様決定 AV）。実装されたゲームバージョンなのでデータ版とは別に固定する。</summary>
+    public const string DefaultVersionAdded = "1.0.0";
     /// <summary>種別ごとの新規 Id 接頭辞。</summary>
     public static string SuggestId(IEnumerable<string> existingIds, string prefix)
     {
@@ -24,7 +26,7 @@ public static class EntityFactory
         }
     }
 
-    public static Item NewItem(string id, string versionAdded) => new()
+    public static Item NewItem(string id, string versionAdded = DefaultVersionAdded) => new()
     {
         Id = id,
         Name = "新規アイテム",
@@ -38,7 +40,7 @@ public static class EntityFactory
         GameEventId = null,
     };
 
-    public static Facility NewFacility(string id, string versionAdded) => new()
+    public static Facility NewFacility(string id, string versionAdded = DefaultVersionAdded) => new()
     {
         Id = id,
         Name = "新規設備",
@@ -53,9 +55,9 @@ public static class EntityFactory
 
     public static Environment NewEnvironment(
         string id,
-        string versionAdded,
-        string? providerFacilityId,
-        string? consumeItemId) => new()
+        string versionAdded = DefaultVersionAdded,
+        string? providerFacilityId = null,
+        string? consumeItemId = null) => new()
     {
         Id = id,
         Name = "新規環境",
@@ -69,7 +71,7 @@ public static class EntityFactory
         GameEventId = null,
     };
 
-    public static GameEvent NewGameEvent(string id, string versionAdded) => new()
+    public static GameEvent NewGameEvent(string id, string versionAdded = DefaultVersionAdded) => new()
     {
         Id = id,
         Name = "新規イベント",
@@ -81,7 +83,7 @@ public static class EntityFactory
         ActiveTo = null,
     };
 
-    public static GameMap NewGameMap(string id, string versionAdded) => new()
+    public static GameMap NewGameMap(string id, string versionAdded = DefaultVersionAdded) => new()
     {
         Id = id,
         Name = "新規マップ",
@@ -96,9 +98,9 @@ public static class EntityFactory
     /// <summary>Outputs と Facilities は各 1 件必要なため、候補があれば 1 行ずつ入れて返す。</summary>
     public static Recipe NewRecipe(
         string id,
-        string versionAdded,
-        string? outputItemId,
-        string? facilityId) => new()
+        string versionAdded = DefaultVersionAdded,
+        string? outputItemId = null,
+        string? facilityId = null) => new()
     {
         Id = id,
         Name = "新規レシピ",
@@ -113,6 +115,6 @@ public static class EntityFactory
             : [new RecipeOutput { ItemId = outputItemId, Quantity = 1, SortOrder = 0 }],
         Facilities = facilityId is null
             ? []
-            : [new RecipeFacility { RecipeId = id, FacilityId = facilityId, CycleTime = 4 }],
+            : [new RecipeFacility { RecipeId = id, FacilityId = facilityId, CycleTime = 2 }],
     };
 }

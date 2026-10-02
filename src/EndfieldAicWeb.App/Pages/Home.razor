@@ -41,36 +41,19 @@ else
             {
                 <div class="target-row" @key="row">
                     <select class="input row-category" value="@(row.Category ?? "")" @onchange="e => OnCategoryChanged(row, e)">
-                        <option value="">すべてのカテゴリ</option>
+                        <option value="">カテゴリ</option>
                         @foreach (string category in _itemCategories)
                         {
                             <option value="@category">@category</option>
                         }
                     </select>
-                    <div class="combo">
-                        <input class="input" value="@row.Filter"
-                               @oninput="e => OnItemFilterInput(row, e)"
-                               @onfocus="() => row.Open = true"
-                               @onblur="() => row.Open = false"
-                               placeholder="アイテムを検索" autocomplete="off" />
-                        @if (row.Open)
+                    <select class="input row-item" @key="row.Category" value="@(row.ItemId ?? "")" @onchange="e => OnItemChanged(row, e)">
+                        <option value="">アイテム</option>
+                        @foreach (Item item in ItemOptions(row))
                         {
-                            <div class="combo-list">
-                                @{ IReadOnlyList<Item> matches = ItemSearch.Filter(_selectableItems, row.Filter, row.Category); }
-                                @foreach (Item item in matches)
-                                {
-                                    <div class="combo-item" @onmousedown="() => SelectItem(row, item)" @onmousedown:preventDefault>
-                                        <EntityIcon IconKey="@item.IconKey" />
-                                        @item.Name@(item.GameEventId is not null ? "（イベント）" : "")
-                                    </div>
-                                }
-                                @if (matches.Count == 0)
-                                {
-                                    <div class="combo-item muted">該当するアイテムがありません</div>
-                                }
-                            </div>
+                            <option value="@item.Id">@item.Name@(item.GameEventId is not null ? "（イベント）" : "")</option>
                         }
-                    </div>
+                    </select>
                     <input class="input rate" @bind="row.RateText" @bind:event="oninput" inputmode="decimal" placeholder="0" />
                     <button class="btn ghost" title="行を削除" @onclick="() => RemoveRow(row)">×</button>
                 </div>
@@ -325,10 +308,8 @@ else
     private sealed class TargetRow
     {
         public string? ItemId;
-        public string RateText = "60";
-        public string Filter = "";
+        public string RateText = "30";
         public string? Category;
-        public bool Open;
     }
 
     private sealed class EnvInput(DomainEnv environment, int max)
@@ -411,20 +392,13 @@ else
         row.Category = string.IsNullOrEmpty(value) ? null : value;
     }
 
-    private void OnItemFilterInput(TargetRow row, ChangeEventArgs e)
-    {
-        row.Filter = e.Value?.ToString() ?? "";
-        if (CalculationInputBuilder.ShouldDeselectItem(row.ItemId, row.ItemId is { } id ? ItemName(id) : null, row.Filter))
-        {
-            row.ItemId = null;
-        }
-    }
+    private IReadOnlyList<Item> ItemOptions(TargetRow row) =>
+        ItemCatalog.OptionsForSelection(_selectableItems, row.Category, row.ItemId, _snapshot!.Items);
 
-    private void SelectItem(TargetRow row, Item item)
+    private void OnItemChanged(TargetRow row, ChangeEventArgs e)
     {
-        row.ItemId = item.Id;
-        row.Filter = item.Name;
-        row.Open = false;
+        string? value = e.Value?.ToString();
+        row.ItemId = string.IsNullOrEmpty(value) ? null : value;
     }
 
     /// <summary>判定時点の日付で既定を評価し直し、自動・期間外の振り分けを更新する。</summary>

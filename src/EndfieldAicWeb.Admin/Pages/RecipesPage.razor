@@ -171,9 +171,8 @@ else
         string id = EntityFactory.SuggestId(doc.Recipes.Select(r => r.Id), "recipe");
         var recipe = EntityFactory.NewRecipe(
             id,
-            doc.DataVersion,
-            doc.Items.FirstOrDefault()?.Id,
-            doc.Facilities.FirstOrDefault()?.Id);
+            outputItemId: doc.Items.FirstOrDefault()?.Id,
+            facilityId: doc.Facilities.FirstOrDefault()?.Id);
         doc.Recipes.Add(recipe);
         Store.NotifyChanged();
         _selected = recipe;
@@ -240,7 +239,7 @@ else
         {
             RecipeId = _selected.Id,
             FacilityId = Store.Document!.Facilities.FirstOrDefault()?.Id ?? "",
-            CycleTime = 4,
+            CycleTime = 2,
         });
         Store.NotifyChanged();
     }
