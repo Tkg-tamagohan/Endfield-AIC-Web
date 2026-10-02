@@ -656,6 +656,20 @@ internal static class CalculationFixtures
             Recipe("r-c", "f-asm", 4.0, [("i-a", 2.0)], [("i-c", 1.0)]),
         ]);
 
+    /// <summary>
+    /// F-17 混合型に i-x・i-ore・r-px（i-ore×1 → i-x×1 + i-c×1）を追加（NCP-10 用）。
+    /// r-px の副産物 i-c が A→C→A の正味減枝の需要を賄い、その枝を死なせる。
+    /// </summary>
+    public static MasterDataSnapshot F17MixedByproduct()
+    {
+        MasterDataSnapshot base_ = F17Mixed();
+        return Snapshot(
+            [.. base_.Items, Item("i-x"), Item("i-ore", "採取素材", TransportKind.Belt, null, true)],
+            [.. base_.Facilities, Facility("f-x")],
+            [.. base_.Recipes,
+                Recipe("r-px", "f-x", 4.0, [("i-ore", 1.0)], [("i-x", 1.0), ("i-c", 1.0)])]);
+    }
+
     /// <summary>F-17 派生: r-grow のペアに i-water 固定消費 6/分を追加。</summary>
     public static MasterDataSnapshot F17WithFixedConsumption()
     {

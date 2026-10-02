@@ -128,4 +128,21 @@ public class PositiveCycleTests
         Assert.Equal(10.0, RunOf(plan, "r-c")!.CyclesPerMinute, Precision);
         Assert.True(HasWarning(plan, WarningCode.CycleDetected));
     }
+
+    [Fact(DisplayName = "NCP-10: 副産物で正味減枝が死んだ混合循環は残る正味増経路で収束する")]
+    public void ByproductKilledLosingBranchConverges()
+    {
+        // i-x 向け r-px の副産物 i-c が A→C→A の枝の需要を賄う。
+        // 枝が死んだ検出は拒否権を持たないため、A→B→A（ゲイン 0.5）だけを残して
+        // i-a は外部投入なしの定常解 r-a 20・r-b 10・r-c 0 へ収束する。
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F17MixedByproduct(), [("i-a", 10.0), ("i-x", 30.0)]);
+
+        Assert.Equal(20.0, Req(plan, "i-a").RequiredPerMinute, Precision);
+        Assert.Equal(0.0, Req(plan, "i-a").UnmetPerMinute, Precision);
+        Assert.Equal(20.0, RunOf(plan, "r-a")!.CyclesPerMinute, Precision);
+        Assert.Equal(10.0, RunOf(plan, "r-b")!.CyclesPerMinute, Precision);
+        Assert.Null(RunOf(plan, "r-c"));
+        Assert.False(HasWarning(plan, WarningCode.CycleDetected));
+    }
 }
