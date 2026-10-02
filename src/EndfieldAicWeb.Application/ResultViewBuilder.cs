@@ -56,12 +56,7 @@ public static class ResultViewBuilder
         var scaleByFacility = new Dictionary<string, double>(StringComparer.Ordinal);
         if (unadjusted)
         {
-            // 確定ペアを RecipeId から引く。同レシピに同設備の複数ペア行がありうるため
-            // FacilityId では実際に稼働中のペアを一意に特定できない。
-            var pairByRecipe = plan.PairSelections
-                .GroupBy(s => s.RecipeId, StringComparer.Ordinal)
-                .ToDictionary(g => g.Key, g => g.First().Pair, StringComparer.Ordinal);
-            scaleByFacility = ComputeFacilityScales(plan, snapshot, pairByRecipe);
+            scaleByFacility = ComputeUnadjustedFacilityScales(plan, snapshot);
         }
 
         var selectionsByItem = plan.PairSelections
@@ -126,6 +121,37 @@ public static class ResultViewBuilder
             plan.TotalPowerConsumption,
             surpluses,
             plan.Warnings);
+    }
+
+    /// <summary>
+    /// 未調整ビューの設備倍率 s(F)。FlowGraphModelBuilder がグラフの流量を
+    /// 表示中ビューと一致させるために共用する（implementation-plan-phase15 §3）。
+    /// 確定ペアを RecipeId から引く。同レシピに同設備の複数ペア行がありうるため
+    /// FacilityId では実際に稼働中のペアを一意に特定できない。
+    /// </summary>
+    internal static Dictionary<string, double> ComputeUnadjustedFacilityScales(
+        ProductionPlan plan,
+        MasterDataSnapshot snapshot)
+    {
+        var pairByRecipe = plan.PairSelections
+            .GroupBy(s => s.RecipeId, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First().Pair, StringComparer.Ordinal);
+        return ComputeFacilityScales(plan, snapshot, pairByRecipe);
+    }
+
+    /// <summary>
+    /// 未調整ビューの余剰再計算。FlowGraphModelBuilder が共用する。
+    /// </summary>
+    internal static List<SurplusProduction> ComputeUnadjustedSurpluses(
+        ProductionPlan plan,
+        MasterDataSnapshot snapshot,
+        ContextFilter context,
+        IReadOnlyDictionary<string, double> scaleByFacility)
+    {
+        var runsByRecipe = plan.RecipeRuns
+            .GroupBy(r => r.RecipeId, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        return RecomputeSurpluses(plan, snapshot, context, runsByRecipe, scaleByFacility);
     }
 
     /// <summary>設備ごとの未調整倍率 s(F)。散布機のみの設備は 1。</summary>

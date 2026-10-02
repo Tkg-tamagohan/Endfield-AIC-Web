@@ -1,8 +1,10 @@
 @page "/"
 @using System.Globalization
+@implements IAsyncDisposable
 @inject MasterDataService MasterData
 @inject IconCatalog Icons
 @inject CalculationService Calculator
+@inject IJSRuntime JS
 
 <PageTitle>Endfield AIC 計算</PageTitle>
 
@@ -138,6 +140,13 @@ else
                         <button class="seg @(_unit == AmountUnit.PerSecond ? "on" : "")" @onclick="() => _unit = AmountUnit.PerSecond">毎秒</button>
                         <button class="seg @(_unit == AmountUnit.Period ? "on" : "")" @onclick="() => _unit = AmountUnit.Period">期間</button>
                     </div>
+                    @if (_graphSupported && _flowModel is not null)
+                    {
+                        <div class="segmented">
+                            <button class="seg @(_graphOpen ? "on" : "")" @onclick="() => _graphOpen = true">グラフ</button>
+                            <button class="seg @(!_graphOpen ? "on" : "")" @onclick="() => _graphOpen = false">リスト</button>
+                        </div>
+                    }
                     @if (_unit == AmountUnit.Period)
                     {
                         <span class="period-inputs">
@@ -161,10 +170,16 @@ else
                     </div>
                 }
 
+                @if (_graphSupported && _graphOpen && _flowModel is not null)
+                {
+                    <h2 class="panel-title">生産フロー</h2>
+                    <FlowGraph Model="_flowModel" FormatRate="FormatGraphRate" OnUnavailable="OnGraphUnavailable" />
+                }
+
                 <h2 class="panel-title">素材</h2>
                 @foreach (MaterialViewRow m in _view.Materials)
                 {
-                    <div class="mat-row">
+                    <div class="mat-row" data-flow-ref="@m.ItemId">
                         <div class="mat-head">
                             <EntityIcon IconKey="@ItemIconKey(m.ItemId)" />
                             <strong>@ItemName(m.ItemId)</strong>
@@ -234,7 +249,7 @@ else
                 <h2 class="panel-title">設備</h2>
                 @foreach (FacilityViewRow f in _view.Facilities)
                 {
-                    <div class="result-line">
+                    <div class="result-line" data-flow-ref="@f.FacilityId">
                         <EntityIcon IconKey="@FacilityIconKey(f.FacilityId)" />
                         <strong>@FacilityName(f.FacilityId)</strong>
                         <span class="muted"> @f.ExactCount.ToString("0.##", CultureInfo.InvariantCulture) 台 → </span><strong>@f.CeilCount 台</strong>
@@ -283,7 +298,7 @@ else
                 {
                     @foreach (SurplusProduction s in _view.Surpluses)
                     {
-                        <div class="result-line">
+                        <div class="result-line" data-flow-ref="@s.ItemId">
                             <EntityIcon IconKey="@ItemIconKey(s.ItemId)" />
                             <strong>@ItemName(s.ItemId)</strong>
                             <span class="muted"> +@Fmt(s.ExcessPerMinute)@Suffix()</span>
@@ -332,6 +347,11 @@ else
     private MasterDataSnapshot? _snapshot;
     private CalculationOutcome? _outcome;
     private ResultView? _view;
+    private FlowGraphModel? _flowModel;
+    private IReadOnlyList<ProductionTarget> _targets = [];
+    private IJSObjectReference? _graphModule;
+    private bool _graphSupported;
+    private bool _graphOpen;
     private ContextFilter _context = new();
     private string? _mapId;
     private string? _inputError;
@@ -518,6 +538,7 @@ else
         }
 
         _context = context;
+        _targets = targets;
         var pairOverrides = _pairOverrides.Select(kv => kv.Value.ToOverride(kv.Key)).ToList();
 
         _outcome = Calculator.Calculate(
@@ -593,6 +614,45 @@ else
         if (_outcome is not null && _snapshot is not null)
         {
             _view = ResultViewBuilder.Build(_outcome.Plan, _snapshot, _context, _unadjusted);
+            _flowModel = FlowGraphModelBuilder.Build(_outcome.Plan, _snapshot, _context, _targets, _unadjusted);
+        }
+    }
+
+    // 初回の結果表示後に WebGPU 利用可否を調べ、対応環境だけに切替とグラフ節を出す（仕様決定 AK）。
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_graphModule is null && _outcome is not null)
+        {
+            _graphModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/flow-graph.js");
+            _graphSupported = await _graphModule.InvokeAsync<bool>("webgpuSupported");
+            _graphOpen = _graphSupported && (await _graphModule.InvokeAsync<double>("viewportWidth")) >= 781;
+            if (_graphSupported)
+            {
+                StateHasChanged();
+            }
+        }
+    }
+
+    private string FormatGraphRate(double perMinute) => Fmt(perMinute) + Suffix();
+
+    private void OnGraphUnavailable()
+    {
+        _graphSupported = false;
+        _graphOpen = false;
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_graphModule is not null)
+        {
+            try
+            {
+                await _graphModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
         }
     }
 

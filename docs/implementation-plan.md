@@ -211,6 +211,14 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 - [ ] ブラウザプレビューでのユーザー確認を挟む（Phase 4 と同様）
 - **受け入れ条件**: カテゴリを候補から選べて自由入力も残り、レシピのアイテム選択をカテゴリで絞り込める。マスタ構成は不変。
 
+### Phase 15: 生産フローグラフの WebGPU 表示（PR: 結果画面の有向グラフ）
+
+- [x] `FlowGraphModelBuilder`（Application）で `ProductionPlan` からノード（アイテム・設備・採取）とエッジ（レシピ入出力・固定消費・環境消費・採取）を組み立て、最長パスで層割りする。xUnit でカバーする
+- [x] `wwwroot/js/flow-graph.js` を新設し、vanilla WebGPU＋WGSL でエッジ帯と流量比例の粒子を描画する。パン・ズーム・DOM ノード配置を持ち、非対応環境は `null` 返却でフォールバックする
+- [x] `Components/FlowGraph.razor` と `Home.razor` に組み込み、ツールバーの切替・ノードクリックからリスト行へのスクロールを実装する（仕様決定 AI・AJ・AK・AL）
+- [x] ブラウザプレビューでのユーザー確認を挟む（Phase 4 と同様）
+- **受け入れ条件**: 対応ブラウザでグラフが描画されて粒子が流れ、非対応環境はリスト表示のみにフォールバックする。詳細は `phases/implementation-plan-phase15.md` と `phases/test-specification-phase15.md`。
+
 ## 5. 実装メモ・規約
 
 - **NuGet**: 公開から 7 日以上経過した安定版のみ。`latest`/範囲指定禁止。新規ライブラリは導入前にライセンスを確認する。
