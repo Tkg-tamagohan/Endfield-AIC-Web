@@ -19,7 +19,7 @@
 - E 可変性の境界明文化（requirements §6.2）・F スキルへのゴールデンパス期待値表追記: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/22>
 - 保持された散布機台数が新しい自動上限を超えるケース（自動値へ戻す整合処理、仕様決定 AH）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/36>
 - 種↔作物の正味増循環を解く計算拡張（仕様決定 AQ・AR。ループゲイン 1 未満の循環は解放反復で外部投入なしの定常解を求め、初期在庫は対象外。炭塊・息壌への未充足波及を解消）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/51>
-- 公開版と管理ツールの計算ページ UI の共有化（Phase 22、仕様決定 BB〜BE。共有 RCL `EndfieldAicWeb.SharedUi` へ計算パネルを集約し、Admin 側もグラフ表示・「天然資源」表記・イベント注記を統一）: 計画 <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/55>・22-1 移設 <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/56>・22-2 差異統一 <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/TODO>
+- 公開版と管理ツールの計算ページ UI の共有化（Phase 22、仕様決定 BB〜BE。共有 RCL `EndfieldAicWeb.SharedUi` へ計算パネルを集約し、Admin 側もグラフ表示・「天然資源」表記・イベント注記を統一）: 計画 <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/55>・22-1 移設 <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/56>・22-2 差異統一 <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/57>
 
 ## 残っている項目
 
