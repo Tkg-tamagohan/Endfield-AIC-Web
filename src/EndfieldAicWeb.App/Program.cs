@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using EndfieldAicWeb.App;
 using EndfieldAicWeb.App.Services;
 using EndfieldAicWeb.Application;
+using EndfieldAicWeb.SharedUi;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -11,6 +12,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 builder.Services.AddScoped<MasterDataService>();
 builder.Services.AddScoped<IconCatalog>();
+builder.Services.AddScoped<ICalculatorIcons>(sp => sp.GetRequiredService<IconCatalog>());
 builder.Services.AddScoped<CalculationService>();
 
 await builder.Build().RunAsync();

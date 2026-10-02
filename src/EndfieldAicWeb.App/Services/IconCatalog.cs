@@ -2,6 +2,7 @@ using EndfieldAicWeb.Application;
 using EndfieldAicWeb.Domain.Models;
 using EndfieldAicWeb.Domain.Validation;
 using EndfieldAicWeb.Infrastructure.Icons;
+using EndfieldAicWeb.SharedUi;
 
 namespace EndfieldAicWeb.App.Services;
 
@@ -11,7 +12,7 @@ namespace EndfieldAicWeb.App.Services;
 /// ファイル名規約 <c>data/icons/&lt;Key&gt;.png</c> で拾う（旧 AP の挙動、仕様決定 R）。
 /// 取得できないキーは解決結果 null＝プレースホルダ表示に落ちる。
 /// </summary>
-public sealed class IconCatalog
+public sealed class IconCatalog : ICalculatorIcons
 {
     private readonly HttpClient _http;
     private readonly InMemoryIconFileProvider _files = new();

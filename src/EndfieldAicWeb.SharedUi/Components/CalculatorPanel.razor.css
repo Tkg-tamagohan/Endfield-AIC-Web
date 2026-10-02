@@ -1,0 +1,193 @@
+/* 計算パネル専用のスタイル（仕様決定 BB）。汎用クラス（.input・.btn・.hint 等）は各アプリの app.css が担う。 */
+
+.layout {
+    display: grid;
+    grid-template-columns: minmax(300px, 380px) 1fr;
+    gap: 16px;
+    align-items: start;
+}
+
+.input.rate {
+    width: 56px;
+    flex: none;
+    text-align: right;
+}
+
+.input.tiny {
+    width: 52px;
+    flex: none;
+    text-align: right;
+    padding: 3px 6px;
+}
+
+.env-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.input.pair {
+    max-width: 100%;
+    font-size: 12px;
+    padding: 4px 6px;
+}
+
+.target-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+/* 生産リスト行のカテゴリ絞り込み＋アイテム選択（仕様決定 AS・AU）。左にカテゴリ、右にアイテム。 */
+.target-row .row-category {
+    flex: 0 0 8em;
+    min-width: 0;
+}
+
+.target-row .row-item {
+    flex: 1 1 10em;
+    min-width: 0;
+}
+
+.past-events {
+    margin: 4px 0 6px;
+}
+
+.past-events summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 0.9rem;
+    padding: 4px 0;
+}
+
+.past-events summary:hover {
+    color: var(--text);
+}
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.check {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 4px 0;
+    cursor: pointer;
+}
+
+.check input {
+    accent-color: var(--accent);
+}
+
+.tag {
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    color: var(--accent);
+    font-size: 11px;
+    padding: 0 5px;
+}
+
+.segmented {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.seg {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    padding: 6px 14px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.seg.on {
+    background: var(--accent);
+    color: #141414;
+    font-weight: 700;
+}
+
+.period-inputs {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.period-inputs .input {
+    width: 44px;
+    text-align: right;
+}
+
+.warnings {
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+}
+
+.mat-row {
+    border-top: 1px solid var(--border);
+    padding: 8px 0;
+}
+
+.mat-head {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    flex-wrap: wrap;
+}
+
+.mat-body {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 6px;
+    padding-left: 28px;
+}
+
+.chip {
+    background: var(--chip);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-size: 12px;
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.result-line {
+    border-top: 1px solid var(--border);
+    padding: 8px 0;
+}
+
+/* ノードクリック時に行を一瞬強調する（flow-graph.js の scrollToRef が付与する） */
+@keyframes flowFlash {
+    0% { background-color: rgba(242, 163, 60, .28); }
+    100% { background-color: transparent; }
+}
+
+.flow-flash {
+    animation: flowFlash 1.4s ease-out;
+}
+
+@media (max-width: 780px) {
+    .layout {
+        grid-template-columns: 1fr;
+    }
+}
