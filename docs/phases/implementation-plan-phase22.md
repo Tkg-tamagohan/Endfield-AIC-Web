@@ -91,6 +91,7 @@ CSS isolation のバンドルは両アプリの `index.html` で既に `<App>.st
 | アイコン解決 | `ICalculatorIcons`（仮名。`Url(iconKey)` と `RecipeIconKey(recipeId)`）を DI で注入 | `IconCatalog.Url`・`IconCatalog.RecipeIconKey` | `AdminDocumentService.IconDataUrl`・`AdminDocumentService.EffectiveIconKey` |
 | 計算実行 | `CalculationService`（既存の共有 DI） | 同左 | 同左 |
 | フッター・ヒント文 | 文字列パラメータ（`VersionLabel`・`HeaderHint` 等、仮名） | 「データ版 @Document.DataVersion」 | 「データ版 … ・ SourceLabel」「編集中データで計算します。」 |
+| 検証失敗の通知 | `OnSnapshotRejected`（仮名の `EventCallback`）。`SnapshotSource` が null を返したときパネルが発火し、ページへ再描画を委ねる | 発生しない前提（同梱マスタはロード済み） | `EnsureSnapshot` 失敗時に `_snapshotErrors` を保持したままページのゲートを再表示する |
 | グラフ表示 | 常に有効（BC）。`FlowGraph` は共有ライブラリ内にあり差異パラメータは設けない | 現行どおり | 本 Phase で有効化 |
 
 読み込み前のゲートは各ページに残す。
@@ -107,7 +108,7 @@ App 側は `MasterData.IsLoaded` の分岐（読み込み中・エラー一覧�
 2. `CalculatorPanel.razor` を公開版 `Home.razor` の構造を基に共有化する。アイテム選択は Phase 20 のネイティブ select 二段（カテゴリ＋アイテム、`ItemCatalog.OptionsForSelection` による絞り込みと `@key` による再生成）、レシピアイコンは `ICalculatorIcons`、計算呼び出しは BE（常時捕捉）に従う。
 3. 共有 `EntityIcon.razor` を作成し、両アプリの同名コンポーネントを置き換える（Admin 編集系ページも共有版へ追従）。
 4. `FlowGraph.razor`・`flow-graph.js` を共有ライブラリへ移し、import パスを `_content/` 形式へ直す。
-5. 共有スタイルを `*.razor.css` へ移し、両 `app.css` から重複定義を除去する。
+5. 計算パネル専用の共有スタイルを `*.razor.css` へ移し、両 `app.css` から該当分の定義を除去する。`.input`・`.btn` 等の汎用クラスは編集ページでも使うため残す（§6 暫定解釈）。
 6. 両ページを読み込みゲートのみへ縮小する。`@code` 内の計算状態・ハンドラ・ヘルパーは全てパネル側へ移す。
 
 ### 5.2 PR 22-2（差異の統一と Admin グラフ解放）
@@ -128,7 +129,8 @@ App 側は `MasterData.IsLoaded` の分岐（読み込み中・エラー一覧�
 - イベント既定の再評価（`RefreshEventViews`）は再計算のたびに当日で行う（仕様決定 Z の継承）。
 - 環境・採取レートの入力保持と整合処理（仕様決定 AH・AD・AE）は現行ロジックをそのまま共有化する。
 - ページ遷移時の UI 状態（行・チェック・保持値）は従来どおり破棄され再初期化される。永続化は本 Phase の対象外。
-- Admin の `EnsureSnapshot` は再計算の先頭で必ず呼ぶ（現行どおり）。共有パネル側の `SnapshotSource` が null を返した場合は再計算を中断し、ページ側のゲート表示に委ねる。
+- Admin の `EnsureSnapshot` は再計算の先頭で必ず呼ぶ（現行どおり）。共有パネル側の `SnapshotSource` が null を返した場合は再計算を中断し、`OnSnapshotRejected`（仮名の `EventCallback`）を発火してページへ通知する。子コンポーネントのイベント処理だけではページ側のゲートは再描画されないため、通知を受けたページが自身の `_snapshotErrors` ゲート（`ValidationErrorList`）を再表示する仕組みとする。
+- CSS isolation（`*.razor.css`）へ移すのは計算パネル専用の規則に限る。`.input`・`.btn`・`.warn` など編集ページでも使う汎用クラスは両 `app.css` に残し、共有 CSS の配信（`_content/` 経由）は本 Phase の対象外とする。分離クラスは当該コンポーネントのマークアップにのみ効くため、`EntityIcon`・`FlowGraph` はそれぞれ自身の `*.razor.css` を持つ。
 - `data-flow-ref`（グラフノード→リスト行のスクロール）は共有実装内で常時付与する。Admin でグラフを有効化すればそのまま効く。
 - 共有 `EntityIcon` は DI のアイコン解決を使うため、Admin 編集系ページを含め全箇所で同じコンポーネントを使える。
 - 共有パネルの生産リスト行は Phase 20 のネイティブ select マークアップをそのまま持ち込む。`ItemPicker`・`RefSelect` 自体を共有ライブラリへ移して計算行でも使う案もあるが、編集系ページへの波及が大きいため本 Phase では行マークアップの維持を優先する。
