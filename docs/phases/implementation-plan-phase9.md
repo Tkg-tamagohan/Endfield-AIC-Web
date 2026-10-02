@@ -25,7 +25,7 @@
 
 ### やらないこと
 
-- `FlowAdjustment` の `RequiredPerSecond`・`RecommendedLimitPerSecond` や輸送容量（ベルト 30 個/s・パイプ 60 個/s）は個/s のまま据え置く。表示単位切替の「毎秒」選択肢（`AmountUnit.PerSecond`）も同様で、単位統一の対象はモデル保持とユーザー入力のレートのみである（仕様決定 M・O）
+- `FlowAdjustment` の `RequiredPerSecond`・`RecommendedLimitPerSecond` や輸送容量（ベルト 30 個/s・パイプ 60 個/s）は個/s のまま据え置く。表示単位切替の「毎秒」選択肢（`AmountUnit.PerSecond`）も同様で、単位統一の対象はモデル保持とユーザー入力のレートのみである（仕様決定 M・O）。輸送容量と推奨流量制限の値は Phase 16 の仕様決定 AM で個/分へ改訂する（「毎秒」選択肢は対象外のまま）
 - `ItemId`・`Name`・`Category="部品"` など改称対象外の値の変更
 - UI の操作構造の変更。ラベル文字列の追従のみで、ブラウザプレビューでのユーザー確認は挟まない（新規 UI を伴わないため）
 
@@ -82,7 +82,7 @@
 
 - `docs/phases/test-specification-phase2.md`: フィクスチャ定義のフィールド名・レート値（個/分換算）・`RawMaterial`・「基礎素材」表記を追従。期待値は等値のため変わらない
 - `docs/phases/test-specification-phase3.md`: `IsBaseMaterial`/`ConsumeRatePerSecond`/`RatePerSecond` の記述を新名へ
-- `docs/phases/test-specification-phase4.md`: 「基礎素材」「個/s」の環境消費記述を追従（流量調整の個/s は対象外）
+- `docs/phases/test-specification-phase4.md`: 「基礎素材」「個/s」の環境消費記述を追従（流量調整の個/s は対象外。Phase 16 の仕様決定 AM で個/分へ改訂）
 - `docs/phases/test-specification-phase6.md`・`implementation-plan-phase2.md`・`phase3.md`・`phase4.md`・`phase6.md`: 同名の追従
 - `docs/implementation-plan.md`: Phase 9 のチェックを `[x]` へ
 

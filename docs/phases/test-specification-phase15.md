@@ -36,7 +36,7 @@
 | FG-10 | 未充足アイテムのフラグ | 未充足を持つ計画 | 対応する `item:` ノードの `UnmetPerMinute` が正の値を持ち、そのノードが rank 0 近辺の起点側に置かれる |
 | FG-11 | 余剰のみのアイテムもノード化 | 副産物のみで登場するアイテムを含む計画 | `ItemRequirements` にないアイテムにも `item:` ノードがあり余剰量を持つ |
 | FG-12 | 未調整ビューは倍率を掛ける | 切上げ台数が実数台数より大きい計画で `unadjusted=true` | RecipeInput・RecipeOutput の流量が `ResultViewBuilder` と同じ倍率で拡大され、`unadjusted=false` と一致しない |
-| FG-13 | 輸送容量超過の簡易判定 | `RequiredPerMinute / 60` がベルト容量を超えるアイテム | そのアイテムノードに容量超過フラグが立つ |
+| FG-13 | 輸送容量超過の簡易判定 | `max(RequiredPerMinute, 生産量, 採取量)` が輸送容量（ベルト 30 個/分・パイプ 60 個/分。Phase 16 の仕様決定 AM で改訂）を超えるアイテム | そのアイテムノードに容量超過フラグが立つ |
 | FG-14 | 空の計画 | `ItemRequirements`・`RecipeRuns` が空の計画 | 例外を投げず、採取ノードを含まない空モデルが返る |
 
 razor の UI 状態遷移（切替ボタン、ノードクリックのスクロール）と canvas の描画内容は bUnit・WebGPU テスト基盤を持たないため対象外とする（remaining-issues.md「Razor ページ内 UI 状態遷移のテスト空白」に同種の空白を記録済み）。
