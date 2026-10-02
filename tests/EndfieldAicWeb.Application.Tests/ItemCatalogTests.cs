@@ -94,7 +94,7 @@ public class ItemCatalogTests
         },
     ];
 
-    // IC-08: レシピの成果物として登場するアイテムのみを返す（仕様決定 AR）。
+    // IC-08: レシピの成果物として登場するアイテムのみを返す（仕様決定 AT）。
     [Fact]
     public void WithRecipeOutputReturnsOutputItemsOnly()
     {
@@ -103,7 +103,7 @@ public class ItemCatalogTests
         Assert.Equal(["item-a"], result.Select(i => i.Id));
     }
 
-    // IC-09: 採取素材でもレシピの成果物に登場しなければ候補に含めない（仕様決定 AR）。
+    // IC-09: 採取素材でもレシピの成果物に登場しなければ候補に含めない（仕様決定 AT）。
     [Fact]
     public void WithRecipeOutputExcludesGatherableWithoutRecipe()
     {
@@ -112,7 +112,7 @@ public class ItemCatalogTests
         Assert.DoesNotContain(result, i => i.Id == "item-c");
     }
 
-    // IC-10: 継続消費系の母集団は「気体」「液体」カテゴリのみ（仕様決定 AR）。
+    // IC-10: 継続消費系の母集団は「気体」「液体」カテゴリのみ（仕様決定 AT）。
     [Fact]
     public void FuelItemsReturnsGasAndLiquidOnly()
     {
@@ -126,7 +126,7 @@ public class ItemCatalogTests
         Assert.Equal(["item-gas", "item-water"], ItemCatalog.FuelItems(fuelCandidates).Select(i => i.Id));
     }
 
-    // IC-11: 母集団外の現在値も検索先を指定すれば末尾に残す（仕様決定 AR）。
+    // IC-11: 母集団外の現在値も検索先を指定すれば末尾に残す（仕様決定 AT）。
     [Fact]
     public void OptionsKeepCurrentFromLookupItemsAtEnd()
     {

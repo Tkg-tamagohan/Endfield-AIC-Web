@@ -7,10 +7,10 @@ namespace EndfieldAicWeb.Application;
 /// </summary>
 public static class ItemCatalog
 {
-    /// <summary>継続消費系の選択肢とするカテゴリ（環境消費・固定消費、仕様決定 AR）。</summary>
+    /// <summary>継続消費系の選択肢とするカテゴリ（環境消費・固定消費、仕様決定 AT）。</summary>
     public static readonly IReadOnlyList<string> FuelCategories = ["気体", "液体"];
 
-    /// <summary>レシピの成果物として登場するアイテムだけを返す（生産リストの候補、仕様決定 AR）。</summary>
+    /// <summary>レシピの成果物として登場するアイテムだけを返す（生産リストの候補、仕様決定 AT）。</summary>
     public static IReadOnlyList<Item> WithRecipeOutput(IReadOnlyList<Item> items, IReadOnlyList<Recipe> recipes)
     {
         ArgumentNullException.ThrowIfNull(items);
@@ -28,7 +28,7 @@ public static class ItemCatalog
         return items.Where(i => outputIds.Contains(i.Id)).ToList();
     }
 
-    /// <summary>継続消費系の母集団（「気体」「液体」カテゴリのアイテム、仕様決定 AR）を返す。</summary>
+    /// <summary>継続消費系の母集団（「気体」「液体」カテゴリのアイテム、仕様決定 AT）を返す。</summary>
     public static IReadOnlyList<Item> FuelItems(IReadOnlyList<Item> items)
     {
         ArgumentNullException.ThrowIfNull(items);
