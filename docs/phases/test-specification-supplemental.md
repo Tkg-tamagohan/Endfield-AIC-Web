@@ -55,7 +55,7 @@ Phase 仕様書の既存 prefix を継ぐ続番を §2-1、Phase 外で新設さ
 | ERC-01 | 0〜上限の整数文字列はそのまま保持する（境界の 0 と上限ちょうどを含む） | tests/EndfieldAicWeb.Application.Tests/CalculationInputBuilderTests.cs（EnvCountReconcileTests） | PR #36（仕様決定 AH の散布機台数整合） |
 | ERC-02 | 新しい上限を超えた保持値は空欄へ戻す（クランプしない） | 同上 | 同上 |
 | ERC-03 | 非整数・負数・空欄・空白のみ・null は空欄（自動値）のまま、または空欄へ戻す | 同上 | 同上 |
-| CPH-01 | 日・時・分の各欄を合算して PeriodAmount にする（1 日 2 時 30 分 = 1590 分） | tests/EndfieldAicWeb.Application.Tests/CalculatorPanelHelperTests.cs（PeriodParseTests） | PR #65（CalculatorPanel の純粋ヘルパーを Application 層へ抽出） |
+| CPH-01 | 日・時・分の各欄を合算して PeriodAmount にする（1 日 2 時 30 分 = 1590 分） | tests/EndfieldAicWeb.Application.Tests/CalculatorPanelHelperTests.cs（PeriodParseTests） | PR #65（CalculatorPanel の純粋ヘルパーを Application 層へ抽出）。登録時点で PR #65 は未マージのため、コード側実体はマージ後に main へ反映される |
 | CPH-02 | 空欄・空白のみ・null の欄は 0 扱い | 同上 | 同上 |
 | CPH-03 | 非数値・負・非有限の欄があれば拒否し、既定値（全 0）を返す | 同上 | 同上 |
 | CPH-04 | 計画の採取対象順で行を組み、保持している入力値を適用する。保持値のない対象は空欄 | 同上（GatherRateReconcileTests） | 同上 |
