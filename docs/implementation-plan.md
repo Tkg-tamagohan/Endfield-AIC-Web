@@ -259,11 +259,12 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 
 ### Phase 21: 既定レシピ選択への必要設備数条件の追加（PR: 同バージョンレシピの効率順位付け）
 
-- [ ] 適格レシピの既定順を `VersionAdded` 降順 → 実効出力レート降順 → `Id` 昇順へ改める（仕様決定 BA）
-- [ ] `PairSelector` の候補順序付けに実効レート比較を追加し、選択と UI 候補順を同一規則に保つ
-- [ ] 選択規則のテスト（SEL-14〜）を追加する
-- [ ] requirements.md・decision-records.md を同期する
+- [x] 適格レシピの既定順を `VersionAdded` 降順 → 実効出力レート降順 → `Id` 昇順へ改める（仕様決定 BA）
+- [x] `PairSelector` の候補順序付けに実効レート比較を追加し、選択と UI 候補順を同一規則に保つ
+- [x] 選択規則のテスト（SEL-14〜）を追加する
+- [x] requirements.md・decision-records.md を同期する
 - **受け入れ条件**: `VersionAdded` 同率のレシピ間で実効出力レートの高いレシピが既定になり、同梱マスタで炭塊の既定が芽針系になる。詳細は `phases/implementation-plan-phase21.md` と `phases/test-specification-phase21.md`。
+
 ## 5. 実装メモ・規約
 
 - **NuGet**: 公開から 7 日以上経過した安定版のみ。`latest`/範囲指定禁止。新規ライブラリは導入前にライセンスを確認する。
