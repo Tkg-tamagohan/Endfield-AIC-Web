@@ -32,12 +32,18 @@ Endfield-AIC-Web/
 │   ├── EndfieldAicWeb.Application/     # ユースケース（計算実行・マスタ編集・エクスポートの入口）
 │   ├── EndfieldAicWeb.Infrastructure/  # マスタ JSON 読み書き・アイコンマニフェスト解決
 │   ├── EndfieldAicWeb.App/             # 計算アプリ（Blazor WASM、公開）
-│   └── EndfieldAicWeb.Admin/           # マスタ管理ツール（Blazor WASM、非公開）
+│   ├── EndfieldAicWeb.Admin/           # マスタ管理ツール（Blazor WASM、非公開）
+│   └── EndfieldAicWeb.SharedUi/        # 計算ページ UI の共有 Razor Class Library（仕様決定 BB）
 ├── tests/
 │   ├── EndfieldAicWeb.Domain.Tests/    # 計算・検証の単体テスト（旧 Core.Tests 移植＋新規）
-│   └── EndfieldAicWeb.Infrastructure.Tests/ # JSON I/O・スキーマ検証のテスト
+│   ├── EndfieldAicWeb.Infrastructure.Tests/ # JSON I/O・スキーマ検証のテスト
+│   ├── EndfieldAicWeb.Application.Tests/    # ユースケース層の単体テスト
+│   └── EndfieldAicWeb.Admin.Tests/          # 管理ツール固有処理（アイコン正規化等）のテスト
+├── tools/
+│   └── validate_master.py              # マスタ JSON のスキーマ検証（CI・ローカル共通）
 ├── data/
 │   ├── master.json                     # マスタ JSON（SchemaVersion=1 新系統、DataVersion 付き。仕様決定 C/D）
+│   ├── master.schema.json              # マスタ JSON の構造定義
 │   └── icons/                          # アイコン画像（<Key> 対応 PNG。権利クリアなもののみ、仕様決定 R）
 └── docs/
     ├── requirements.md                 # 確定版要件定義書
@@ -155,8 +161,8 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 - [x] 管理ツールにアイコン取り込み（128×128 PNG 正規化）・プレビュー・クリアを実装し、エクスポートで `icons/` フォルダとマニフェストを出力する
   - 正規化はブラウザ Canvas、エクスポートは `master-export.zip`（`data/master.json`＋`data/icons/`）で出力
 - [x] 計算アプリ側の `IconKey` 表示（マニフェスト解決・フォールバック）を仕上げる
-- [ ] 要件 §7 のワークフローどおり実データを投入し、エクスポート物を本リポジトリへコミット → CI 検証 → Pages 配信まで通す
-  - ゲーム実データの投入は管理者の運用作業。パイプライン自体は旧リポジトリの権利クリア済みアイコン 5 件をサンプルデータへ移植し、エクスポート → コミット → CI 検証（`dotnet test` のアイコン照合と `validate_master.py` のスキーマ検証を含む）→ Pages 配信の経路を実データで通して検証済み
+- [x] 要件 §7 のワークフローどおり実データを投入し、エクスポート物を本リポジトリへコミット → CI 検証 → Pages 配信まで通す
+  - ワークフローの実証は済み（DataVersion 0.2.x のエクスポート物をコミット済み）。実データの継続投入は要件 §7 の運用作業として扱い、本 Phase の完了条件とはしない
 - **受け入れ条件**: エクスポート物のコミットで公開アプリへ実データが配信される。アイコン欠落時もプレースホルダで表示が破綻しない。
 
 ### Phase 8: アイコン正規化の改修（PR: 原寸保持＋アニメーション対応）
@@ -287,6 +293,7 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 
 - **NuGet**: 公開から 7 日以上経過した安定版のみ。`latest`/範囲指定禁止。新規ライブラリは導入前にライセンスを確認する。
 - **テスト方針**: Domain の計算・検証を最も厚くする。テストケースは文書（requirements/decision-records）を根拠に作成し、ID を振って結果を表で報告する。各 Phase の詳細計画とテスト仕様は、Phase 開始時に `phases/implementation-plan-phase<N>.md`・`phases/test-specification-phase<N>.md` として切り出してよい（旧リポジトリと同じ慣行）。
+- **Phase 別文書**: 一部の Phase は個別計画書・テスト仕様書を持たない。Phase 1 は `phases/` への文書集約以前に完了したため詳細計画書・テスト仕様書ともに未作成、Phase 5 はテスト仕様書を作成せずに実施した。
 - **UI の確認**: ユーザー操作を伴う画面は、テスト作成の前にブラウザプレビューでユーザーに実際に触ってもらい、フィードバックを反映する。
 - **コミット**: Phase 内でも論理単位で分割する。UI 文字列・マスタデータは日本語のみ。
 - **IP 配慮**: ゲーム画像素材は同梱しない。配布アイコンは自作・権利クリアなものに限る（仕様決定 R）。

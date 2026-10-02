@@ -1,6 +1,6 @@
 # 残課題
 
-この文書は、FCIS（Functional Core, Imperative Shell）観点のレビューで見つかった指摘のうち、対応を先送りした項目を記録するものである。
+この文書は、FCIS（Functional Core, Imperative Shell）観点のレビュー指摘や、各 Phase の計画・実装で対応を先送りした項目を記録するものである。運用面の未対応事項も同じ節に記録する。
 
 ## 対応済みの項目
 
@@ -20,6 +20,7 @@
 - 保持された散布機台数が新しい自動上限を超えるケース（自動値へ戻す整合処理、仕様決定 AH）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/36>
 - 種↔作物の正味増循環を解く計算拡張（仕様決定 AQ・AR。ループゲイン 1 未満の循環は解放反復で外部投入なしの定常解を求め、初期在庫は対象外。炭塊・息壌への未充足波及を解消）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/51>
 - 公開版と管理ツールの計算ページ UI の共有化（Phase 22、仕様決定 BB〜BE。共有 RCL `EndfieldAicWeb.SharedUi` へ計算パネルを集約し、Admin 側もグラフ表示・「天然資源」表記・イベント注記を統一）: 計画 <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/55>・22-1 移設 <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/56>・22-2 差異統一 <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/57>
+- 管理ツールの Pages プレビュードメイン（`*.endfield-aic-admin.pages.dev`）の Access 保護: Cloudflare Access 側で対応（2026-10-02）
 
 ## 残っている項目
 
@@ -40,6 +41,31 @@
 一方、razor の `@code` に残る UI 状態遷移（チェック切り替え、行の追加削除、イベントハンドラ）は依然としてテスト対象外である。
 カバーする場合は bUnit などのコンポーネントテスト基盤の導入が要になり、`IJSRuntime` のモック（confirm、ダウンロード、ファイル選択）と `AdminDocumentService` の注入差し替えを含む基盤整備が先行して要る。
 UI 層の変更頻度が上がった時点で再検討とする。
+
+### 編集系ページと選択部品の共有化（Phase 22 対象外）
+
+Phase 22 で計算ページは共有 RCL `EndfieldAicWeb.SharedUi` へ集約したが、編集系ページ（Items・Recipes・Environments・Maps・Events・Facilities）は対象外とされた（phase22 計画 §3）。
+管理ツールの `ItemPicker`・`RefSelect`・`SelectOption` は編集系ページで継続して使っており、共有ライブラリへの移設も「実施時の判断」とされた末、編集系ページへの波及が大きいため見送られた（phase22 計画 §6）。
+計算パネルの生産行はネイティブ select の独自マークアップを維持しており、`ItemPicker` 系との二系統が残っている。
+再検討の条件は「編集系ページの仕様変更が入った時点」とする。
+
+### ペア選択候補ラベルの重複
+
+共有 `CalculatorPanel` の `OptionLabel` は「レシピ名 ／ 設備名 N秒・環境名・固定消費・（既定）」を返す。
+炭塊の 2 経路（`recipe-carbon03`・`recipe-carbon04`）は同名・同設備・同サイクルでラベルが同文になり、既定側の「（既定）」だけが差異になる。
+ユーザーが両候補を区別できない実害があるため、識別情報の追加を検討する（推奨案は `OptionLabel` に入力素材等の識別情報を併記する案）。表示仕様の未決事項として requirements §12 にも記録した。
+
+### 「採取素材」と「天然資源」の適用範囲
+
+仕様決定 BD で UI の表示文言は「天然資源」に統一したが、警告・検証メッセージは「採取素材」のまま残す範囲とした。
+このため計算ページの警告欄には「採取素材はすべて採取できません」などの表現が表示され、ヒント文言の「天然資源」と同一画面上で併存する。
+現状は仕様どおりである。メッセージ側へ統一を広げる場合は、`CalculationWarning` の文面が UI とテストの双方から参照される契約である点を踏まえ、別途の仕様決定として扱う。
+
+### `AdminCalculatorIcons` の専用テストの空白
+
+Phase 22-1 で追加した `AdminCalculatorIcons` は、`ICalculatorIcons` を `AdminDocumentService` のアイコンストアへ委譲する薄いアダプタである。
+実装は単純だが `EndfieldAicWeb.Admin.Tests` の規約上の対象であり、未解決時の null 返却や `RecipeIconKey` の主出力フォールバックを検証する専用テストを持たない。
+次のテスト系整備で追加する余地がある。
 
 ## 改善方針の検討
 
