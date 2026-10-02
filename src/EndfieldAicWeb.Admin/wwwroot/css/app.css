@@ -370,6 +370,24 @@ select.input {
     flex-wrap: wrap;
 }
 
+/* カテゴリ絞り込み付きアイテム選択（仕様決定 AQ）。左にカテゴリ、右にアイテム。 */
+.item-picker {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+}
+
+.item-picker select:first-child {
+    flex: 0 0 8em;
+    min-width: 0;
+}
+
+.item-picker select:last-child {
+    flex: 1;
+    min-width: 0;
+}
+
 .chip {
     background: var(--chip);
     border: 1px solid var(--border);
@@ -470,6 +488,10 @@ select.input {
 .entity-pane-head .input {
     flex: 1;
     min-width: 0;
+}
+
+.entity-pane-head .pane-category {
+    flex: 0 0 8em;
 }
 
 .entity-pane-head .btn {

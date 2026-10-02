@@ -29,8 +29,8 @@ else
                                ValueChanged="SetProvider" />
 
                     <label>消費アイテム</label>
-                    <RefSelect Value="@_selected.ConsumeItemId" Options="_itemOptions" EmptyLabel="（未選択）"
-                               ValueChanged="SetConsumeItem" />
+                    <ItemPicker Value="@_selected.ConsumeItemId" Items="_fuelItems" LookupItems="_allItems"
+                                ValueChanged="SetConsumeItem" />
 
                     <label>消費速度（個/分）</label>
                     <span><NumberInput Value="@_selected.ConsumeRatePerMinute" Owner="_selected" Field="ConsumeRatePerMinute" ValueChanged="v => ApplyNum(v => _selected.ConsumeRatePerMinute = v, v)" /></span>
@@ -58,7 +58,8 @@ else
     private ElementReference _panelRef;
     private bool _scrollToPanel;
     private IReadOnlyList<SelectOption> _facilityOptions = [];
-    private IReadOnlyList<SelectOption> _itemOptions = [];
+    private IReadOnlyList<Item> _allItems = [];
+    private IReadOnlyList<Item> _fuelItems = [];
     private IReadOnlyList<SelectOption> _eventOptions = [];
 
     protected override void OnParametersSet()
@@ -69,7 +70,8 @@ else
         }
 
         _facilityOptions = Store.Document!.Facilities.Select(f => new SelectOption(f.Id, f.Name)).ToList();
-        _itemOptions = Store.Document.Items.Select(i => new SelectOption(i.Id, i.Name)).ToList();
+        _allItems = Store.Document.Items;
+        _fuelItems = ItemCatalog.FuelItems(Store.Document.Items);
         _eventOptions = Store.Document.GameEvents.Select(e => new SelectOption(e.Id, e.Name)).ToList();
         if (Select is { } id)
         {
@@ -90,7 +92,7 @@ else
             id,
             Store.Document.DataVersion,
             Store.Document.Facilities.FirstOrDefault()?.Id,
-            Store.Document.Items.FirstOrDefault()?.Id);
+            ItemCatalog.FuelItems(Store.Document.Items).FirstOrDefault()?.Id);
         Store.Document.Environments.Add(env);
         Store.NotifyChanged();
         _selected = env;

@@ -40,6 +40,13 @@ else
             @foreach (TargetRow row in _targetRows)
             {
                 <div class="target-row">
+                    <select class="input row-category" value="@(row.Category ?? "")" @onchange="e => OnCategoryChanged(row, e)">
+                        <option value="">すべてのカテゴリ</option>
+                        @foreach (string category in _itemCategories)
+                        {
+                            <option value="@category">@category</option>
+                        }
+                    </select>
                     <div class="combo">
                         <input class="input" value="@row.Filter"
                                @oninput="e => OnItemFilterInput(row, e)"
@@ -49,7 +56,7 @@ else
                         @if (row.Open)
                         {
                             <div class="combo-list">
-                                @{ IReadOnlyList<Item> matches = ItemSearch.Filter(_selectableItems, row.Filter); }
+                                @{ IReadOnlyList<Item> matches = ItemSearch.Filter(_selectableItems, row.Filter, row.Category); }
                                 @foreach (Item item in matches)
                                 {
                                     <div class="combo-item" @onmousedown="() => SelectItem(row, item)" @onmousedown:preventDefault>
@@ -320,6 +327,7 @@ else
         public string? ItemId;
         public string RateText = "60";
         public string Filter = "";
+        public string? Category;
         public bool Open;
     }
 
@@ -343,6 +351,7 @@ else
     private List<EnvInput> _envInputs = [];
     private List<GatherInput> _gatherInputs = [];
     private List<Item> _selectableItems = [];
+    private IReadOnlyList<string> _itemCategories = [];
     private readonly Dictionary<string, string> _gatherRateTexts = new(StringComparer.Ordinal);
 
     /// <summary>ユーザーが選んだペア上書き（アイテム Id → 候補）。既定 = キーなし。</summary>
@@ -376,7 +385,10 @@ else
         {
             _snapshot = MasterData.Snapshot!;
             await Icons.LoadAsync(MasterData.Document!);
-            _selectableItems = _snapshot.Items.Where(i => i.TransportKind != TransportKind.None).ToList();
+            _selectableItems = ItemCatalog.WithRecipeOutput(
+                _snapshot.Items.Where(i => i.TransportKind != TransportKind.None).ToList(),
+                _snapshot.Recipes).ToList();
+            _itemCategories = ItemCatalog.Categories(_selectableItems);
             _eventChecks = CalculationInputBuilder.InitializeEventChecks(_snapshot.GameEvents, DateOnly.FromDateTime(DateTime.Now));
             RefreshEventViews(DateOnly.FromDateTime(DateTime.Now));
         }
@@ -391,6 +403,12 @@ else
         {
             _targetRows.Add(new TargetRow());
         }
+    }
+
+    private void OnCategoryChanged(TargetRow row, ChangeEventArgs e)
+    {
+        string? value = e.Value?.ToString();
+        row.Category = string.IsNullOrEmpty(value) ? null : value;
     }
 
     private void OnItemFilterInput(TargetRow row, ChangeEventArgs e)

@@ -3,6 +3,16 @@
 <div class="entity-pane">
     <div class="entity-pane-head">
         <input class="input" placeholder="絞り込み" value="@_filter" @oninput="OnFilterInput" />
+        @if (CategoryOf is not null)
+        {
+            <select class="input pane-category" value="@(_category ?? "")" @onchange="OnCategoryChanged">
+                <option value="">すべてのカテゴリ</option>
+                @foreach (string category in Categories())
+                {
+                    <option value="@category">@category</option>
+                }
+            </select>
+        }
         <button class="btn" @onclick="OnNew">＋ 新規</button>
     </div>
     <div class="entity-list">
@@ -46,6 +56,10 @@
     [Parameter]
     public Func<TItem, string?>? ExtraSearchOf { get; set; }
 
+    /// <summary>カテゴリ絞り込みの対象値。指定時は検索窓の横にカテゴリ select を出す（仕様決定 AQ）。</summary>
+    [Parameter]
+    public Func<TItem, string?>? CategoryOf { get; set; }
+
     [Parameter]
     public string? SelectedKey { get; set; }
 
@@ -60,18 +74,44 @@
     public EventCallback<TItem> OnDelete { get; set; }
 
     private string _filter = "";
+    private string? _category;
 
     private void OnFilterInput(ChangeEventArgs e) => _filter = e.Value?.ToString() ?? "";
 
+    private void OnCategoryChanged(ChangeEventArgs e)
+    {
+        string? value = e.Value?.ToString();
+        _category = string.IsNullOrEmpty(value) ? null : value;
+    }
+
+    private IEnumerable<string> Categories()
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (TItem item in Items)
+        {
+            string? category = CategoryOf?.Invoke(item);
+            if (!string.IsNullOrWhiteSpace(category) && seen.Add(category))
+            {
+                yield return category;
+            }
+        }
+    }
+
     private IEnumerable<TItem> Filtered()
     {
+        IEnumerable<TItem> items = Items;
+        if (_category is not null)
+        {
+            items = items.Where(i => CategoryOf?.Invoke(i) == _category);
+        }
+
         if (string.IsNullOrWhiteSpace(_filter))
         {
-            return Items;
+            return items;
         }
 
         string q = _filter.Trim();
-        return Items.Where(i =>
+        return items.Where(i =>
             KeyOf(i).Contains(q, StringComparison.OrdinalIgnoreCase)
             || TextOf(i).Contains(q, StringComparison.OrdinalIgnoreCase)
             || (ExtraSearchOf?.Invoke(i)?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false));

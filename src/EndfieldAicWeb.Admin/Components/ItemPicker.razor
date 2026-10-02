@@ -1,0 +1,37 @@
+@* カテゴリ絞り込み付きアイテム選択（仕様決定 AQ）。カテゴリとアイテムを横並びに置く。 *@
+<div class="item-picker">
+    <RefSelect Value="@_category" Options="_categoryOptions" EmptyLabel="すべてのカテゴリ"
+               ValueChanged="v => _category = v" />
+    <RefSelect @key="_category" Value="@Value" Options="_itemOptions" EmptyLabel="@EmptyLabel"
+               ValueChanged="ValueChanged" />
+</div>
+
+@code {
+    /// <summary>選択肢の母集団（この欄で選べるアイテム集合）。</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<Item> Items { get; set; } = [];
+
+    /// <summary>現在値の検索先。省略時は Items。母集団外の既存値も末尾に残すため、呼び出し側は文書の全アイテムを渡す。</summary>
+    [Parameter]
+    public IReadOnlyList<Item>? LookupItems { get; set; }
+
+    [Parameter]
+    public string? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> ValueChanged { get; set; }
+
+    /// <summary>アイテム欄の空選択時の表示。</summary>
+    [Parameter]
+    public string EmptyLabel { get; set; } = "（未選択）";
+
+    private string? _category;
+
+    private IReadOnlyList<SelectOption> _categoryOptions =>
+        ItemCatalog.Categories(Items).Select(c => new SelectOption(c, c)).ToList();
+
+    private IReadOnlyList<SelectOption> _itemOptions =>
+        ItemCatalog.OptionsForSelection(Items, _category, Value, LookupItems)
+            .Select(i => new SelectOption(i.Id, i.Name))
+            .ToList();
+}

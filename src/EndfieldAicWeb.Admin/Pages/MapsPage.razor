@@ -38,8 +38,8 @@ else
                             {
                                 <tr @key="rate">
                                     <td>
-                                        <RefSelect Value="@rate.ItemId" Options="_gatherableItemOptions"
-                                                   EmptyLabel="（未選択）" ValueChanged="value => SetItem(rate, value)" />
+                                        <ItemPicker Value="@rate.ItemId" Items="_gatherableItems" LookupItems="_allItems"
+                                                    ValueChanged="value => SetItem(rate, value)" />
                                     </td>
                                     <td>
                                         <input type="checkbox" checked="@rate.IsUnlimited"
@@ -84,7 +84,8 @@ else
     private ElementReference _panelRef;
     private bool _scrollToPanel;
     private IReadOnlyList<SelectOption> _eventOptions = [];
-    private IReadOnlyList<SelectOption> _gatherableItemOptions = [];
+    private IReadOnlyList<Item> _allItems = [];
+    private IReadOnlyList<Item> _gatherableItems = [];
 
     protected override void OnParametersSet()
     {
@@ -95,10 +96,8 @@ else
 
         MasterDocument document = Store.Document!;
         _eventOptions = document.GameEvents.Select(e => new SelectOption(e.Id, e.Name)).ToList();
-        _gatherableItemOptions = document.Items
-            .Where(item => item.IsGatherable)
-            .Select(item => new SelectOption(item.Id, item.Name))
-            .ToList();
+        _allItems = document.Items;
+        _gatherableItems = document.Items.Where(item => item.IsGatherable).ToList();
         if (Select is { } id)
         {
             _selected = document.Maps.FirstOrDefault(map => map.Id == id);

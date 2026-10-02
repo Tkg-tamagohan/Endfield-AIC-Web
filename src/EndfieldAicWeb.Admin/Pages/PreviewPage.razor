@@ -25,8 +25,8 @@ else
             @foreach (TargetRow row in _targetRows)
             {
                 <div class="target-row">
-                    <RefSelect Value="@row.ItemId" Options="_itemOptions" EmptyLabel="（アイテムを選択）"
-                               ValueChanged="v => row.ItemId = v" />
+                    <ItemPicker Value="@row.ItemId" Items="_productionItems" LookupItems="_allItems"
+                                EmptyLabel="（アイテムを選択）" ValueChanged="v => row.ItemId = v" />
                     <input class="input rate" @bind="row.RateText" @bind:event="oninput" inputmode="decimal" placeholder="0" />
                     <button class="btn ghost" title="行を削除" @onclick="() => RemoveRow(row)">×</button>
                 </div>
@@ -285,7 +285,8 @@ else
     private List<EventCheck> _outEventChecks = [];
     private List<EnvInput> _envInputs = [];
     private List<GatherInput> _gatherInputs = [];
-    private IReadOnlyList<SelectOption> _itemOptions = [];
+    private IReadOnlyList<Item> _allItems = [];
+    private IReadOnlyList<Item> _productionItems = [];
     private readonly Dictionary<string, string> _gatherRateTexts = new(StringComparer.Ordinal);
 
     /// <summary>ユーザーが選んだペア上書き（アイテム Id → 候補）。既定 = キーなし。</summary>
@@ -312,10 +313,10 @@ else
     {
         if (EnsureSnapshot())
         {
-            _itemOptions = _snapshot!.Items
-                .Where(i => i.TransportKind != TransportKind.None)
-                .Select(i => new SelectOption(i.Id, i.Name))
-                .ToList();
+            _allItems = _snapshot!.Items;
+            _productionItems = ItemCatalog.WithRecipeOutput(
+                _snapshot.Items.Where(i => i.TransportKind != TransportKind.None).ToList(),
+                _snapshot.Recipes);
             _eventChecks = CalculationInputBuilder.InitializeEventChecks(_snapshot.GameEvents, DateOnly.FromDateTime(DateTime.Now));
             RefreshEventViews(DateOnly.FromDateTime(DateTime.Now));
         }
