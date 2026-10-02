@@ -44,7 +44,7 @@
     {
         if (firstRender)
         {
-            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/flow-graph.js");
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/EndfieldAicWeb.SharedUi/js/flow-graph.js");
             _handle = await _module.InvokeAsync<IJSObjectReference?>("create", _canvas, _layer);
             if (_handle is null)
             {

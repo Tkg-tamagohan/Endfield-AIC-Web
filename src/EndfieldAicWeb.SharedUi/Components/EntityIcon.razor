@@ -1,5 +1,5 @@
-@* エンティティアイコン（プレビュー表示用）。未解決は「?」のプレースホルダに落とす。 *@
-@inject AdminDocumentService Store
+@* エンティティアイコン。解決できないキーは破綻させず「?」のプレースホルダに落とす。 *@
+@inject ICalculatorIcons Icons
 
 <span class="icon-slot" title="@(Title ?? IconKey)">
     @if (_url is not null)
@@ -21,5 +21,5 @@
 
     private string? _url;
 
-    protected override void OnParametersSet() => _url = Store.IconDataUrl(IconKey);
+    protected override void OnParametersSet() => _url = Icons.Url(IconKey);
 }

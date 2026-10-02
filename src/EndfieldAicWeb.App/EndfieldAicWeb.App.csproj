@@ -14,6 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="..\EndfieldAicWeb.Application\EndfieldAicWeb.Application.csproj" />
     <ProjectReference Include="..\EndfieldAicWeb.Infrastructure\EndfieldAicWeb.Infrastructure.csproj" />
+    <ProjectReference Include="..\EndfieldAicWeb.SharedUi\EndfieldAicWeb.SharedUi.csproj" />
   </ItemGroup>
 
   <!-- 正本マスタを wwwroot へコピーして静的アセットとして配信する（生成物なので gitignore 済み）。 -->
