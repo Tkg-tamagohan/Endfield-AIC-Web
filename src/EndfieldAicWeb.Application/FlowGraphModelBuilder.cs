@@ -71,7 +71,7 @@ public static class FlowGraphModelBuilder
     private const double Epsilon = 1e-9;
     private const string ItemPrefix = "item:";
     private const string FacilityPrefix = "fac:";
-    private const char UnitSeparator = '#';
+    private const string UnitPrefix = "facunit:";
 
     /// <summary>採取供給の共通ノード Id（計画に採取がある場合のみ存在する）。</summary>
     public const string GatherNodeId = "gather";
@@ -80,9 +80,12 @@ public static class FlowGraphModelBuilder
 
     public static string FacilityNodeId(string facilityId) => FacilityPrefix + facilityId;
 
-    /// <summary>台数分表示でのユニットノード Id（ユニット番号は 0 起き）。</summary>
+    /// <summary>
+    /// 台数分表示でのユニットノード Id（ユニット番号は 0 起き）。
+    /// 設備ノードと別のプレフィックスにし、FacilityId に `#` が含まれても衝突しない形にする。
+    /// </summary>
     public static string UnitNodeId(string facilityId, int unitIndex) =>
-        $"{FacilityPrefix}{facilityId}{UnitSeparator}{unitIndex}";
+        $"{UnitPrefix}{facilityId}#{unitIndex}";
 
     public static FlowGraphModel Build(
         ProductionPlan plan,
@@ -122,6 +125,17 @@ public static class FlowGraphModelBuilder
             plan.RecipeRuns, plan.FacilityRequirements, plan.EnvironmentRequirements,
             snapshot, plan.PairSelections);
 
+        // ユニットノード Id から FacilityId への引き戻し。Id を文字列分割で解釈せず明示的に持つ
+        // （FacilityId に `#` が含まれても誤って別設備へ解決されない）。
+        var unitFacility = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach ((string facilityId, List<FacilityUnitSlot> units) in unitsByFacility)
+        {
+            foreach (FacilityUnitSlot unit in units)
+            {
+                unitFacility[UnitNodeId(facilityId, unit.Index)] = facilityId;
+            }
+        }
+
         var edgeParts = new List<FlowGraphEdge>();
         for (int runIndex = 0; runIndex < plan.RecipeRuns.Count; runIndex++)
         {
@@ -133,7 +147,7 @@ public static class FlowGraphModelBuilder
 
             double scale = unadjusted ? scales.GetValueOrDefault(run.FacilityId, 1.0) : 1.0;
             IReadOnlyList<(string NodeId, double Share)> runTargets =
-                RunEdgeTargets(unitsByFacility, run.FacilityId, runIndex);
+                RunEdgeTargets(unitsByFacility, run.FacilityId, runIndex, unadjusted);
             foreach (RecipeInput input in recipe.Inputs)
             {
                 foreach ((string nodeId, double share) in runTargets)
@@ -226,11 +240,32 @@ public static class FlowGraphModelBuilder
 
         string DisplayNodeId(string nodeId) => expandFacilities
             ? nodeId
-            : nodeId.StartsWith(FacilityPrefix, StringComparison.Ordinal)
-                ? FacilityNodeId(BaseFacilityId(nodeId))
+            : unitFacility.TryGetValue(nodeId, out string? facilityId)
+                ? FacilityNodeId(facilityId)
                 : nodeId;
 
-        // ユニット単位で容量判定し、集約表示では構成エッジのいずれかが超過していれば引き継ぐ
+        // 容量判定はユニットごとの同一アイテム入力合計で行う（計算本体の警告と同じ集計、仕様決定 AN）。
+        // ランをまたいだ入力や固定消費との合算で容量を超える場合も取りこぼさない。
+        var inputTotals = new Dictionary<(string FromId, string ToId), double>();
+        foreach (FlowGraphEdge part in edgeParts)
+        {
+            if (IsFacilityInput(part, unitFacility))
+            {
+                (string, string) key = (part.FromId, part.ToId);
+                inputTotals[key] = inputTotals.GetValueOrDefault(key) + part.RatePerMinute;
+            }
+        }
+
+        var overInputs = new HashSet<(string FromId, string ToId)>();
+        foreach (((string fromId, string toId), double total) in inputTotals)
+        {
+            if (total > TransportCapacityOf(fromId, snapshot) + Epsilon)
+            {
+                overInputs.Add((fromId, toId));
+            }
+        }
+
+        // 集約表示では構成エッジのいずれかが超過していれば引き継ぐ
         // （台数分表示と集約表示で判定結果が一致する、仕様決定 AN・AO）。
         var edges = edgeParts
             .Where(e => e.RatePerMinute > Epsilon)
@@ -239,7 +274,7 @@ public static class FlowGraphModelBuilder
                 g.Key.Item1, g.Key.Item2, g.Key.Item3,
                 g.Sum(e => e.RatePerMinute),
                 g.All(e => e.IsByproduct),
-                g.Any(e => IsOverCapacity(e, snapshot))))
+                g.Any(e => overInputs.Contains((e.FromId, e.ToId)))))
             .ToList();
 
         IReadOnlyList<SurplusProduction> surpluses = unadjusted
@@ -270,8 +305,8 @@ public static class FlowGraphModelBuilder
 
         foreach (FlowGraphEdge edge in edges)
         {
-            CollectEndpoint(edge.FromId, itemIds, facilityIds);
-            CollectEndpoint(edge.ToId, itemIds, facilityIds);
+            CollectEndpoint(edge.FromId, itemIds, facilityIds, unitFacility);
+            CollectEndpoint(edge.ToId, itemIds, facilityIds, unitFacility);
         }
 
         // 超過エッジの両端ノード（アイテム・設備）を赤化対象とする（仕様決定 AN）。
@@ -373,53 +408,74 @@ public static class FlowGraphModelBuilder
     private static void CollectEndpoint(
         string nodeId,
         SortedSet<string> itemIds,
-        SortedSet<string> facilityIds)
+        SortedSet<string> facilityIds,
+        IReadOnlyDictionary<string, string> unitFacility)
     {
-        if (nodeId.StartsWith(ItemPrefix, StringComparison.Ordinal))
+        if (unitFacility.TryGetValue(nodeId, out string? facilityId))
+        {
+            facilityIds.Add(facilityId);
+        }
+        else if (nodeId.StartsWith(ItemPrefix, StringComparison.Ordinal))
         {
             itemIds.Add(nodeId[ItemPrefix.Length..]);
         }
         else if (nodeId.StartsWith(FacilityPrefix, StringComparison.Ordinal))
         {
-            facilityIds.Add(BaseFacilityId(nodeId));
+            facilityIds.Add(nodeId[FacilityPrefix.Length..]);
         }
     }
 
-    /// <summary>設備ノード Id から FacilityId を取り出す。ユニットノードは `#` 以降を落とす。</summary>
-    private static string BaseFacilityId(string facilityNodeId)
-    {
-        string id = facilityNodeId[FacilityPrefix.Length..];
-        int hash = id.IndexOf(UnitSeparator);
-        return hash >= 0 ? id[..hash] : id;
-    }
+    /// <summary>設備ノードまたはユニットノードへの入力エッジかの判定。</summary>
+    private static bool IsFacilityInput(
+        FlowGraphEdge edge,
+        IReadOnlyDictionary<string, string> unitFacility) =>
+        edge.FromId.StartsWith(ItemPrefix, StringComparison.Ordinal)
+        && (unitFacility.ContainsKey(edge.ToId)
+            || edge.ToId.StartsWith(FacilityPrefix, StringComparison.Ordinal));
 
-    /// <summary>設備への入力エッジの流量が輸送容量を超えるかの判定（仕様決定 AN）。</summary>
-    private static bool IsOverCapacity(FlowGraphEdge edge, MasterDataSnapshot snapshot)
+    /// <summary>アイテムの輸送容量（ベルト 30 個/分・パイプ 60 個/分。対象外は 0）。</summary>
+    private static double TransportCapacityOf(string itemNodeId, MasterDataSnapshot snapshot)
     {
-        string itemId = edge.FromId[ItemPrefix.Length..];
+        string itemId = itemNodeId[ItemPrefix.Length..];
         if (!snapshot.ItemsById.TryGetValue(itemId, out Item? item))
         {
-            return false;
+            return 0;
         }
 
-        double cap = item.TransportKind switch
+        return item.TransportKind switch
         {
             TransportKind.Belt => ProductionCalculator.BeltCapacityPerMinute,
             TransportKind.Pipe => ProductionCalculator.PipeCapacityPerMinute,
             _ => 0,
         };
-        return cap > 0 && edge.RatePerMinute > cap + Epsilon;
     }
 
-    /// <summary>ランの入出力エッジの宛先ユニットと流量比率。展開対象外は単一ノードへ share 1.0。</summary>
+    /// <summary>
+    /// ランの入出力エッジの宛先ユニットと流量比率。展開対象外は単一ノードへ share 1.0。
+    /// 未調整ビューでは占有ユニットへ等量に分ける（実機械の全速稼働を表すため）。
+    /// </summary>
     private static IReadOnlyList<(string NodeId, double Share)> RunEdgeTargets(
         IReadOnlyDictionary<string, List<FacilityUnitSlot>> unitsByFacility,
         string facilityId,
-        int runIndex)
+        int runIndex,
+        bool unadjusted)
     {
         if (unitsByFacility.TryGetValue(facilityId, out List<FacilityUnitSlot>? units) && units.Count > 1)
         {
             var targets = new List<(string, double)>();
+            if (unadjusted)
+            {
+                int occupied = units.Count(u => u.RunShares.GetValueOrDefault(runIndex) > Epsilon);
+                foreach (FacilityUnitSlot unit in units)
+                {
+                    if (unit.RunShares.GetValueOrDefault(runIndex) > Epsilon)
+                    {
+                        targets.Add((UnitNodeId(facilityId, unit.Index), 1.0 / occupied));
+                    }
+                }
+                return targets;
+            }
+
             foreach (FacilityUnitSlot unit in units)
             {
                 double share = unit.RunShares.GetValueOrDefault(runIndex);
