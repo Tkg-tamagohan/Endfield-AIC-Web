@@ -8,16 +8,19 @@ namespace EndfieldAicWeb.Application;
 /// </summary>
 public static class ItemSearch
 {
-    /// <summary>クエリでアイテムを絞り込む。空クエリは全件、名前と Id の部分一致（大小無視）。</summary>
-    public static IReadOnlyList<Item> Filter(IReadOnlyList<Item> items, string? query)
+    /// <summary>クエリでアイテムを絞り込む。空クエリは全件、名前と Id の部分一致（大小無視）。カテゴリ指定時はカテゴリ一致と AND で合成する。</summary>
+    public static IReadOnlyList<Item> Filter(IReadOnlyList<Item> items, string? query, string? category = null)
     {
+        ArgumentNullException.ThrowIfNull(items);
+
+        IEnumerable<Item> result = ItemCatalog.FilterByCategory(items, category);
         if (string.IsNullOrWhiteSpace(query))
         {
-            return items;
+            return result.ToList();
         }
 
         string q = query.Trim();
-        return items
+        return result
             .Where(i =>
                 i.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
                 i.Id.Contains(q, StringComparison.OrdinalIgnoreCase))

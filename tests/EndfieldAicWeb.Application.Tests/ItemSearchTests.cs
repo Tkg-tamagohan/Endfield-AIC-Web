@@ -59,4 +59,42 @@ public class ItemSearchTests
     {
         Assert.Empty(ItemSearch.Filter(Items, "存在しない"));
     }
+
+    private static readonly IReadOnlyList<Item> CategorizedItems =
+    [
+        new() { Id = "item-part", Name = "汎用部品", Category = "部品", VersionAdded = "1.0.0" },
+        new() { Id = "item-part-hp", Name = "高純度部品", Category = "部品", VersionAdded = "1.0.0" },
+        new() { Id = "item-ore", Name = "原鉱石", Category = "鉱物", VersionAdded = "1.0.0" },
+        new() { Id = "item-ore-part", Name = "鉱石部品", Category = "鉱物", VersionAdded = "1.0.0" },
+    ];
+
+    // FIL-05: カテゴリとクエリは AND で合成する。
+    [Fact]
+    public void FilterCombinesCategoryAndQuery()
+    {
+        IReadOnlyList<Item> result = ItemSearch.Filter(CategorizedItems, "部品", "鉱物");
+
+        Assert.Equal(["item-ore-part"], result.Select(i => i.Id));
+    }
+
+    // FIL-06: クエリ空・カテゴリ指定はそのカテゴリのアイテム全件を返す。
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void CategoryOnlyReturnsAllInCategory(string? query)
+    {
+        IReadOnlyList<Item> result = ItemSearch.Filter(CategorizedItems, query, "鉱物");
+
+        Assert.Equal(["item-ore", "item-ore-part"], result.Select(i => i.Id));
+    }
+
+    // FIL-07: カテゴリ未指定はクエリ絞り込みのみで動く（回帰）。
+    [Fact]
+    public void NoCategoryBehavesAsBefore()
+    {
+        IReadOnlyList<Item> result = ItemSearch.Filter(CategorizedItems, "部品", null);
+
+        Assert.Equal(3, result.Count);
+        Assert.All(result, i => Assert.Contains("部品", i.Name));
+    }
 }

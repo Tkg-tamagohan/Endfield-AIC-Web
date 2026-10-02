@@ -62,7 +62,7 @@ else
 
         <ListPane TItem="Item" Items="Store.Document!.Items"
                   KeyOf="i => i.Id" TextOf="i => i.Name" SubOf="i => i.Id"
-                  ExtraSearchOf="i => i.Category"
+                  ExtraSearchOf="i => i.Category" CategoryOf="i => i.Category"
                   SelectedKey="@_selected?.Id"
                   OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
     </div>

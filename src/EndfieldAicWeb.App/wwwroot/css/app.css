@@ -201,6 +201,12 @@ select.input {
     margin-bottom: 8px;
 }
 
+/* 生産リスト行のカテゴリ絞り込み（仕様決定 AQ） */
+.target-row .row-category {
+    flex: 0 0 8em;
+    min-width: 0;
+}
+
 .check {
     display: flex;
     gap: 8px;
