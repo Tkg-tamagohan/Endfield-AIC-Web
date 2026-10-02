@@ -131,6 +131,7 @@ App 側は `MasterData.IsLoaded` の分岐（読み込み中・エラー一覧�
 - ページ遷移時の UI 状態（行・チェック・保持値）は従来どおり破棄され再初期化される。永続化は本 Phase の対象外。
 - Admin の `EnsureSnapshot` は再計算の先頭で必ず呼ぶ（現行どおり）。共有パネル側の `SnapshotSource` が null を返した場合は再計算を中断し、`OnSnapshotRejected`（仮名の `EventCallback`）を発火してページへ通知する。子コンポーネントのイベント処理だけではページ側のゲートは再描画されないため、通知を受けたページが自身の `_snapshotErrors` ゲート（`ValidationErrorList`）を再表示する仕組みとする。
 - CSS isolation（`*.razor.css`）へ移すのは計算パネル専用の規則に限る。`.input`・`.btn`・`.warn` など編集ページでも使う汎用クラスは両 `app.css` に残し、共有 CSS の配信（`_content/` 経由）は本 Phase の対象外とする。分離クラスは当該コンポーネントのマークアップにのみ効くため、`EntityIcon`・`FlowGraph` はそれぞれ自身の `*.razor.css` を持つ。
+- コンポーネント横断の規則は `::deep` か所有側の `*.razor.css` へ振り分ける。`.fnode .icon-slot` はノード内の `EntityIcon` のマークアップを指すため `FlowGraph.razor.css` で `.fnode ::deep .icon-slot` とする。`.flow-flash` は `scrollToRef` がパネルのリスト行（`data-flow-ref`）へ付与するクラスであり `CalculatorPanel.razor.css` へ置く。`::deep` でも届かない規則が出た場合はグローバルの `app.css` へ残し、その判断を個別に記録する。
 - `data-flow-ref`（グラフノード→リスト行のスクロール）は共有実装内で常時付与する。Admin でグラフを有効化すればそのまま効く。
 - 共有 `EntityIcon` は DI のアイコン解決を使うため、Admin 編集系ページを含め全箇所で同じコンポーネントを使える。
 - 共有パネルの生産リスト行は Phase 20 のネイティブ select マークアップをそのまま持ち込む。`ItemPicker`・`RefSelect` 自体を共有ライブラリへ移して計算行でも使う案もあるが、編集系ページへの波及が大きいため本 Phase では行マークアップの維持を優先する。
