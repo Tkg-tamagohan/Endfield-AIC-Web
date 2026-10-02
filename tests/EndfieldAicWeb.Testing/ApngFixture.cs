@@ -1,10 +1,10 @@
-namespace EndfieldAicWeb.Admin.Tests;
+namespace EndfieldAicWeb.Testing;
 
 /// <summary>
 /// テスト仕様書 docs/phases/test-specification-phase8.md の I-03（実際の APNG）フィクスチャ。
 /// Pillow で生成した 3 フレーム 80×80 の APNG（遅延 400/800/400ms、acTL チャンクを含む）。
 /// </summary>
-internal static class ApngFixture
+public static class ApngFixture
 {
     private const string ApngBase64 =
         "iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYAAACOEfKtAAAACGFjVEwAAAADAAAAAM7tusAAAAAaZmNUTAAAAAAAAABQAAAAUAAA" +

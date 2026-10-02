@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using EndfieldAicWeb.Domain.Models;
 using EndfieldAicWeb.Infrastructure.Icons;
+using EndfieldAicWeb.Testing;
 
 namespace EndfieldAicWeb.Infrastructure.Tests;
 
