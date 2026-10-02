@@ -580,6 +580,36 @@ public class FlowGraphModelBuilderTests
         Assert.Equal(0, Node(model, "gather").Rank);
     }
 
+    // FG-36: 循環の外から循環へ供給する目標は Layer0 に置かず、消費設備の直上流に置く（BG・BH）。
+    [Fact]
+    public void TargetFeedingCycleSitsBeforeConsumer()
+    {
+        // i-t は目標だが i-a↔i-b 循環の構成要素ではなく、f-1 経由で循環へ外部供給するだけ。
+        // Layer0 に固定すると i-t→f-1 の供給エッジが後退してしまう。
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-t", "外部目標", gatherable: true),
+             ApplicationFixtures.Item("i-a", "循環品A"), ApplicationFixtures.Item("i-b", "循環品B"),
+             ApplicationFixtures.Item("i-z", "最終目標")],
+            [ApplicationFixtures.Facility("f-1", "機1", 10), ApplicationFixtures.Facility("f-2", "機2", 10),
+             ApplicationFixtures.Facility("f-3", "機3", 10)],
+            [], [],
+            [
+                ApplicationFixtures.Recipe("r-1", "循環品A", [("i-t", 1), ("i-b", 1)], [("i-a", 1)],
+                    [ApplicationFixtures.Pair("f-1", 6)]),
+                ApplicationFixtures.Recipe("r-2", "循環品B", [("i-a", 1)], [("i-b", 1)],
+                    [ApplicationFixtures.Pair("f-2", 6)]),
+                ApplicationFixtures.Recipe("r-3", "最終目標", [("i-a", 1)], [("i-z", 1)],
+                    [ApplicationFixtures.Pair("f-3", 6)]),
+            ]);
+
+        (_, FlowGraphModel model) = Build(
+            snapshot, targets: [new ProductionTarget("i-t", 10), new ProductionTarget("i-z", 10)]);
+
+        // i-t は消費設備 f-1 の直上流に置かれ、右端列は i-z 側の出口だけが占める。
+        Assert.Equal(Node(model, "fac:f-1").Rank - 1, Node(model, "item:i-t").Rank);
+        Assert.True(Node(model, "item:i-t").Rank < Node(model, "item:i-z").Rank);
+    }
+
     // FG-11: 余剰のみに登場するアイテムもノード化する。
     [Fact]
     public void SurplusOnlyItemBecomesNode()

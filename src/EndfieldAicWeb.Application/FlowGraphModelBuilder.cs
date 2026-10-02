@@ -577,13 +577,49 @@ public static class FlowGraphModelBuilder
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToList();
         var deferredSet = new HashSet<string>(deferred, StringComparer.Ordinal);
+
+        // Layer0 に固定するのは循環の一部である起点（自分自身に戻れる目標）だけ。
+        // 循環の外から循環へ供給するだけの目標は、消費される目標として自然な深さに置く（BG）。
+        bool ReachesSelf(string start)
+        {
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            var stack = new Stack<string>();
+            foreach (string succ in effSuccs[start])
+            {
+                stack.Push(succ);
+            }
+
+            while (stack.Count > 0)
+            {
+                string cur = stack.Pop();
+                if (cur == start)
+                {
+                    return true;
+                }
+
+                if (!deferredSet.Contains(cur) || !visited.Add(cur))
+                {
+                    continue;
+                }
+
+                foreach (string succ in effSuccs[cur])
+                {
+                    stack.Push(succ);
+                }
+            }
+
+            return false;
+        }
+
+        var cycleAnchors = new HashSet<string>(
+            deferred.Where(id => IsAnchor(id) && ReachesSelf(id)), StringComparer.Ordinal);
         while (deferred.Count > 0)
         {
             var next = new List<string>();
             foreach (string id in deferred)
             {
-                // 起点でなく後続も未確定のノードは、循環の向こう側へ展開が戻るまで待つ。
-                if (!IsAnchor(id) && !effSuccs[id].Any(layer.ContainsKey))
+                // 循環内の起点でなく後続も未確定のノードは、循環の向こう側へ展開が戻るまで待つ。
+                if (!cycleAnchors.Contains(id) && !effSuccs[id].Any(layer.ContainsKey))
                 {
                     next.Add(id);
                     continue;
@@ -591,7 +627,7 @@ public static class FlowGraphModelBuilder
 
                 // 循環内の起点（目標など）は常に Layer0。前方への分岐を持つ起点を
                 // 後続の深さで埋めると Layer0 からずれる。
-                layer[id] = IsAnchor(id) ? 0 : 1 + MaxAssignedSucc(id);
+                layer[id] = cycleAnchors.Contains(id) ? 0 : 1 + MaxAssignedSucc(id);
             }
 
             if (next.Count == deferred.Count)
@@ -650,7 +686,7 @@ public static class FlowGraphModelBuilder
 
         foreach (string id in deferredSet)
         {
-            if (IsAnchor(id))
+            if (cycleAnchors.Contains(id))
             {
                 continue;
             }
