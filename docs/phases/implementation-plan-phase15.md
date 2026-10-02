@@ -88,7 +88,7 @@ Home.razor ── FlowGraphModelBuilder（Application・純粋関数）
 
 - `create(canvas, layer)`：`navigator.gpu` の有無と `requestAdapter`/`requestDevice` の成否を判定し、失敗時は `null` を返すだけで何もしない
 - `update(model)`：ノードのランクと順序からピクセル座標を決め（rank→横、rank 内順序→縦）、各 DOM ノードへ CSS `translate` を設定し、エッジのベジェ曲線を三角形帯へ展開して頂点バッファを作り直す。配置と実測寸法の署名が前回と同じときは fitView をスキップし、ユーザーのパン・ズームを維持する
-- 粒子はエッジごとにインスタンスを持ち、頂点シェーダで `time` ユニフォームからベジェ上の位置を評価する。個数と速度はエッジ流量の最大値に対する比率で決める
+- 粒子はエッジごとにインスタンスを持ち、頂点シェーダで `time` ユニフォームからベジェ上の位置を評価する。個数はエッジ流量の絶対値に比例させ 30 個/分で飽和させ、速度はエッジ流量の最大値に対する比率で決める（仕様決定 AP で改訂）
 - 描画パイプラインはエッジ帯と粒子ビルボードの 2 本のみ（ノード・ラベル・アイコンは DOM のため WGSL では扱わない）
 - パンは canvas 上のドラッグ、ズームはホイール（カーソル中心、0.4〜1.5 倍にクランプ）。canvas のユニフォーム行列と DOM ノード層の CSS transform に同じ変換を適用する
 - 描画ループは `requestAnimationFrame` で回し、画面外（IntersectionObserver）とタブ非表示（visibilitychange）で停止する。`prefers-reduced-motion` のときは粒子を流さず、状態変化ごとの単発描画に切り替える
