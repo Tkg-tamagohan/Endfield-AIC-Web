@@ -77,9 +77,9 @@ Home.razor ── FlowGraphModelBuilder（Application・純粋関数）
 循環依存（`CycleDetected` で計算が打ち切られた残存経路を含む）はランク付けの際に後退エッジとして無視し、無限ループにしない。
 ランク内の順序は先行ノードのバリセンター（順序値の中央値）で並べ、同率はノード Id の昇順とする。
 
-輸送容量超過フラグはアイテムごとに `max(RequiredPerMinute, 生産量, 採取量) / 60 > 容量`（ベルト 30・パイプ 60 個/秒）で判定する。
+輸送容量超過フラグはアイテムごとに `max(RequiredPerMinute, 生産量, 採取量) > 容量` で判定する。容量はベルト 30 個/分・パイプ 60 個/分（Phase 16 の仕様決定 AM で単位を改訂）。
 計算本体の警告判定と同じ 3 系統の最大流量を見るため、警告発火とグラフの赤化は一致する。
-容量定数は `ProductionCalculator` の `BeltCapacityPerSecond`・`PipeCapacityPerSecond` を `internal` から `public` へ変更して共用する。
+容量定数は `ProductionCalculator` の `BeltCapacityPerMinute`・`PipeCapacityPerMinute`（Phase 16 で `BeltCapacityPerSecond`・`PipeCapacityPerSecond` から改名し `public`）を共用する。
 
 ## 4. 描画（flow-graph.js）
 

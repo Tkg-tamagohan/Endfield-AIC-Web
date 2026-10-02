@@ -106,7 +106,7 @@
 | `EnvironmentRequirements` | `EnvironmentRequirement[]` | `EnvironmentId`・散布機台数・消費アイテム・消費流量（個/分） |
 | `TotalPowerConsumption` | `double` | Σ(設備消費電力 × 切上台数)。散布機分を含む |
 | `Surpluses` | `SurplusProduction[]` | 充当しきれなかった余剰 |
-| `FlowAdjustments` | `FlowAdjustment[]` | `RecipeId`・`InputItemId`・要求流量・推奨制限（個/s） |
+| `FlowAdjustments` | `FlowAdjustment[]` | `RecipeId`・`InputItemId`・要求流量・推奨制限（個/分。Phase 16 の仕様決定 AM で改訂） |
 | `Warnings` | `CalculationWarning[]` | 下表のコード |
 
 警告コード：`CycleDetected`・`NoRecipeAvailable`・`TransportCapacityExceeded`・`InvalidPairOverride`・`PairConflict`・`EventItemUnavailable`・`InvalidVersionString`・`InvalidEnvironmentOverride`・`ConvergenceNotReached`。
