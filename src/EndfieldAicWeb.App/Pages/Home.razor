@@ -298,7 +298,7 @@ else
                 {
                     @foreach (SurplusProduction s in _view.Surpluses)
                     {
-                        <div class="result-line">
+                        <div class="result-line" data-flow-ref="@s.ItemId">
                             <EntityIcon IconKey="@ItemIconKey(s.ItemId)" />
                             <strong>@ItemName(s.ItemId)</strong>
                             <span class="muted"> +@Fmt(s.ExcessPerMinute)@Suffix()</span>

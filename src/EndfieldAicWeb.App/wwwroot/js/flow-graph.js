@@ -252,7 +252,8 @@ function makeHandle(canvas, layer, device, context, format) {
         }
         pass.end();
         device.queue.submit([encoder.finish()]);
-        rafId = requestAnimationFrame(frame);
+        // 動き抑制時は静止画のため、状態変化ごとの単発描画にする。
+        if (!reducedMotion) rafId = requestAnimationFrame(frame);
     }
 
     function requestFrames() {
@@ -302,6 +303,7 @@ function makeHandle(canvas, layer, device, context, format) {
         moved = true;
         lastX = e.clientX; lastY = e.clientY;
         view.tx += dx; view.ty += dy;
+        requestFrames();
     }
     function onPointerUp() { dragging = false; }
     function onClickCapture(e) {
@@ -320,6 +322,7 @@ function makeHandle(canvas, layer, device, context, format) {
         view.tx = mx - (mx - view.tx) * (next / view.s);
         view.ty = my - (my - view.ty) * (next / view.s);
         view.s = next;
+        requestFrames();
     }
 
     container.addEventListener('pointerdown', onPointerDown);
@@ -328,7 +331,7 @@ function makeHandle(canvas, layer, device, context, format) {
     container.addEventListener('click', onClickCapture, true);
     container.addEventListener('wheel', onWheel, { passive: false });
 
-    const resizeObserver = new ResizeObserver(() => { resize(); });
+    const resizeObserver = new ResizeObserver(() => { resize(); requestFrames(); });
     resizeObserver.observe(canvas);
     const inViewObserver = new IntersectionObserver(entries => {
         inView = entries[0]?.isIntersecting !== false;
@@ -362,10 +365,25 @@ function makeHandle(canvas, layer, device, context, format) {
         return { p0, p1, p2, p3 };
     }
 
+    // ノード・エッジの構造と表示に影響する値の署名。再計算で内容が変わらない限り
+    // ユーザーのパン・ズームを維持するために使う。
+    let lastTopology = '';
+    function topologyKey(m) {
+        const ns = (m?.nodes ?? []).map(n => [
+            n.id, n.rank, n.order, n.label ?? '', n.note ?? '',
+            Math.round((n.requiredPerMinute ?? 0) * 100),
+            Math.round((n.unmetPerMinute ?? 0) * 100),
+            Math.round((n.surplusPerMinute ?? 0) * 100),
+        ].join(':')).join('|');
+        const es = (m?.edges ?? []).map(e => `${e.fromId}>${e.toId}`).join('|');
+        return ns + '#' + es;
+    }
+
     function update(model) {
         const nodes = model?.nodes ?? [];
         const edgeList = model?.edges ?? [];
         const maxRate = Math.max(model?.maxRatePerMinute ?? 0, 1e-9);
+        const topoKey = topologyKey(model);
 
         // DOM ノードの実サイズを測ってランク×順序の座標に配置する。
         const rects = new Map();
@@ -411,7 +429,10 @@ function makeHandle(canvas, layer, device, context, format) {
             maxX = x - NODE_GAP_X + MARGIN;
         }
         worldBounds = { w: maxX, h: maxH };
-        fitView();
+        if (topoKey !== lastTopology) {
+            lastTopology = topoKey;
+            fitView();
+        }
 
         // エッジ帯（三角形展開）と粒子インスタンスのバッファを作り直す。
         const verts = [];

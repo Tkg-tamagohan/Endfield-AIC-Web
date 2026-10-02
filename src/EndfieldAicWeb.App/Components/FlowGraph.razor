@@ -8,14 +8,14 @@
     <div @ref="_layer" class="fnode-layer">
         @foreach (FlowGraphNode n in Model.Nodes)
         {
-            <div class="fnode @NodeClass(n)" data-node-id="@n.Id" role="button" tabindex="0" @key="n.Id"
+            <button type="button" class="fnode @NodeClass(n)" data-node-id="@n.Id" @key="n.Id"
                  @onclick="() => OnNodeClick(n)">
                 <EntityIcon IconKey="@n.IconKey" />
                 <span class="fnode-text">
                     <span class="fnode-label">@n.Label</span>
                     <span class="fnode-meta">@NodeMeta(n)</span>
                 </span>
-            </div>
+            </button>
         }
     </div>
 </div>

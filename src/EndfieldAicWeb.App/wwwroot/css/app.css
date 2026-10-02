@@ -456,6 +456,9 @@ select.input {
     width: 148px;
     display: flex;
     align-items: center;
+    font: inherit;
+    color: var(--text);
+    text-align: left;
     gap: 8px;
     padding: 7px 9px;
     background: var(--panel);
@@ -518,6 +521,11 @@ select.input {
 
 .fnode-alert .fnode-meta {
     color: var(--danger);
+}
+
+.fnode:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
 }
 
 /* ノードクリック時に行を一瞬強調する */
