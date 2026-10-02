@@ -24,7 +24,7 @@
                     <option value="">アイテム</option>
                     @foreach (Item item in ItemOptions(row))
                     {
-                        <option value="@item.Id">@item.Name@(item.GameEventId is not null && EventItemSuffix ? "（イベント）" : "")</option>
+                        <option value="@item.Id">@item.Name@(item.GameEventId is not null ? "（イベント）" : "")</option>
                     }
                 </select>
                 <input class="input rate" @bind="row.RateText" @bind:event="oninput" inputmode="decimal" placeholder="0" />
@@ -58,10 +58,7 @@
                     }
                 </details>
             }
-            @if (EventSectionHint is not null)
-            {
-                <p class="hint">@EventSectionHint</p>
-            }
+            <p class="hint">開催期間（±1 日）のイベントは自動で有効になります。期間外は折りたたみから選択できます。</p>
         }
 
         <h2 class="panel-title">採取マップ</h2>
@@ -79,7 +76,7 @@
                 <option value="@_mapId">@mapName（イベント無効）</option>
             }
         </select>
-        <p class="hint">@MapHint</p>
+        <p class="hint">マップを選ぶと天然資源の採取量に上限がかかり、超えた分はレシピで生産します。</p>
 
         @if (_inputError is not null)
         {
@@ -106,14 +103,14 @@
                     <button class="seg @(_unit == AmountUnit.PerSecond ? "on" : "")" @onclick="() => _unit = AmountUnit.PerSecond">毎秒</button>
                     <button class="seg @(_unit == AmountUnit.Period ? "on" : "")" @onclick="() => _unit = AmountUnit.Period">期間</button>
                 </div>
-                @if (EnableFlowGraph && _graphSupported && _flowModel is not null)
+                @if (_graphSupported && _flowModel is not null)
                 {
                     <div class="segmented">
                         <button class="seg @(_graphOpen ? "on" : "")" @onclick="() => _graphOpen = true">グラフ</button>
                         <button class="seg @(!_graphOpen ? "on" : "")" @onclick="() => _graphOpen = false">リスト</button>
                     </div>
                 }
-                @if (EnableFlowGraph && _graphSupported && _graphOpen && _flowModel is not null)
+                @if (_graphSupported && _graphOpen && _flowModel is not null)
                 {
                     <label class="check"><input type="checkbox" checked="@_graphExpandFacilities" @onchange="OnGraphExpandChanged" /> 設備を台数分表示</label>
                 }
@@ -140,7 +137,7 @@
                 </div>
             }
 
-            @if (EnableFlowGraph && _graphSupported && _graphOpen && _flowModel is not null)
+            @if (_graphSupported && _graphOpen && _flowModel is not null)
             {
                 <h2 class="panel-title">生産フロー</h2>
                 <FlowGraph Model="_flowModel" FormatRate="FormatGraphRate" OnUnavailable="OnGraphUnavailable" />
@@ -309,20 +306,8 @@
     /// <summary>生産リスト節のヒント文。</summary>
     [Parameter] public string? HeaderHint { get; set; }
 
-    /// <summary>有効イベント節末尾のヒント文。null のときは出さない。</summary>
-    [Parameter] public string? EventSectionHint { get; set; }
-
-    /// <summary>採取マップ節のヒント文。</summary>
-    [Parameter] public string? MapHint { get; set; }
-
     /// <summary>入力パネル末尾のデータ版表示。</summary>
     [Parameter] public string? VersionLabel { get; set; }
-
-    /// <summary>目標アイテムの選択肢名にイベント由来アイテムの「（イベント）」注記を付けるか。</summary>
-    [Parameter] public bool EventItemSuffix { get; set; }
-
-    /// <summary>生産フローグラフを有効にするか（仕様決定 AI/BC）。</summary>
-    [Parameter] public bool EnableFlowGraph { get; set; }
 
     private readonly List<TargetRow> _targetRows = [new()];
     private List<EventCheck> _eventChecks = [];
@@ -631,17 +616,16 @@
         if (_outcome is not null && _snapshot is not null)
         {
             _view = ResultViewBuilder.Build(_outcome.Plan, _snapshot, _context, _unadjusted);
-            _flowModel = EnableFlowGraph
-                ? FlowGraphModelBuilder.Build(
-                    _outcome.Plan, _snapshot, _context, _targets, _unadjusted, _graphExpandFacilities)
-                : null;
+            // グラフは常に構築する（仕様決定 BC）。表示は WebGPU 利用可否と開閉状態で制御する。
+            _flowModel = FlowGraphModelBuilder.Build(
+                _outcome.Plan, _snapshot, _context, _targets, _unadjusted, _graphExpandFacilities);
         }
     }
 
     // 初回の結果表示後に WebGPU 利用可否を調べ、対応環境だけに切替とグラフ節を出す（仕様決定 AK）。
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (EnableFlowGraph && _graphModule is null && _outcome is not null)
+        if (_graphModule is null && _outcome is not null)
         {
             _graphModule = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/EndfieldAicWeb.SharedUi/js/flow-graph.js");
             _graphSupported = await _graphModule.InvokeAsync<bool>("webgpuSupported");

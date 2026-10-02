@@ -267,12 +267,12 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 
 ### Phase 22: 公開版と管理ツールの計算ページ UI の共有化
 
-- [ ] 共有 Razor Class Library `EndfieldAicWeb.SharedUi` を新設し、計算ページ本体を単一コンポーネントとして移設する（仕様決定 BB）
-- [ ] `EntityIcon`・`FlowGraph`・`flow-graph.js` を共有ライブラリへ集約し、共有スタイルは CSS isolation へ移す
-- [ ] 管理ツールの計算プレビューで生産フローグラフを有効化する（仕様決定 BC）
-- [ ] 表示文言を「天然資源」へ統一し（仕様決定 BD）、計算実行の例外を常に捕捉して入力エラー欄へ表示する（仕様決定 BE）
-- [ ] Phase 20 で参照を失った `ItemSearch` とそのテストを削除する
-- [ ] `dotnet test` 全緑を確認する
+- [x] 共有 Razor Class Library `EndfieldAicWeb.SharedUi` を新設し、計算ページ本体を単一コンポーネントとして移設する（仕様決定 BB）
+- [x] `EntityIcon`・`FlowGraph`・`flow-graph.js` を共有ライブラリへ集約し、共有スタイルは CSS isolation へ移す
+- [x] 管理ツールの計算プレビューで生産フローグラフを有効化する（仕様決定 BC）
+- [x] 表示文言を「天然資源」へ統一し（仕様決定 BD）、計算実行の例外を常に捕捉して入力エラー欄へ表示する（仕様決定 BE）
+- [x] Phase 20 で参照を失った `ItemSearch` とそのテストを削除する
+- [x] `dotnet test` 全緑を確認する
 - **受け入れ条件**: 公開版と管理ツールの計算ページが同一の共有コンポーネントで描かれ、両者の既存機能と Admin 側グラフが動作する。詳細は `phases/implementation-plan-phase22.md` と `phases/test-specification-phase22.md`。
 
 ## 5. 実装メモ・規約
