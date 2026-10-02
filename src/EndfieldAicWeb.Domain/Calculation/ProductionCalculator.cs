@@ -13,10 +13,10 @@ public static class ProductionCalculator
     internal const double Epsilon = 1e-9;
 
     /// <summary>ベルトの輸送上限（個/s）。</summary>
-    internal const double BeltCapacityPerSecond = 30.0;
+    public const double BeltCapacityPerSecond = 30.0;
 
     /// <summary>パイプの輸送上限（個/s）。</summary>
-    internal const double PipeCapacityPerSecond = 60.0;
+    public const double PipeCapacityPerSecond = 60.0;
 
     /// <summary>環境消費・固定消費の追加需要が収束するまでの反復上限（docs/implementation-plan.md §3-8）。</summary>
     internal const int MaxConvergenceIterations = 10;
