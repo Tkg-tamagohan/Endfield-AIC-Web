@@ -12,11 +12,11 @@ public static class ProductionCalculator
 {
     internal const double Epsilon = 1e-9;
 
-    /// <summary>ベルトの輸送上限（個/s）。</summary>
-    public const double BeltCapacityPerSecond = 30.0;
+    /// <summary>ベルトの輸送上限（個/分）。</summary>
+    public const double BeltCapacityPerMinute = 30.0;
 
-    /// <summary>パイプの輸送上限（個/s）。</summary>
-    public const double PipeCapacityPerSecond = 60.0;
+    /// <summary>パイプの輸送上限（個/分）。</summary>
+    public const double PipeCapacityPerMinute = 60.0;
 
     /// <summary>環境消費・固定消費の追加需要が収束するまでの反復上限（docs/implementation-plan.md §3-8）。</summary>
     internal const int MaxConvergenceIterations = 10;
@@ -833,7 +833,7 @@ public static class ProductionCalculator
             {
                 var key = (run.Recipe.Id, input.ItemId);
                 adjustments[key] = adjustments.GetValueOrDefault(key)
-                    + session.RunCycles[run] * input.Quantity / 60.0;
+                    + session.RunCycles[run] * input.Quantity;
             }
         }
 
@@ -845,7 +845,7 @@ public static class ProductionCalculator
 
     /// <summary>
     /// 需要または生産のあったアイテムについて、その流量が
-    /// 輸送媒体（ベルト 30 個/s・パイプ 60 個/s）の上限を超える場合に警告を追加する。
+    /// 輸送媒体（ベルト 30 個/分・パイプ 60 個/分）の上限を超える場合に警告を追加する。
     /// </summary>
     private static void AddTransportWarnings(
         MasterDataSnapshot master,
@@ -865,8 +865,8 @@ public static class ProductionCalculator
 
             double limit = item.TransportKind switch
             {
-                TransportKind.Belt => BeltCapacityPerSecond,
-                TransportKind.Pipe => PipeCapacityPerSecond,
+                TransportKind.Belt => BeltCapacityPerMinute,
+                TransportKind.Pipe => PipeCapacityPerMinute,
                 _ => 0,
             };
             if (limit <= 0)
@@ -874,16 +874,16 @@ public static class ProductionCalculator
                 continue;
             }
 
-            double flowPerSecond = Math.Max(
-                GetFrom(session.Demand, itemId), GetFrom(session.Produced, itemId)) / 60.0;
-            flowPerSecond = Math.Max(flowPerSecond, GetFrom(session.Raw, itemId) / 60.0);
+            double flowPerMinute = Math.Max(
+                GetFrom(session.Demand, itemId), GetFrom(session.Produced, itemId));
+            flowPerMinute = Math.Max(flowPerMinute, GetFrom(session.Raw, itemId));
 
-            if (flowPerSecond > limit + Epsilon)
+            if (flowPerMinute > limit + Epsilon)
             {
-                int lanes = (int)Math.Ceiling(flowPerSecond / limit - 1e-9);
+                int lanes = (int)Math.Ceiling(flowPerMinute / limit - 1e-9);
                 warnings.Add(new CalculationWarning(
                     WarningCode.TransportCapacityExceeded,
-                    $"アイテム {itemId} の必要流量 {flowPerSecond:F2} 個/s が輸送容量（{item.TransportKind} {limit:F0} 個/s）を超えています。必要レーン数: {lanes}"));
+                    $"アイテム {itemId} の必要流量 {flowPerMinute:F2} 個/分 が輸送容量（{item.TransportKind} {limit:F0} 個/分）を超えています。必要レーン数: {lanes}"));
             }
         }
     }

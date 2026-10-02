@@ -247,8 +247,8 @@ public class FlowGraphModelBuilderTests
     [Fact]
     public void OverCapacityIsFlagged()
     {
-        // i-t 2000/分 = 33.3/s > ベルト 30/s。
-        (_, FlowGraphModel model) = Build(ApplicationFixtures.A02(), targets: new ProductionTarget("i-t", 2000));
+        // i-t 60/分 > ベルト 30 個/分（旧 30 個/s = 1800/分 なら未発火の値で、改訂後の閾値を区別して検査する）。
+        (_, FlowGraphModel model) = Build(ApplicationFixtures.A02(), targets: new ProductionTarget("i-t", 60));
 
         Assert.True(Node(model, "item:i-t").OverCapacity);
         Assert.True(Edge(model, "fac:f-t", "item:i-t", FlowGraphEdgeKind.RecipeOutput).OverCapacity);

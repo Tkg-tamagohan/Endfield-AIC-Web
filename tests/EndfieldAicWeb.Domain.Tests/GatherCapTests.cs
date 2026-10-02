@@ -14,7 +14,7 @@ public class GatherCapTests
 
         Assert.Equal(100.0, Supplied(plan, "i-ore", SupplyKind.Gathered), Precision);
         Assert.Null(RunOf(plan, "r-ore"));
-        Assert.Empty(plan.Warnings);
+        NoWarningsExcept(plan, WarningCode.TransportCapacityExceeded);
     }
 
     [Fact(DisplayName = "GAT-02: 上限内は採取")]
@@ -25,7 +25,7 @@ public class GatherCapTests
 
         Assert.Equal(50.0, Supplied(plan, "i-ore", SupplyKind.Gathered), Precision);
         Assert.Null(RunOf(plan, "r-ore"));
-        Assert.Empty(plan.Warnings);
+        NoWarningsExcept(plan, WarningCode.TransportCapacityExceeded);
     }
 
     [Fact(DisplayName = "GAT-03: 超過分はレシピへ展開")]
@@ -78,7 +78,7 @@ public class GatherCapTests
 
         Assert.Equal(500.0, Supplied(plan, "i-ore", SupplyKind.Gathered), Precision);
         Assert.Null(RunOf(plan, "r-ore"));
-        Assert.Empty(plan.Warnings);
+        NoWarningsExcept(plan, WarningCode.TransportCapacityExceeded);
     }
 
     [Fact(DisplayName = "GAT-07: ユーザー上書きは有効レートの置き換え")]

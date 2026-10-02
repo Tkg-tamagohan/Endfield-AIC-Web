@@ -30,7 +30,8 @@ public class ExpansionTests
         Assert.Equal(2.0, facility.ExactCount, Precision);
         Assert.Equal(2, facility.CeilCount);
 
-        Assert.Empty(plan.Warnings);
+        // i-ore 60/分はベルト容量（30 個/分）を超えるため容量警告は発火しうる。
+        NoWarningsExcept(plan, WarningCode.TransportCapacityExceeded);
     }
 
     [Fact(DisplayName = "EXP-02: 多段依存の展開")]
