@@ -10,7 +10,7 @@
     <section class="panel">
         <h2 class="panel-title">生産リスト（個/分）</h2>
         <p class="hint">@HeaderHint</p>
-        @foreach (TargetRow row in _targetRows)
+        @foreach (TargetRowState row in _targetRows)
         {
             <div class="target-row" @key="row">
                 <select class="input row-category" value="@(row.Category ?? "")" @onchange="e => OnCategoryChanged(row, e)">
@@ -193,7 +193,7 @@
                 {
                     <p class="error">@_gatherError</p>
                 }
-                @foreach (GatherInput input in _gatherInputs)
+                @foreach (GatherRateState input in _gatherInputs)
                 {
                     <div class="result-line env-line">
                         <EntityIcon IconKey="@ItemIconKey(input.ItemId)" />
@@ -277,26 +277,6 @@
 </div>
 
 @code {
-    private sealed class TargetRow
-    {
-        public string? ItemId;
-        public string RateText = "30";
-        public string? Category;
-    }
-
-    private sealed class EnvInput(DomainEnv environment, int max)
-    {
-        public DomainEnv Env { get; } = environment;
-        public int Max { get; set; } = max;
-        public string CountText = "";
-    }
-
-    private sealed class GatherInput(string itemId)
-    {
-        public string ItemId { get; } = itemId;
-        public string RateText = "";
-    }
-
     /// <summary>計算用スナップショットの取得元。再計算の先頭で呼ぶ。null はスナップショット構築の拒否（検証違反など）。</summary>
     [Parameter, EditorRequired] public required Func<MasterDataSnapshot?> SnapshotSource { get; set; }
 
@@ -309,12 +289,12 @@
     /// <summary>入力パネル末尾のデータ版表示。</summary>
     [Parameter] public string? VersionLabel { get; set; }
 
-    private readonly List<TargetRow> _targetRows = [new()];
+    private readonly List<TargetRowState> _targetRows = [new()];
     private List<EventCheck> _eventChecks = [];
     private List<EventCheck> _autoEventChecks = [];
     private List<EventCheck> _outEventChecks = [];
-    private List<EnvInput> _envInputs = [];
-    private List<GatherInput> _gatherInputs = [];
+    private List<EnvCountState> _envInputs = [];
+    private List<GatherRateState> _gatherInputs = [];
     private List<Item> _selectableItems = [];
     private IReadOnlyList<string> _itemCategories = [];
     private readonly Dictionary<string, string> _gatherRateTexts = new(StringComparer.Ordinal);
@@ -360,27 +340,27 @@
         RefreshEventViews(DateOnly.FromDateTime(DateTime.Now));
     }
 
-    private void AddRow() => _targetRows.Add(new TargetRow());
+    private void AddRow() => _targetRows.Add(new TargetRowState());
 
-    private void RemoveRow(TargetRow row)
+    private void RemoveRow(TargetRowState row)
     {
         _targetRows.Remove(row);
         if (_targetRows.Count == 0)
         {
-            _targetRows.Add(new TargetRow());
+            _targetRows.Add(new TargetRowState());
         }
     }
 
-    private void OnCategoryChanged(TargetRow row, ChangeEventArgs e)
+    private void OnCategoryChanged(TargetRowState row, ChangeEventArgs e)
     {
         string? value = e.Value?.ToString();
         row.Category = string.IsNullOrEmpty(value) ? null : value;
     }
 
-    private IReadOnlyList<Item> ItemOptions(TargetRow row) =>
+    private IReadOnlyList<Item> ItemOptions(TargetRowState row) =>
         ItemCatalog.OptionsForSelection(_selectableItems, row.Category, row.ItemId, _snapshot!.Items);
 
-    private void OnItemChanged(TargetRow row, ChangeEventArgs e)
+    private void OnItemChanged(TargetRowState row, ChangeEventArgs e)
     {
         string? value = e.Value?.ToString();
         row.ItemId = string.IsNullOrEmpty(value) ? null : value;
@@ -567,7 +547,7 @@
                 string kept = CalculationInputBuilder.ReconcileEnvCountText(
                     prevCounts.GetValueOrDefault(r.EnvironmentId, ""), max);
                 envCountReconciled |= kept != prevCounts.GetValueOrDefault(r.EnvironmentId, "");
-                return new EnvInput(_snapshot.EnvironmentsById[r.EnvironmentId], max)
+                return new EnvCountState(_snapshot.EnvironmentsById[r.EnvironmentId], max)
                 {
                     CountText = kept,
                 };
@@ -582,31 +562,17 @@
             return;
         }
 
-        foreach (GatherInput input in _gatherInputs)
+        // 採取レートの保持値を新しい計画の採取対象と整合させ、入力行を再構築する
+        // （散布機台数の ReconcileEnvCountText と同型、仕様決定 AH）。
+        foreach (GatherRateState input in _gatherInputs)
         {
             _gatherRateTexts[input.ItemId] = input.RateText;
         }
 
-        IReadOnlyList<string> gatherableItemIds = MapSelection.GatherableItemIds(_outcome.Plan, _snapshot);
-        foreach (string itemId in _gatherRateTexts.Keys.ToList())
-        {
-            if (!gatherableItemIds.Contains(itemId)
-                && !CalculationInputBuilder.TryParseGatherRates(
-                    [new GatherRateInput(itemId, ItemName(itemId), _gatherRateTexts[itemId])],
-                    _snapshot,
-                    out _,
-                    out _))
-            {
-                _gatherRateTexts.Remove(itemId);
-            }
-        }
-
-        _gatherInputs = gatherableItemIds
-            .Select(itemId => new GatherInput(itemId)
-            {
-                RateText = _gatherRateTexts.GetValueOrDefault(itemId, ""),
-            })
-            .ToList();
+        _gatherInputs = CalculationInputBuilder.ReconcileGatherRateRows(
+            _gatherRateTexts,
+            MapSelection.GatherableItemIds(_outcome.Plan, _snapshot),
+            _snapshot);
 
         RebuildView();
     }
@@ -660,156 +626,58 @@
         }
     }
 
-    private PeriodAmount CurrentPeriod()
-    {
-        PeriodAmount period = default;
-        bool valid =
-            TryParsePart(_daysText, out double days) &&
-            TryParsePart(_hoursText, out double hours) &&
-            TryParsePart(_minutesText, out double minutes) &&
-            PeriodAmount.TryCreate(days, hours, minutes, out period);
-        return valid ? period : default;
-    }
+    private PeriodAmount? ParsedPeriod() =>
+        CalculationInputBuilder.TryParsePeriod(_daysText, _hoursText, _minutesText, out PeriodAmount period)
+            ? period
+            : null;
 
-    private bool PeriodValid()
-    {
-        return TryParsePart(_daysText, out double days)
-            && TryParsePart(_hoursText, out double hours)
-            && TryParsePart(_minutesText, out double minutes)
-            && PeriodAmount.TryCreate(days, hours, minutes, out _);
-    }
+    private PeriodAmount CurrentPeriod() => ParsedPeriod() ?? default;
 
-    private static bool TryParsePart(string text, out double value)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            value = 0;
-            return true;
-        }
+    private bool PeriodValid() => ParsedPeriod() is not null;
 
-        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
-    }
-
-    private string Fmt(double perMinute)
-    {
-        double converted = AmountConverter.Convert(perMinute, _unit, CurrentPeriod());
-        return converted.ToString(_unit == AmountUnit.PerSecond ? "0.###" : "0.##", CultureInfo.InvariantCulture);
-    }
+    private string Fmt(double perMinute) => ResultViewText.Format(perMinute, _unit, CurrentPeriod());
 
     private string Suffix() => AmountConverter.Suffix(_unit);
 
-    private string PeriodConsumption(double ratePerMinute)
-    {
-        return _unit == AmountUnit.Period && PeriodValid()
-            ? $"（{(ratePerMinute * CurrentPeriod().TotalMinutes).ToString("0.##", CultureInfo.InvariantCulture)} 個/期間）"
-            : "";
-    }
+    private string PeriodConsumption(double ratePerMinute) =>
+        ResultViewText.PeriodConsumption(ratePerMinute, _unit, ParsedPeriod());
 
-    private string FmtPerMinute(double perMinute) =>
-        perMinute.ToString("0.##", CultureInfo.InvariantCulture);
+    private string FmtPerMinute(double perMinute) => ResultViewText.FormatPerMinute(perMinute);
 
     private double GatheredRate(string itemId) =>
-        _outcome?.Plan.ItemRequirements
-            .FirstOrDefault(requirement => requirement.ItemId == itemId)?
-            .Supplies.Where(supply => supply.Kind == SupplyKind.Gathered)
-            .Sum(supply => supply.AmountPerMinute) ?? 0;
+        _outcome is null ? 0 : MapSelection.GatheredRate(_outcome.Plan, itemId);
 
-    private double RequiredRate(string itemId) =>
-        _outcome?.Plan.ItemRequirements
-            .FirstOrDefault(requirement => requirement.ItemId == itemId)?
-            .RequiredPerMinute ?? 0;
-
-    private double? DefaultGatherCap(string itemId) =>
-        _snapshot is null ? null : MapSelection.DefaultGatherCap(_snapshot, _context, itemId);
-
-    private double? EffectiveGatherCap(GatherInput input)
-    {
-        if (!string.IsNullOrWhiteSpace(input.RateText)
-            && double.TryParse(input.RateText, NumberStyles.Float, CultureInfo.InvariantCulture, out double cap)
-            && double.IsFinite(cap)
-            && cap >= 0)
-        {
-            return cap;
-        }
-
-        return DefaultGatherCap(input.ItemId);
-    }
+    private bool IsGatherCapReached(GatherRateState input) =>
+        _snapshot is not null
+        && _outcome is not null
+        && MapSelection.IsGatherCapReached(_outcome.Plan, _snapshot, _context, input.ItemId, input.RateText);
 
     private string GatherRatePlaceholder(string itemId) =>
-        DefaultGatherCap(itemId) is double cap ? FmtPerMinute(cap) : "無制限";
+        ResultViewText.GatherRatePlaceholder(_snapshot, _context, itemId);
 
     private string GatherRateDefaultLabel(string itemId) =>
-        DefaultGatherCap(itemId) is double cap
-            ? $"マップ既定 {FmtPerMinute(cap)} 個/分"
-            : "マップ既定 無制限";
+        ResultViewText.GatherRateDefaultLabel(_snapshot, _context, itemId);
 
-    private bool IsGatherCapReached(GatherInput input)
-    {
-        double? cap = EffectiveGatherCap(input);
-        return cap is double value
-            && double.IsFinite(value)
-            && GatheredRate(input.ItemId) >= value - 1e-9
-            && RequiredRate(input.ItemId) > value - 1e-9;
-    }
+    private string SupplyText(SupplyPortion portion) =>
+        ResultViewText.SupplyText(_snapshot, portion, _unit, CurrentPeriod());
 
-    private string SupplyText(SupplyPortion portion) => portion.Kind switch
-    {
-        SupplyKind.Recipe => $"レシピ {RecipeName(portion.RecipeId!)} {Fmt(portion.AmountPerMinute)}{Suffix()}",
-        SupplyKind.Byproduct => $"副産物 {RecipeName(portion.RecipeId!)} {Fmt(portion.AmountPerMinute)}{Suffix()}",
-        SupplyKind.Gathered => $"採取 {Fmt(portion.AmountPerMinute)}{Suffix()}",
-        _ => "",
-    };
+    private string OptionLabel(PairOption option) => ResultViewText.OptionLabel(_snapshot, option);
 
-    private string OptionLabel(PairOption option)
-    {
-        string label = $"{RecipeName(option.RecipeId)} ／ {FacilityName(option.FacilityId)} {option.CycleTime.ToString("0.##", CultureInfo.InvariantCulture)}秒";
-        label += option.EnvironmentId is null ? "・環境なし" : $"・{EnvName(option.EnvironmentId)}";
-        if (option.FixedConsumption is { } fc)
-        {
-            label += $"・{ItemName(fc.ItemId)} {fc.RatePerMinute.ToString("0.##", CultureInfo.InvariantCulture)}/分";
-        }
+    private string EventPeriod(GameEvent gameEvent) => ResultViewText.EventPeriod(gameEvent);
 
-        if (option.IsDefault)
-        {
-            label += "（既定）";
-        }
+    private string? ItemIconKey(string itemId) => _snapshot.ItemIconKey(itemId);
 
-        return label;
-    }
+    private string? FacilityIconKey(string facilityId) => _snapshot.FacilityIconKey(facilityId);
 
-    private string EventPeriod(GameEvent gameEvent)
-    {
-        if (gameEvent.ActiveFrom is null && gameEvent.ActiveTo is null)
-        {
-            return "";
-        }
+    private string? EnvIconKey(string envId) => _snapshot.EnvIconKey(envId);
 
-        string from = gameEvent.ActiveFrom?.ToLocalTime().ToString("MM/dd") ?? "";
-        string to = gameEvent.ActiveTo?.ToLocalTime().ToString("MM/dd") ?? "";
-        return $"（{from}〜{to}）";
-    }
+    private bool IsEventItem(string itemId) => _snapshot.IsEventItem(itemId);
 
-    private string? ItemIconKey(string itemId) =>
-        _snapshot is not null && _snapshot.ItemsById.TryGetValue(itemId, out Item? item) ? item.IconKey : null;
+    private string ItemName(string id) => _snapshot.ItemName(id);
 
-    private string? FacilityIconKey(string facilityId) =>
-        _snapshot is not null && _snapshot.FacilitiesById.TryGetValue(facilityId, out Facility? f) ? f.IconKey : null;
+    private string FacilityName(string id) => _snapshot.FacilityName(id);
 
-    private string? EnvIconKey(string envId) =>
-        _snapshot is not null && _snapshot.EnvironmentsById.TryGetValue(envId, out DomainEnv? env) ? env.IconKey : null;
+    private string RecipeName(string id) => _snapshot.RecipeName(id);
 
-    private bool IsEventItem(string itemId) =>
-        _snapshot is not null && _snapshot.ItemsById.TryGetValue(itemId, out Item? item) && item.GameEventId is not null;
-
-    private string ItemName(string id) =>
-        _snapshot is not null && _snapshot.ItemsById.TryGetValue(id, out Item? item) ? item.Name : id;
-
-    private string FacilityName(string id) =>
-        _snapshot is not null && _snapshot.FacilitiesById.TryGetValue(id, out Facility? facility) ? facility.Name : id;
-
-    private string RecipeName(string id) =>
-        _snapshot is not null && _snapshot.RecipesById.TryGetValue(id, out Recipe? recipe) ? recipe.Name : id;
-
-    private string EnvName(string id) =>
-        _snapshot is not null && _snapshot.EnvironmentsById.TryGetValue(id, out DomainEnv? env) ? env.Name : id;
+    private string EnvName(string id) => _snapshot.EnvName(id);
 }
