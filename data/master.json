@@ -1,6 +1,6 @@
 {
   "SchemaVersion": 1,
-  "DataVersion": "0.2.2",
+  "DataVersion": "0.2.4",
   "Items": [
     {
       "Category": "鉱物",
@@ -469,6 +469,18 @@
       "IconKey": null,
       "VersionAdded": "0.2.1",
       "VersionRemoved": null
+    },
+    {
+      "Category": "気体",
+      "IsGatherable": false,
+      "TransportKind": "Pipe",
+      "GameEventId": null,
+      "Id": "item-acridgen",
+      "Name": "酸性ガス",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.4.0",
+      "VersionRemoved": null
     }
   ],
   "Facilities": [
@@ -493,9 +505,78 @@
       "IconKey": null,
       "VersionAdded": "1.0.0",
       "VersionRemoved": null
+    },
+    {
+      "Width": 5,
+      "Height": 5,
+      "PowerConsumption": 50,
+      "Id": "fac-forgeOfTheSky",
+      "Name": "天有洪炉",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Width": 5,
+      "Height": 5,
+      "PowerConsumption": 20,
+      "Id": "fac-planting",
+      "Name": "栽培機",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Width": 5,
+      "Height": 5,
+      "PowerConsumption": 10,
+      "Id": "fac-seedPicking",
+      "Name": "採種機",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Width": 3,
+      "Height": 3,
+      "PowerConsumption": 0,
+      "Id": "fac-gasDispersing",
+      "Name": "ガス散布機",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "0.2.2",
+      "VersionRemoved": null
     }
   ],
-  "Environments": [],
+  "Environments": [
+    {
+      "ProviderFacilityId": "fac-gasDispersing",
+      "ConsumeItemId": "item-inergen",
+      "ConsumeRatePerMinute": 6,
+      "GameEventId": null,
+      "Id": "env-stable",
+      "Name": "安定環境",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.4.0",
+      "VersionRemoved": null
+    },
+    {
+      "ProviderFacilityId": "fac-gasDispersing",
+      "ConsumeItemId": "item-acridgen",
+      "ConsumeRatePerMinute": 6,
+      "GameEventId": null,
+      "Id": "env-acrid",
+      "Name": "酸性環境",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.4.0",
+      "VersionRemoved": null
+    }
+  ],
   "GameEvents": [],
   "Recipes": [
     {
@@ -523,6 +604,224 @@
       ],
       "Id": "recipe-origocrust01",
       "Name": "結晶外殻",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "GameEventId": null,
+      "Inputs": [
+        {
+          "ItemId": "item-carbon",
+          "Quantity": 1
+        },
+        {
+          "ItemId": "item-cleanWater",
+          "Quantity": 1
+        }
+      ],
+      "Outputs": [
+        {
+          "ItemId": "item-xiranite",
+          "Quantity": 1,
+          "SortOrder": 0
+        }
+      ],
+      "Facilities": [
+        {
+          "FacilityId": "fac-forgeOfTheSky",
+          "CycleTime": 2,
+          "EnvironmentId": null,
+          "FixedConsumption": null
+        }
+      ],
+      "Id": "recipe-xiranite02",
+      "Name": "息壌",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.4.0",
+      "VersionRemoved": null
+    },
+    {
+      "GameEventId": null,
+      "Inputs": [
+        {
+          "ItemId": "item-yanzen",
+          "Quantity": 1
+        }
+      ],
+      "Outputs": [
+        {
+          "ItemId": "item-carbon",
+          "Quantity": 2,
+          "SortOrder": 0
+        }
+      ],
+      "Facilities": [
+        {
+          "FacilityId": "fac-refining",
+          "CycleTime": 2,
+          "EnvironmentId": null,
+          "FixedConsumption": null
+        }
+      ],
+      "Id": "recipe-carbon04",
+      "Name": "炭塊",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "GameEventId": null,
+      "Inputs": [
+        {
+          "ItemId": "item-yanzen",
+          "Quantity": 1
+        }
+      ],
+      "Outputs": [
+        {
+          "ItemId": "item-yanzenSeed",
+          "Quantity": 1,
+          "SortOrder": 0
+        }
+      ],
+      "Facilities": [
+        {
+          "FacilityId": "fac-seedPicking",
+          "CycleTime": 2,
+          "EnvironmentId": null,
+          "FixedConsumption": null
+        }
+      ],
+      "Id": "recipe-yanzenSeed",
+      "Name": "芽針の種",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "GameEventId": null,
+      "Inputs": [
+        {
+          "ItemId": "item-yanzenSeed",
+          "Quantity": 1
+        },
+        {
+          "ItemId": "item-cleanWater",
+          "Quantity": 1
+        }
+      ],
+      "Outputs": [
+        {
+          "ItemId": "item-yanzen",
+          "Quantity": 2,
+          "SortOrder": 0
+        }
+      ],
+      "Facilities": [
+        {
+          "FacilityId": "fac-planting",
+          "CycleTime": 2,
+          "EnvironmentId": null,
+          "FixedConsumption": null
+        }
+      ],
+      "Id": "recipe-yanzen",
+      "Name": "芽針",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "GameEventId": null,
+      "Inputs": [
+        {
+          "ItemId": "item-sandlraf",
+          "Quantity": 1
+        }
+      ],
+      "Outputs": [
+        {
+          "ItemId": "item-sandleafSeed",
+          "Quantity": 2,
+          "SortOrder": 0
+        }
+      ],
+      "Facilities": [
+        {
+          "FacilityId": "fac-seedPicking",
+          "CycleTime": 2,
+          "EnvironmentId": null,
+          "FixedConsumption": null
+        }
+      ],
+      "Id": "recipe-sandleafSeed",
+      "Name": "サンドリーフの種",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "GameEventId": null,
+      "Inputs": [
+        {
+          "ItemId": "item-sandleafSeed",
+          "Quantity": 1
+        }
+      ],
+      "Outputs": [
+        {
+          "ItemId": "item-sandlraf",
+          "Quantity": 1,
+          "SortOrder": 0
+        }
+      ],
+      "Facilities": [
+        {
+          "FacilityId": "fac-planting",
+          "CycleTime": 2,
+          "EnvironmentId": null,
+          "FixedConsumption": null
+        }
+      ],
+      "Id": "recipe-sandleaf",
+      "Name": "サンドリーフ",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "GameEventId": null,
+      "Inputs": [
+        {
+          "ItemId": "item-sandlraf",
+          "Quantity": 1
+        }
+      ],
+      "Outputs": [
+        {
+          "ItemId": "item-carbon",
+          "Quantity": 1,
+          "SortOrder": 0
+        }
+      ],
+      "Facilities": [
+        {
+          "FacilityId": "fac-refining",
+          "CycleTime": 2,
+          "EnvironmentId": null,
+          "FixedConsumption": null
+        }
+      ],
+      "Id": "recipe-carbon03",
+      "Name": "炭塊",
       "Description": "",
       "IconKey": null,
       "VersionAdded": "1.0.0",
