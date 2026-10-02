@@ -121,9 +121,10 @@ public static class FlowGraphModelBuilder
 
         // 設備ユニットへの割当。容量超過判定がユニット単位の入力で行われるため常に構築する
         // （台数分表示で正常なら集約表示も正常、となるのが仕様決定 AO の基準）。
+        // 未調整ビューでは実機械の全速稼働を表すよう、設備倍率を掛けた機械数で再割当する。
         var unitsByFacility = FacilityUnitLayout.Allocate(
             plan.RecipeRuns, plan.FacilityRequirements, plan.EnvironmentRequirements,
-            snapshot, plan.PairSelections);
+            snapshot, plan.PairSelections, unadjusted ? scales : null);
 
         // ユニットノード Id から FacilityId への引き戻し。Id を文字列分割で解釈せず明示的に持つ
         // （FacilityId に `#` が含まれても誤って別設備へ解決されない）。
@@ -147,7 +148,7 @@ public static class FlowGraphModelBuilder
 
             double scale = unadjusted ? scales.GetValueOrDefault(run.FacilityId, 1.0) : 1.0;
             IReadOnlyList<(string NodeId, double Share)> runTargets =
-                RunEdgeTargets(unitsByFacility, run.FacilityId, runIndex, unadjusted);
+                RunEdgeTargets(unitsByFacility, run.FacilityId, runIndex);
             foreach (RecipeInput input in recipe.Inputs)
             {
                 foreach ((string nodeId, double share) in runTargets)
@@ -259,7 +260,8 @@ public static class FlowGraphModelBuilder
         var overInputs = new HashSet<(string FromId, string ToId)>();
         foreach (((string fromId, string toId), double total) in inputTotals)
         {
-            if (total > TransportCapacityOf(fromId, snapshot) + Epsilon)
+            double cap = TransportCapacityOf(fromId, snapshot);
+            if (cap > 0 && total > cap + Epsilon)
             {
                 overInputs.Add((fromId, toId));
             }
@@ -450,32 +452,15 @@ public static class FlowGraphModelBuilder
         };
     }
 
-    /// <summary>
-    /// ランの入出力エッジの宛先ユニットと流量比率。展開対象外は単一ノードへ share 1.0。
-    /// 未調整ビューでは占有ユニットへ等量に分ける（実機械の全速稼働を表すため）。
-    /// </summary>
+    /// <summary>ランの入出力エッジの宛先ユニットと流量比率。展開対象外は単一ノードへ share 1.0。</summary>
     private static IReadOnlyList<(string NodeId, double Share)> RunEdgeTargets(
         IReadOnlyDictionary<string, List<FacilityUnitSlot>> unitsByFacility,
         string facilityId,
-        int runIndex,
-        bool unadjusted)
+        int runIndex)
     {
         if (unitsByFacility.TryGetValue(facilityId, out List<FacilityUnitSlot>? units) && units.Count > 1)
         {
             var targets = new List<(string, double)>();
-            if (unadjusted)
-            {
-                int occupied = units.Count(u => u.RunShares.GetValueOrDefault(runIndex) > Epsilon);
-                foreach (FacilityUnitSlot unit in units)
-                {
-                    if (unit.RunShares.GetValueOrDefault(runIndex) > Epsilon)
-                    {
-                        targets.Add((UnitNodeId(facilityId, unit.Index), 1.0 / occupied));
-                    }
-                }
-                return targets;
-            }
-
             foreach (FacilityUnitSlot unit in units)
             {
                 double share = unit.RunShares.GetValueOrDefault(runIndex);

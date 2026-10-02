@@ -23,6 +23,8 @@ public sealed class FacilityUnitSlot
 /// 設備を切上台数ぶんのユニットへ展開し、ランの占有を割り当てる（仕様決定 AO）。
 /// ランの機械数（CyclesPerMinute × CycleTime / 60）をユニット容量 1.0 へ RecipeRuns 順に
 /// 逐次充填し、ラン占有ユニットの後ろを環境ごとの散布機ユニットとする。
+/// machineScaleByFacility を渡すと設備ごとの倍率を機械数へ掛けて割り当てる
+/// （未調整ビュー: 実機械が全速稼働する想定の配置）。
 /// </summary>
 public static class FacilityUnitLayout
 {
@@ -31,7 +33,8 @@ public static class FacilityUnitLayout
         IReadOnlyList<FacilityRequirement> facilityRequirements,
         IReadOnlyList<EnvironmentRequirement> environmentRequirements,
         MasterDataSnapshot snapshot,
-        IReadOnlyList<PairSelection> pairSelections)
+        IReadOnlyList<PairSelection> pairSelections,
+        IReadOnlyDictionary<string, double>? machineScaleByFacility = null)
     {
         ArgumentNullException.ThrowIfNull(recipeRuns);
         ArgumentNullException.ThrowIfNull(facilityRequirements);
@@ -67,7 +70,8 @@ public static class FacilityUnitLayout
                 continue;
             }
 
-            double machines = RunMachines(run, snapshot, pairByRun);
+            double machines = RunMachines(run, snapshot, pairByRun)
+                * (machineScaleByFacility?.GetValueOrDefault(run.FacilityId, 1.0) ?? 1.0);
             if (machines <= ProductionCalculator.Epsilon)
             {
                 continue;

@@ -32,7 +32,7 @@
 | `Domain/Calculation/FacilityUnitLayout.cs`（新設） | 設備を切上台数ぶんのユニットへ割り当てる共有実装。ランの機械数をユニット容量 1.0 へ逐次充填し、散布機を環境ごとの専用ユニットへ振る。計算機の容量警告とグラフで同じ割当結果を使う |
 | `Domain/Calculation/ProductionCalculator.cs` | `AddTransportWarnings` をユニット単位の入力流量判定へ改める（仕様決定 AN）。警告文を「設備 1 台への入力流量」表記へ改め、必要レーン数の記述を落とす |
 | `Domain/Calculation/CalculationWarning.cs` | `TransportCapacityExceeded` のコメントを新基準へ追従 |
-| `Application/FlowGraphModelBuilder.cs` | `Build` に `expandFacilities` 引数を追加。展開時はユニットノード `fac:<FacilityId>#<n>` へエッジを流量比で分割する。容量超過判定をユニットエッジ単位で行い、集約表示では構成エッジのいずれかが超過していれば集約エッジも赤化する |
+| `Application/FlowGraphModelBuilder.cs` | `Build` に `expandFacilities` 引数を追加。展開時はユニットノード `facunit:<FacilityId>#<n>` へエッジを流量比で分割する。容量超過判定をユニットエッジ単位で行い、集約表示では構成エッジのいずれかが超過していれば集約エッジも赤化する |
 
 ### App
 
@@ -61,7 +61,7 @@
 
 ### 設備台数分表示（AO）
 
-`expandFacilities=true` のとき、切上台数が 2 以上の設備を台数ぶんのユニットノード（`fac:<FacilityId>#<0..N-1>`）へ展開する。
+`expandFacilities=true` のとき、切上台数が 2 以上の設備を台数ぶんのユニットノード（`facunit:<FacilityId>#<0..N-1>`）へ展開する。ユニットノードは設備ノード（`fac:<FacilityId>`）と別のプレフィックスとし、FacilityId に `#` が含まれても衝突しない構造とする。
 ユニットへのラン占有の割当は、ランごとの機械数（`CyclesPerMinute × CycleTime / 60`）を `RecipeRuns` の順にユニット容量 1.0 へ逐次充填する。
 レシピ入力・出力エッジは、ユニットが受け持つ占有分をラン機械数で割った比率で各ユニットノードへ分割する。
 固定消費エッジは全ユニットへ等量（合計 / 台数）に分ける。
