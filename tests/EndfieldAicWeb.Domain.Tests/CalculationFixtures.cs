@@ -270,14 +270,18 @@ internal static class CalculationFixtures
             [.. base_.Recipes, Recipe("r-part", "f-asm", 4.0, [("i-ore", 2.0)], [("i-part", 1.0)])]);
     }
 
-    /// <summary>F-04 派生: 循環に加えて r-x が i-a を副産する（BYP-07 用）。</summary>
+    /// <summary>
+    /// F-04 派生: 循環に加えて r-x が i-a を副産する（BYP-07・NCP-07 用）。
+    /// r-x の CycleTime 8秒は i-a の実効レート（7.5/分）を r-cyc-a（10/分）より低く保ち、
+    /// 仕様決定 BA の既定選択でも i-a が循環レシピ側に残るようにするための値。
+    /// </summary>
     public static MasterDataSnapshot F04WithByproduct()
     {
         MasterDataSnapshot base_ = F04();
         return Snapshot(
             [.. base_.Items, Item("i-x"), Item("i-ore", "採取素材", TransportKind.Belt, null, true)],
             [.. base_.Facilities, Facility("f-x")],
-            [.. base_.Recipes, Recipe("r-x", "f-x", 4.0, [("i-ore", 1.0)], [("i-x", 1.0), ("i-a", 1.0)])]);
+            [.. base_.Recipes, Recipe("r-x", "f-x", 8.0, [("i-ore", 1.0)], [("i-x", 1.0), ("i-a", 1.0)])]);
     }
 
     /// <summary>F-05: 副産物（r-m が i-p + i-q×2 を生産）。</summary>
@@ -685,4 +689,52 @@ internal static class CalculationFixtures
             ],
             maps: base_.Maps);
     }
+
+    /// <summary>
+    /// F-18: 実効出力レートによる既定レシピ選択（仕様決定 BA）。
+    /// 同一 VersionAdded のレシピ対で、Id 昇順と実効レート降順が逆方向に効く命名にする。
+    /// env-q5・env-q6 は所属イベント ev-off が無効のコンテキストでペア不適格。
+    /// </summary>
+    public static MasterDataSnapshot F18() => Snapshot(
+        [
+            Item("i-q1"), Item("i-q2"), Item("i-q3"), Item("i-q4"),
+            Item("i-q5"), Item("i-q6"), Item("i-q7"), Item("i-q8"), Item("i-other"),
+            Item("i-ore", "採取素材", TransportKind.Belt, null, true),
+            Item("i-gas", "採取素材", TransportKind.Pipe, null, true),
+        ],
+        [Facility("f-a"), Facility("f-b"), Facility("f-disp")],
+        [
+            Recipe("r-q1-lean", "f-a", 3.0, [("i-ore", 1.0)], [("i-q1", 1.0)]),
+            Recipe("r-q1-rich", "f-a", 3.0, [("i-ore", 1.0)], [("i-q1", 2.0)]),
+            Recipe("r-q2-a-slow", "f-a", 6.0, [("i-ore", 1.0)], [("i-q2", 1.0)]),
+            Recipe("r-q2-b-fast", "f-a", 3.0, [("i-ore", 1.0)], [("i-q2", 1.0)]),
+            Recipe("r-q3-a", "f-a", 6.0, [("i-ore", 1.0)], [("i-q3", 1.0)]),
+            Recipe("r-q3-b", "f-a", 6.0, [("i-ore", 1.0)], [("i-q3", 1.0)]),
+            Recipe("r-q4-alt", "f-a", 5.0, [("i-ore", 1.0)], [("i-q4", 1.0)]),
+            Recipe("r-q4-multi", [
+                    Pair("r-q4-multi", "f-a", 6.0),
+                    Pair("r-q4-multi", "f-b", 2.0),
+                ],
+                [("i-ore", 1.0)], [("i-q4", 1.0)]),
+            Recipe("r-q5", [
+                    Pair("r-q5", "f-a", 1.0, "env-q5"),
+                    Pair("r-q5", "f-a", 8.0),
+                ],
+                [("i-ore", 1.0)], [("i-q5", 1.0)]),
+            Recipe("r-q5-alt", "f-a", 4.0, [("i-ore", 1.0)], [("i-q5", 1.0)]),
+            Recipe("r-q6-env", "f-a", 1.0,
+                [("i-ore", 1.0)], [("i-q6", 1.0)], "1.0.0", null, null, "env-q6"),
+            Recipe("r-q6-slow", "f-a", 4.0, [("i-ore", 1.0)], [("i-q6", 1.0)]),
+            Recipe("r-q7-new", "f-a", 10.0, [("i-ore", 1.0)], [("i-q7", 1.0)], "2.0.0"),
+            Recipe("r-q7-old", "f-a", 1.0, [("i-ore", 1.0)], [("i-q7", 1.0)], "1.0.0"),
+            Recipe("r-q8-a-thin", "f-a", 6.0, [("i-ore", 1.0)], [("i-q8", 1.0)]),
+            Recipe("r-q8-b-rich", "f-a", 6.0,
+                [("i-ore", 1.0)], [("i-other", 1.0), ("i-q8", 2.0)]),
+        ],
+        environments:
+        [
+            Env("env-q5", "f-disp", "i-gas", 60.0, "ev-off"),
+            Env("env-q6", "f-disp", "i-gas", 60.0, "ev-off"),
+        ],
+        gameEvents: [GameEvent("ev-off")]);
 }
