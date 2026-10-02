@@ -10,7 +10,7 @@ public sealed record CalculationWarning(WarningCode Code, string Message);
 /// </summary>
 public enum WarningCode
 {
-    /// <summary>需要展開で循環依存を検出し打ち切った。</summary>
+    /// <summary>需要展開で循環依存を検出し、解放反復でも解けず未充足が残った（仕様決定 AQ）。</summary>
     CycleDetected,
 
     /// <summary>選択可能なレシピが存在しないアイテム（採取素材以外）。</summary>

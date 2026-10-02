@@ -576,4 +576,85 @@ internal static class CalculationFixtures
         [Recipe("r-ore", "f-mine", 4.0, [("i-stone", 1.0)], [("i-ore", 1.0)])],
         gameEvents: [GameEvent("ev-off")],
         maps: [Map("m-cap", [("i-ore", false, 60.0), ("i-stone", false, 30.0)])]);
+
+    /// <summary>
+    /// F-17: 種↔作物の正味増循環（芽針型、作物側が正味増。ループゲイン 0.5）。
+    /// r-grow: i-seed×1 + i-water×1 → i-crop×2。r-pick: i-crop×1 → i-seed×1。
+    /// i-water は m-all で採取無限。
+    /// </summary>
+    public static MasterDataSnapshot F17() => Snapshot(
+        [
+            Item("i-seed"), Item("i-crop"),
+            Item("i-water", "採取素材", TransportKind.Belt, null, true),
+        ],
+        [Facility("f-grow"), Facility("f-pick")],
+        [
+            Recipe("r-grow", "f-grow", 4.0, [("i-seed", 1.0), ("i-water", 1.0)], [("i-crop", 2.0)]),
+            Recipe("r-pick", "f-pick", 4.0, [("i-crop", 1.0)], [("i-seed", 1.0)]),
+        ],
+        maps: [Map("m-all", [("i-water", true, null)])]);
+
+    /// <summary>F-17 派生: 種側が正味増（サンドリーフ型。ループゲイン 0.5）。</summary>
+    public static MasterDataSnapshot F17SeedPositive() => Snapshot(
+        [Item("i-seed"), Item("i-crop")],
+        [Facility("f-grow"), Facility("f-pick")],
+        [
+            Recipe("r-grow2", "f-grow", 4.0, [("i-seed", 1.0)], [("i-crop", 1.0)]),
+            Recipe("r-pick2", "f-pick", 4.0, [("i-crop", 1.0)], [("i-seed", 2.0)]),
+        ]);
+
+    /// <summary>F-17 派生: 正味減循環（r-na: i-b×2 → i-a×1、r-nb: i-a×1 → i-b×1。ループゲイン 2）。</summary>
+    public static MasterDataSnapshot F17Negative() => Snapshot(
+        [Item("i-a"), Item("i-b")],
+        [Facility("f-asm")],
+        [
+            Recipe("r-na", "f-asm", 4.0, [("i-b", 2.0)], [("i-a", 1.0)]),
+            Recipe("r-nb", "f-asm", 4.0, [("i-a", 1.0)], [("i-b", 1.0)]),
+        ]);
+
+    /// <summary>F-17 派生: i-crop を入力とする下流レシピ r-char（i-crop×1 → i-char×2）を追加。</summary>
+    public static MasterDataSnapshot F17WithDownstream()
+    {
+        MasterDataSnapshot base_ = F17();
+        return Snapshot(
+            [.. base_.Items, Item("i-char")],
+            [.. base_.Facilities, Facility("f-asm")],
+            [
+                .. base_.Recipes,
+                Recipe("r-char", "f-asm", 4.0, [("i-crop", 1.0)], [("i-char", 2.0)]),
+            ],
+            maps: base_.Maps);
+    }
+
+    /// <summary>
+    /// F-17 派生: 採取素材を含む正味増循環（ループゲイン 0.5）。
+    /// i-ore は m-cap で採取上限 60。r-ore: i-x×1 → i-ore×2、r-x: i-ore×1 → i-x×1。
+    /// </summary>
+    public static MasterDataSnapshot F17Gatherable() => Snapshot(
+        [
+            Item("i-ore", "採取素材", TransportKind.Belt, null, true),
+            Item("i-x"),
+        ],
+        [Facility("f-mine"), Facility("f-asm")],
+        [
+            Recipe("r-ore", "f-mine", 4.0, [("i-x", 1.0)], [("i-ore", 2.0)]),
+            Recipe("r-x", "f-asm", 4.0, [("i-ore", 1.0)], [("i-x", 1.0)]),
+        ],
+        maps: [Map("m-cap", [("i-ore", false, 60.0)])]);
+
+    /// <summary>F-17 派生: r-grow のペアに i-water 固定消費 6/分を追加。</summary>
+    public static MasterDataSnapshot F17WithFixedConsumption()
+    {
+        MasterDataSnapshot base_ = F17();
+        return Snapshot(
+            base_.Items,
+            base_.Facilities,
+            [
+                Recipe("r-grow", "f-grow", 4.0,
+                    [("i-seed", 1.0), ("i-water", 1.0)], [("i-crop", 2.0)],
+                    fixedConsumption: ("i-water", 6.0)),
+                Recipe("r-pick", "f-pick", 4.0, [("i-crop", 1.0)], [("i-seed", 1.0)]),
+            ],
+            maps: base_.Maps);
+    }
 }

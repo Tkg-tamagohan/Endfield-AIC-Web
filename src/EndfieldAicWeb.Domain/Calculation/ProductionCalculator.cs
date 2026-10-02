@@ -74,6 +74,24 @@ public static class ProductionCalculator
         /// </summary>
         private readonly HashSet<string> _gatherCapShortfall = new(StringComparer.Ordinal);
 
+        /// <summary>
+        /// 循環検出で未充足へ計上したアイテム。解放ステップの対象一覧と、
+        /// 警告の遅延発行の根拠に使う（仕様決定 AQ）。
+        /// </summary>
+        private readonly HashSet<string> _cycleDeposits = new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// アイテムごとの、検出した循環パス上のレシピ比率の積（ループゲイン）の最小値。
+        /// 1 未満なら正味増として解放反復の対象にする。
+        /// </summary>
+        private readonly Dictionary<string, double> _cycleMinGain = new(StringComparer.Ordinal);
+
+        /// <summary>アイテムごとに記録した循環パス（最小ゲインで検出したもの）。警告の遅延発行に使う。</summary>
+        private readonly Dictionary<string, string> _cyclePaths = new(StringComparer.Ordinal);
+
+        /// <summary>解放で残差が縮まなかった場合に、以後の解放を打ち切るフラグ（AQ の保険）。</summary>
+        private bool _cycleReleaseStopped;
+
         internal readonly Dictionary<string, double> Demand = new(StringComparer.Ordinal);
         internal readonly Dictionary<string, double> Produced = new(StringComparer.Ordinal);
         internal readonly Dictionary<string, double> Raw = new(StringComparer.Ordinal);
@@ -270,6 +288,18 @@ public static class ProductionCalculator
                         $"アイテム {itemId} の需要が採取上限（{_gatherCaps.GetValueOrDefault(itemId):0.###} 個/分）を超え、代替レシピもないため {unmet:0.###} 個/分が不足します。"));
                 }
             }
+
+            // 循環依存の警告も均衡化後の最終 Unmet で発行する（仕様決定 AQ）。
+            // 解放反復で解消した循環や、後から届いた副産物で未充足が消えた循環には警告を残さない。
+            foreach (string itemId in _cycleDeposits)
+            {
+                if (Get(Unmet, itemId) > Epsilon && _cyclePaths.TryGetValue(itemId, out string? path))
+                {
+                    Warnings.Add(new CalculationWarning(
+                        WarningCode.CycleDetected,
+                        $"循環依存を検出したため展開を打ち切りました: {path}"));
+                }
+            }
         }
 
         /// <summary>
@@ -289,7 +319,8 @@ public static class ProductionCalculator
 
                 bool expanded = RunCycles.Values.Sum() > cyclesBefore + Epsilon;
                 bool retracted = Retract();
-                if (!expanded && !retracted)
+                bool released = ReleaseCycleResiduals();
+                if (!expanded && !retracted && !released)
                 {
                     break;
                 }
@@ -462,11 +493,10 @@ public static class ProductionCalculator
 
             if (_stackSet.Contains(itemId))
             {
-                int cycleStart = _stack.IndexOf(itemId);
-                string path = string.Join(" → ", _stack.Skip(cycleStart).Append(itemId));
-                Warnings.Add(new CalculationWarning(
-                    WarningCode.CycleDetected,
-                    $"循環依存を検出したため展開を打ち切りました: {path}"));
+                // 循環依存: 警告は即時には出さず、検出パスとループゲインを記録する（仕様決定 AQ）。
+                // 正味増（ゲイン < 1）の残差は均衡化ラウンドの解放ステップで再展開し、
+                // 残った未充足は Run 末尾で警告へ変える。
+                RecordCycle(itemId);
                 Unmet[itemId] = Get(Unmet, itemId) + remainder;
                 return;
             }
@@ -561,6 +591,77 @@ public static class ProductionCalculator
 
             _stack.RemoveAt(_stack.Count - 1);
             _stackSet.Remove(itemId);
+        }
+
+        /// <summary>
+        /// 展開スタック上の再要求を循環依存として記録する（仕様決定 AQ）。
+        /// 検出パス上の隣接アイテム対について、後続アイテムの入力量÷先行アイテムの出力量を辺の比率とし、
+        /// その積をループゲインとして記録する。同一アイテムの複数検出では最小値を残す。
+        /// </summary>
+        private void RecordCycle(string itemId)
+        {
+            int cycleStart = _stack.IndexOf(itemId);
+            double gain = 1.0;
+            for (int i = cycleStart; i < _stack.Count; i++)
+            {
+                string current = _stack[i];
+                string next = i + 1 < _stack.Count ? _stack[i + 1] : itemId;
+                // スタック上のアイテムは選択確定済み（未選択はスタックに積まれない）ため null になり得ない。
+                Recipe recipe = Selection[current]!.Recipe;
+                double outputQty = recipe.Outputs
+                    .Where(o => o.ItemId == current)
+                    .Sum(o => o.Quantity);
+                double inputQty = recipe.Inputs
+                    .Where(input => input.ItemId == next)
+                    .Sum(input => input.Quantity);
+                gain *= inputQty / outputQty;
+            }
+
+            if (!_cycleMinGain.TryGetValue(itemId, out double known) || gain < known)
+            {
+                _cycleMinGain[itemId] = gain;
+                _cyclePaths[itemId] = string.Join(" → ", _stack.Skip(cycleStart).Append(itemId));
+            }
+
+            _cycleDeposits.Add(itemId);
+        }
+
+        /// <summary>
+        /// 循環検出で未充足へ計上した残差を解放して再展開する（仕様決定 AQ）。
+        /// 解放するのは記録済みループゲインが 1 未満（正味増）のアイテムだけで、
+        /// 残差は反復のたびにおおよそゲイン倍に縮み、外部投入なしの定常解へ収束する。
+        /// 解放後も残差合計が縮まない場合は以後の解放を打ち切る（複雑に絡む循環の保険）。
+        /// </summary>
+        private bool ReleaseCycleResiduals()
+        {
+            if (_cycleReleaseStopped)
+            {
+                return false;
+            }
+
+            double before = _cycleDeposits.Sum(id => Get(Unmet, id));
+            if (before <= Epsilon)
+            {
+                return false;
+            }
+
+            foreach (string itemId in _cycleDeposits
+                .Where(id => Get(Unmet, id) > Epsilon
+                    && _cycleMinGain.GetValueOrDefault(id, double.PositiveInfinity) < 1.0 - Epsilon)
+                .OrderBy(id => DemandOrder.IndexOf(id))
+                .ToList())
+            {
+                Unmet[itemId] = 0;
+                Expand(itemId);
+            }
+
+            double after = _cycleDeposits.Sum(id => Get(Unmet, id));
+            if (after >= before - Epsilon)
+            {
+                _cycleReleaseStopped = true;
+            }
+
+            return true;
         }
 
         private bool IsGatherable(string itemId) =>
