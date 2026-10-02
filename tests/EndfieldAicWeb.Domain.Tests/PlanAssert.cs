@@ -23,6 +23,10 @@ internal static class PlanAssert
     public static bool HasWarning(ProductionPlan plan, WarningCode code) =>
         plan.Warnings.Any(w => w.Code == code);
 
+    /// <summary>指定コード以外の警告がないことを検査する（容量警告が副次的に発火しうるテスト用）。</summary>
+    public static void NoWarningsExcept(ProductionPlan plan, WarningCode code) =>
+        Assert.DoesNotContain(plan.Warnings, w => w.Code != code);
+
     public static double Supplied(ProductionPlan plan, string itemId, SupplyKind kind) =>
         Req(plan, itemId).Supplies.Where(s => s.Kind == kind).Sum(s => s.AmountPerMinute);
 

@@ -96,8 +96,8 @@ public sealed record SurplusProduction(string ItemId, double ExcessPerMinute);
 public sealed record FlowAdjustment(
     string RecipeId,
     string InputItemId,
-    double RequiredPerSecond,
-    double RecommendedLimitPerSecond);
+    double RequiredPerMinute,
+    double RecommendedLimitPerMinute);
 
 /// <summary>
 /// 需要アイテムに対して確定した（実際に稼働中の）ペア。

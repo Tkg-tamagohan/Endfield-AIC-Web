@@ -204,7 +204,7 @@ else
                         <span class="muted"> @f.ExactCount.ToString("0.##", CultureInfo.InvariantCulture) 台 → </span><strong>@f.CeilCount 台</strong>
                         @foreach (FlowAdjustment l in f.FlowLimits)
                         {
-                            <div class="hint">@RecipeName(l.RecipeId) の @ItemName(l.InputItemId) を @l.RecommendedLimitPerSecond.ToString("0.###", CultureInfo.InvariantCulture)/秒 に制限</div>
+                            <div class="hint">@RecipeName(l.RecipeId) の @ItemName(l.InputItemId) を @l.RecommendedLimitPerMinute.ToString("0.###", CultureInfo.InvariantCulture)/分 に制限</div>
                         }
                     </div>
                 }

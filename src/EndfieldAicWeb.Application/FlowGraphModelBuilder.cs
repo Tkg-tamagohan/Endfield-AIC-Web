@@ -230,8 +230,8 @@ public static class FlowGraphModelBuilder
 
             double cap = item.TransportKind switch
             {
-                TransportKind.Belt => ProductionCalculator.BeltCapacityPerSecond,
-                TransportKind.Pipe => ProductionCalculator.PipeCapacityPerSecond,
+                TransportKind.Belt => ProductionCalculator.BeltCapacityPerMinute,
+                TransportKind.Pipe => ProductionCalculator.PipeCapacityPerMinute,
                 _ => 0,
             };
             if (cap <= 0)
@@ -242,7 +242,7 @@ public static class FlowGraphModelBuilder
             double flowPerMinute = Math.Max(
                 requirementByItem.GetValueOrDefault(itemId)?.RequiredPerMinute ?? 0,
                 Math.Max(producedByItem.GetValueOrDefault(itemId), gatheredByItem.GetValueOrDefault(itemId)));
-            if (flowPerMinute / 60.0 > cap + Epsilon)
+            if (flowPerMinute > cap + Epsilon)
             {
                 overCapacityItems.Add(itemId);
             }

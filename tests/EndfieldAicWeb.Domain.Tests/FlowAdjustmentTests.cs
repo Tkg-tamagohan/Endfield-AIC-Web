@@ -4,7 +4,7 @@ using static EndfieldAicWeb.Domain.Tests.PlanAssert;
 
 namespace EndfieldAicWeb.Domain.Tests;
 
-/// <summary>FLW: 流量調整（仕様決定 O、docs/phases/test-specification-phase2.md §3）。</summary>
+/// <summary>FLW: 流量調整（仕様決定 O・AM、docs/phases/test-specification-phase2.md §3）。</summary>
 public class FlowAdjustmentTests
 {
     [Fact(DisplayName = "FLW-01: 推奨制限は要求流量の実数値")]
@@ -19,17 +19,17 @@ public class FlowAdjustmentTests
         FlowAdjustment adjustment = Assert.Single(plan.FlowAdjustments);
         Assert.Equal("r-t", adjustment.RecipeId);
         Assert.Equal("i-u", adjustment.InputItemId);
-        Assert.Equal(62.0 / 3.0, adjustment.RequiredPerSecond, Precision);
-        Assert.Equal(62.0 / 3.0, adjustment.RecommendedLimitPerSecond, Precision);
+        Assert.Equal(1240.0, adjustment.RequiredPerMinute, Precision);
+        Assert.Equal(1240.0, adjustment.RecommendedLimitPerMinute, Precision);
     }
 
     [Fact(DisplayName = "FLW-02: 推奨制限は丸めない")]
     public void RecommendedLimitIsNotRounded()
     {
         ProductionPlan plan = CalculationFixtures.Run(
-            CalculationFixtures.F06(), [("i-t", 320.0)]);
+            CalculationFixtures.F06(), [("i-t", 320.125)]);
 
-        Assert.Equal(64.0 / 3.0, Assert.Single(plan.FlowAdjustments).RecommendedLimitPerSecond, Precision);
+        Assert.Equal(1280.5, Assert.Single(plan.FlowAdjustments).RecommendedLimitPerMinute, Precision);
     }
 
     [Fact(DisplayName = "FLW-03: 整数台数なら調整行なし")]
@@ -49,7 +49,7 @@ public class FlowAdjustmentTests
         ProductionPlan plan = CalculationFixtures.Run(
             CalculationFixtures.F06(), [("i-t", 135.0)]);
 
-        Assert.Equal(9.0, Assert.Single(plan.FlowAdjustments).RecommendedLimitPerSecond, Precision);
+        Assert.Equal(540.0, Assert.Single(plan.FlowAdjustments).RecommendedLimitPerMinute, Precision);
         Assert.Equal(4.5, Fac(plan, "f-t").ExactCount, Precision);
         Assert.Equal(5, Fac(plan, "f-t").CeilCount);
     }
@@ -75,8 +75,8 @@ public class FlowAdjustmentTests
         Assert.Equal(1, Fac(plan, "f-sh").CeilCount);
         FlowAdjustment adjA = Assert.Single(plan.FlowAdjustments, a => a.RecipeId == "r-a");
         FlowAdjustment adjB = Assert.Single(plan.FlowAdjustments, a => a.RecipeId == "r-b");
-        Assert.Equal(5.0 / 60.0, adjA.RecommendedLimitPerSecond, Precision);
-        Assert.Equal(5.0 / 60.0, adjB.RecommendedLimitPerSecond, Precision);
+        Assert.Equal(5.0, adjA.RecommendedLimitPerMinute, Precision);
+        Assert.Equal(5.0, adjB.RecommendedLimitPerMinute, Precision);
     }
 
     [Fact(DisplayName = "FLW-06: 設備共用でも整数台の全速稼働なら調整行なし")]
