@@ -17,7 +17,7 @@
     <ProjectReference Include="..\EndfieldAicWeb.SharedUi\EndfieldAicWeb.SharedUi.csproj" />
   </ItemGroup>
 
-  <!-- 正本マスタを wwwroot へコピーして「同梱マスタ」の読み込み元とする（生成物なので gitignore 済み）。
+  <!-- 原本のマスタ JSON を wwwroot へコピーして「同梱マスタ」の読み込み元とする（生成物なので gitignore 済み）。
        App と同じく、クリーン環境の初回ビルド欠落を防ぐため発行成果物へも直接コピーする。 -->
   <Target Name="CopyMasterJson" BeforeTargets="AssignTargetPaths">
     <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\data" />

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """data/master.json を data/master.schema.json（SchemaVersion=1）で検証する。
 
-CI（.github/workflows/ci.yml）から呼び出し、正本と構造定義のずれを検出する。
+CI（.github/workflows/ci.yml）から呼び出し、マスタ JSON と構造定義のずれを検出する。
 IconKey 文字種・File 形式・Bytes/Sha256 などの意味検証は C# 側の規則で担保する
 （dotnet test の BundledMasterDataTests、Phase 7 仕様決定 R）ため、
 ここではスキーマ適合と、参照・収録の偏りを知らせる警告だけを扱う。

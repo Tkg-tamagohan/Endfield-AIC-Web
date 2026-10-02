@@ -20,7 +20,7 @@ public sealed class MasterJsonLoadResult
 }
 
 /// <summary>
-/// マスタ JSON の読み込み（正本 JSON → <see cref="MasterDocument"/>）。
+/// マスタ JSON の読み込み（マスタ JSON → <see cref="MasterDocument"/>）。
 /// 構文解析 → 構造検証 → 意味検証（<see cref="MasterValidator"/> と同一規則）の三段で処理し、
 /// 違反はすべてエラー一覧として集約して返す。
 /// </summary>

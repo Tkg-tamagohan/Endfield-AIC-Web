@@ -78,7 +78,7 @@
 
 - `TryParseTargets` に加え、`TryParseEnvironmentCounts`・`TryParseGatherRates` で入力を検証し、失敗時は対応する `_envError`/`_gatherError` に出して計算しない
 - `ContextFilter.MapId` に `_mapId` を入れ、`Calculator.Calculate` へ `_pairOverrides`・`environmentOverrides`・`gatherOverrides` を渡す
-- 成功後に `_envInputs`・`_gatherInputs` を `_outcome` から再構築する（公開版 §3.2・3.5 と同じ手順）
+- 成功後に `_envInputs`・`_gatherInputs` を `_outcome` から再構築する（公開版 §3.2・本書 §3.5 と同じ手順）
 - `EnsureSnapshot()` で検証・スナップショット再構築する既存の先頭処理と、`Calculate` の try/catch は維持する
 
 ### 3.7 スタイル

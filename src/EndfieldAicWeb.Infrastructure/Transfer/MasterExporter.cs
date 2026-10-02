@@ -7,7 +7,7 @@ using Environment = EndfieldAicWeb.Domain.Models.Environment;
 namespace EndfieldAicWeb.Infrastructure.Transfer;
 
 /// <summary>
-/// <see cref="MasterDocument"/> を全置換形式の正本 JSON へ書き出す（管理ツールのエクスポート物、仕様決定 D/R）。
+/// <see cref="MasterDocument"/> を全置換形式のマスタ JSON へ書き出す（管理ツールのエクスポート物、仕様決定 D/R）。
 /// 書き出し前に <see cref="MasterValidator"/> と Icons 節の構造規則を同一適用し、
 /// 違反時は <see cref="MasterValidationException"/> で拒否する。
 /// </summary>

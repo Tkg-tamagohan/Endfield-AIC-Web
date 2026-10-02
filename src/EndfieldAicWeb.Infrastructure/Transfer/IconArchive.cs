@@ -12,7 +12,7 @@ namespace EndfieldAicWeb.Infrastructure.Transfer;
 /// </summary>
 public static class IconArchive
 {
-    /// <summary>zip 内の正本 JSON パス。</summary>
+    /// <summary>zip 内のマスタ JSON パス。</summary>
     public const string JsonEntryName = "data/master.json";
 
     /// <summary>zip 内でアイコンを収めるディレクトリ。</summary>
@@ -21,7 +21,7 @@ public static class IconArchive
     private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
     /// <summary>
-    /// 正本 JSON とアイコンファイル群を zip へ詰める。
+    /// マスタ JSON とアイコンファイル群を zip へ詰める。
     /// マニフェスト記載のうち実体が取得できないファイルはエントリを作らない
     /// （その状態は <see cref="IconExportPlanner"/> 側で先に拒否される想定）。
     /// </summary>
@@ -61,7 +61,7 @@ public static class IconArchive
     }
 
     /// <summary>
-    /// zip から正本 JSON とアイコンファイル群を取り出す。
+    /// zip からマスタ JSON とアイコンファイル群を取り出す。
     /// エントリ名は <c>data/…</c> 前置きあり・なしの両形を受け付ける
     /// （icons 側のキーはマニフェスト相対パス <c>icons/&lt;name&gt;.png</c> に正規化して返す）。
     /// </summary>
