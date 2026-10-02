@@ -4,8 +4,8 @@
 
 ## 対応済みの項目
 
-- Phase 20 で先送りされた `.combo` 系死 CSS の削除（`.env-row` 系・`.input.small`・`bootstrap.min.css` のデッドアセットを併せて削除）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/TODO>
-- Phase 22 で対象外とした共有 CSS の `_content` 経由配信（`EndfieldAicWeb.SharedUi` の `css/shared.css` への汎用クラス集約、仕様決定 BI）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/TODO>
+- Phase 20 で先送りされた `.combo` 系死 CSS の削除（`.env-row` 系・`.input.small`・`bootstrap.min.css` のデッドアセットを併せて削除）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/61>
+- Phase 22 で対象外とした共有 CSS の `_content` 経由配信（`EndfieldAicWeb.SharedUi` の `css/shared.css` への汎用クラス集約、仕様決定 BI）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/61>
 
 レビュー指摘のうち優先度の高い 5 件は次の PR で対応・マージ済みである。
 
