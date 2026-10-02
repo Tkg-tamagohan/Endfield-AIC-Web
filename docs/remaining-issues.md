@@ -18,6 +18,7 @@
 - D 判定ロジックの抽出（散布機台数の検証とコンボの選択解除判定を Application の純粋関数へ移し xUnit でテスト化）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/21>
 - E 可変性の境界明文化（requirements §6.2）・F スキルへのゴールデンパス期待値表追記: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/22>
 - 保持された散布機台数が新しい自動上限を超えるケース（自動値へ戻す整合処理、仕様決定 AH）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/36>
+- 種↔作物の正味増循環を解く計算拡張（仕様決定 AQ・AR。ループゲイン 1 未満の循環は解放反復で外部投入なしの定常解を求め、初期在庫は対象外。炭塊・息壌への未充足波及を解消）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/51>
 
 ## 残っている項目
 
@@ -44,14 +45,6 @@ UI 層の変更頻度が上がった時点で再検討とする。
 公開アプリ（`src/EndfieldAicWeb.App/Pages/Home.razor`）と管理ツールの計算プレビュー（`src/EndfieldAicWeb.Admin/Pages/PreviewPage.razor`）は、目標入力・ペア選択・散布機台数・単位切替・結果表示など同型の UI をページごとに別実装している。
 仕様決定 AG では管理ツール側への機能移植はコピー追従で行い、razor の共有化（Razor Class Library 化）は見送る方針とした。
 共有ロジックは Application 層（`ResultViewBuilder` 等）に寄せる現状維持で、差分の取りこぼしや修正の二重化が実害として現れた時点で RCL 化を再検討する。
-
-### 種↔作物の正味増循環を解く計算拡張
-
-マスタ 0.2.4 で登録した栽培レシピ（芽針・サンドリーフ）は種→作物→種の循環を持ち、いずれも正味増の比率である（芽針: 種1+水1→作物2、作物1→種1。サンドリーフ: 作物1→種2、種1→作物1）。
-ゲーム仕様としては初期ストックから自立する設計と推測されるが、現行の計算機は循環依存を検出して該当需要を未充足とする（requirements の循環依存の扱いと決定 R の継承どおり）。
-このため同梱マスタでは炭塊（2 経路とも作物起点）と息壌（炭塊起点）まで未充足が波及する。
-初期在庫（外部調達によるブート）または収束計算のモデル化を、計算仕様の拡張として別タスクで扱う。
-PR #48 の Devin Review 対応でユーザーが選択した方針である。
 
 ## 改善方針の検討
 
