@@ -81,12 +81,13 @@ public static class ProductionCalculator
         private readonly HashSet<string> _cycleDeposits = new(StringComparer.Ordinal);
 
         /// <summary>
-        /// アイテムごとの、検出した循環パス上のレシピ比率の積（ループゲイン）の最小値。
-        /// 1 未満なら正味増として解放反復の対象にする。
+        /// アイテムごとの、検出した循環パス上のレシピ比率の積（ループゲイン）の最大値。
+        /// そのアイテムを通る循環がすべて正味増（最大ゲインが 1 未満）のときだけ解放反復の対象にする。
+        /// 正味減を 1 本でも含むアイテムは解放しない（解放してもその枝へ需要が戻り発散するため）。
         /// </summary>
-        private readonly Dictionary<string, double> _cycleMinGain = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, double> _cycleMaxGain = new(StringComparer.Ordinal);
 
-        /// <summary>アイテムごとに記録した循環パス（最小ゲインで検出したもの）。警告の遅延発行に使う。</summary>
+        /// <summary>アイテムごとに記録した循環パス（最大ゲインで検出したもの）。警告の遅延発行に使う。</summary>
         private readonly Dictionary<string, string> _cyclePaths = new(StringComparer.Ordinal);
 
         /// <summary>解放で残差が縮まなかった場合に、以後の解放を打ち切るフラグ（AQ の保険）。</summary>
@@ -596,7 +597,7 @@ public static class ProductionCalculator
         /// <summary>
         /// 展開スタック上の再要求を循環依存として記録する（仕様決定 AQ）。
         /// 検出パス上の隣接アイテム対について、後続アイテムの入力量÷先行アイテムの出力量を辺の比率とし、
-        /// その積をループゲインとして記録する。同一アイテムの複数検出では最小値を残す。
+        /// その積をループゲインとして記録する。同一アイテムの複数検出では最大値を残す。
         /// </summary>
         private void RecordCycle(string itemId)
         {
@@ -617,9 +618,9 @@ public static class ProductionCalculator
                 gain *= inputQty / outputQty;
             }
 
-            if (!_cycleMinGain.TryGetValue(itemId, out double known) || gain < known)
+            if (!_cycleMaxGain.TryGetValue(itemId, out double known) || gain > known)
             {
-                _cycleMinGain[itemId] = gain;
+                _cycleMaxGain[itemId] = gain;
                 _cyclePaths[itemId] = string.Join(" → ", _stack.Skip(cycleStart).Append(itemId));
             }
 
@@ -628,8 +629,8 @@ public static class ProductionCalculator
 
         /// <summary>
         /// 循環検出で未充足へ計上した残差を解放して再展開する（仕様決定 AQ）。
-        /// 解放するのは記録済みループゲインが 1 未満（正味増）のアイテムだけで、
-        /// 残差は反復のたびにおおよそゲイン倍に縮み、外部投入なしの定常解へ収束する。
+        /// 解放するのは、そのアイテムを通る記録済み循環がすべて正味増（最大ゲインが 1 未満）の
+        /// アイテムだけで、残差は反復のたびにおおよそゲイン倍に縮み、外部投入なしの定常解へ収束する。
         /// 解放後も残差合計が縮まない場合は以後の解放を打ち切る（複雑に絡む循環の保険）。
         /// </summary>
         private bool ReleaseCycleResiduals()
@@ -645,14 +646,21 @@ public static class ProductionCalculator
                 return false;
             }
 
+            bool released = false;
             foreach (string itemId in _cycleDeposits
                 .Where(id => Get(Unmet, id) > Epsilon
-                    && _cycleMinGain.GetValueOrDefault(id, double.PositiveInfinity) < 1.0 - Epsilon)
+                    && _cycleMaxGain.GetValueOrDefault(id, double.PositiveInfinity) < 1.0 - Epsilon)
                 .OrderBy(id => DemandOrder.IndexOf(id))
                 .ToList())
             {
                 Unmet[itemId] = 0;
                 Expand(itemId);
+                released = true;
+            }
+
+            if (!released)
+            {
+                return false;
             }
 
             double after = _cycleDeposits.Sum(id => Get(Unmet, id));

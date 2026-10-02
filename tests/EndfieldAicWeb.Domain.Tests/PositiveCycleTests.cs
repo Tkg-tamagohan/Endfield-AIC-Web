@@ -111,4 +111,21 @@ public class PositiveCycleTests
         Assert.Equal(16.0, Supplied(plan, "i-water", SupplyKind.Gathered), Precision);
         Assert.False(HasWarning(plan, WarningCode.CycleDetected));
     }
+
+    [Fact(DisplayName = "NCP-09: 正味増・正味減が同一アイテムに絡む混合循環は解放しない")]
+    public void MixedGainCyclesAreNotReleased()
+    {
+        // i-a には A→B→A（ゲイン 0.5）と A→C→A（ゲイン 2）の 2 経路が検出される。
+        // 最大ゲインが 1 以上なら解放できない（解放しても C 側へ需要が戻り発散するため、
+        // 従来どおり未充足＋警告のまま留める）。
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F17Mixed(), [("i-a", 10.0)]);
+
+        Assert.Equal(35.0, Req(plan, "i-a").RequiredPerMinute, Precision);
+        Assert.Equal(25.0, Req(plan, "i-a").UnmetPerMinute, Precision);
+        Assert.Equal(10.0, RunOf(plan, "r-a")!.CyclesPerMinute, Precision);
+        Assert.Equal(5.0, RunOf(plan, "r-b")!.CyclesPerMinute, Precision);
+        Assert.Equal(10.0, RunOf(plan, "r-c")!.CyclesPerMinute, Precision);
+        Assert.True(HasWarning(plan, WarningCode.CycleDetected));
+    }
 }

@@ -642,6 +642,20 @@ internal static class CalculationFixtures
         ],
         maps: [Map("m-cap", [("i-ore", false, 60.0)])]);
 
+    /// <summary>
+    /// F-17 派生: 正味増と正味減が同一アイテムに絡む混合循環（NCP-09 用）。
+    /// r-a: i-b×1 + i-c×1 → i-a×1。r-b: i-a×1 → i-b×2（A→B→A はゲイン 0.5）。
+    /// r-c: i-a×2 → i-c×1（A→C→A はゲイン 2）。
+    /// </summary>
+    public static MasterDataSnapshot F17Mixed() => Snapshot(
+        [Item("i-a"), Item("i-b"), Item("i-c")],
+        [Facility("f-asm")],
+        [
+            Recipe("r-a", "f-asm", 4.0, [("i-b", 1.0), ("i-c", 1.0)], [("i-a", 1.0)]),
+            Recipe("r-b", "f-asm", 4.0, [("i-a", 1.0)], [("i-b", 2.0)]),
+            Recipe("r-c", "f-asm", 4.0, [("i-a", 2.0)], [("i-c", 1.0)]),
+        ]);
+
     /// <summary>F-17 派生: r-grow のペアに i-water 固定消費 6/分を追加。</summary>
     public static MasterDataSnapshot F17WithFixedConsumption()
     {
