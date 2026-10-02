@@ -18,7 +18,7 @@
 - D 判定ロジックの抽出（散布機台数の検証とコンボの選択解除判定を Application の純粋関数へ移し xUnit でテスト化）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/21>
 - E 可変性の境界明文化（requirements §6.2）・F スキルへのゴールデンパス期待値表追記: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/22>
 - 保持された散布機台数が新しい自動上限を超えるケース（自動値へ戻す整合処理、仕様決定 AH）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/36>
-- 種↔作物の正味増循環を解く計算拡張（仕様決定 AQ・AR。ループゲイン 1 未満の循環は解放反復で外部投入なしの定常解を求め、初期在庫は対象外。炭塊・息壌への未充足波及を解消）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/TODO>
+- 種↔作物の正味増循環を解く計算拡張（仕様決定 AQ・AR。ループゲイン 1 未満の循環は解放反復で外部投入なしの定常解を求め、初期在庫は対象外。炭塊・息壌への未充足波及を解消）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/51>
 
 ## 残っている項目
 
