@@ -237,14 +237,14 @@
 | FLW-05 | 設備共用で集計が整数でもランごとの推奨制限を出す | 同一設備を r-a・r-b が各 0.5 台ずつ使用（集計は整数 1 台） | 両レシピの入力に推奨制限が出る（判定はラン自身の使用台数の端数） |
 | FLW-06 | 設備共用でも整数台の全速稼働なら調整行なし | 同一設備を r-a・r-b が各 1.0 台の全速で使用 | 調整行なし |
 
-### TRN: 輸送容量（ベルト 30 個/分・パイプ 60 個/分。Phase 16 の仕様決定 AM で改訂）
+### TRN: 輸送容量（ベルト 30 個/分・パイプ 60 個/分。Phase 16 の仕様決定 AM で改訂、Phase 17 の仕様決定 AN で判定基準を「設備 1 ユニットへの入力流量」へ改訂。新期待は [test-specification-phase17.md](test-specification-phase17.md) §2 を参照）
 
 | ID | 内容 | 期待 |
 |---|---|---|
-| TRN-01 | ベルト超過は警告（レーン数付き） | F-08、`i-belt-item` 45/分 → `TransportCapacityExceeded`（2 レーン） |
-| TRN-02 | パイプ超過は警告 | F-08、`i-pipe-item` 90/分 → 警告（2 レーン） |
-| TRN-03 | TransportKind=None は対象外 | F-08、`i-none-item` 500/分 → 容量警告なし（上流 `i-belt-src` の流量が容量未満に収まる値を選ぶ） |
-| TRN-04 | 上限ちょうどは警告なし | F-08、`i-belt-item` 30/分 → 警告なし |
+| TRN-01 | ベルト超過は警告（Phase 17 の仕様決定 AN で判定基準をユニット入力へ改訂。新期待は [test-specification-phase17.md](test-specification-phase17.md) §2 を参照） | 設備 1 ユニットへの入力流量がベルト容量を超えるアイテム → `TransportCapacityExceeded` |
+| TRN-02 | パイプ超過は警告（同上） | 設備 1 ユニットへの入力流量がパイプ容量を超えるアイテム → 警告 |
+| TRN-03 | TransportKind=None は対象外（従来どおり） | F-08、`i-none-item` 500/分 → 容量警告なし |
+| TRN-04 | 上限ちょうどは警告なし | ユニット入力流量が容量ちょうど → 警告なし |
 
 ### ENV: 環境（I）
 

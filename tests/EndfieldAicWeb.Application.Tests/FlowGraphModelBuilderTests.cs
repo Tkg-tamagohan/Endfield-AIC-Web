@@ -10,12 +10,13 @@ public class FlowGraphModelBuilderTests
     private static (ProductionPlan Plan, FlowGraphModel Model) Build(
         MasterDataSnapshot snapshot,
         bool unadjusted = false,
+        bool expandFacilities = false,
         params ProductionTarget[] targets)
     {
         ProductionPlan plan = ProductionCalculator.Calculate(
             snapshot, targets, new ContextFilter(), [], [], []);
         return (plan, FlowGraphModelBuilder.Build(
-            plan, snapshot, new ContextFilter(), targets, unadjusted));
+            plan, snapshot, new ContextFilter(), targets, unadjusted, expandFacilities));
     }
 
     private static FlowGraphNode Node(FlowGraphModel model, string id) =>
@@ -243,15 +244,302 @@ public class FlowGraphModelBuilderTests
         Assert.Equal(360, Edge(unadjusted, "item:i-u", "fac:f-t", FlowGraphEdgeKind.RecipeInput).RatePerMinute, 6);
     }
 
-    // FG-13: 要求流量が輸送容量を超えるアイテムにフラグと流入エッジの赤化を付ける。
+    // FG-13: 設備ユニットへの入力流量が輸送容量を超えるエッジと両端ノードを赤化する（仕様決定 AN）。
     [Fact]
     public void OverCapacityIsFlagged()
     {
-        // i-t 60/分 > ベルト 30 個/分（旧 30 個/s = 1800/分 なら未発火の値で、改訂後の閾値を区別して検査する）。
+        // i-t 60/分 → f-t は 2 台（実数 2.0）でユニット入力は各 120/分（ベルト 30 個/分超過）。
         (_, FlowGraphModel model) = Build(ApplicationFixtures.A02(), targets: new ProductionTarget("i-t", 60));
 
-        Assert.True(Node(model, "item:i-t").OverCapacity);
-        Assert.True(Edge(model, "fac:f-t", "item:i-t", FlowGraphEdgeKind.RecipeOutput).OverCapacity);
+        Assert.True(Edge(model, "item:i-u", "fac:f-t", FlowGraphEdgeKind.RecipeInput).OverCapacity);
+        Assert.True(Node(model, "item:i-u").OverCapacity);
+        Assert.True(Node(model, "fac:f-t").OverCapacity);
+    }
+
+    // FG-15: 産出・需要だけの超過は対象外（仕様決定 AN）。
+    [Fact]
+    public void OutputOnlyOverflowIsNotFlagged()
+    {
+        // i-t の産出・需要は 60/分で容量超過だが、設備への入力ではないため対象外。
+        (_, FlowGraphModel model) = Build(ApplicationFixtures.A02(), targets: new ProductionTarget("i-t", 60));
+
+        Assert.False(Node(model, "item:i-t").OverCapacity);
+        Assert.False(Edge(model, "fac:f-t", "item:i-t", FlowGraphEdgeKind.RecipeOutput).OverCapacity);
+        Assert.False(Edge(model, "gather", "item:i-u", FlowGraphEdgeKind.Gathered).OverCapacity);
+    }
+
+    // FG-16: 環境消費の入力も判定対象（仕様決定 AN）。
+    [Fact]
+    public void EnvironmentConsumeIsChecked()
+    {
+        // A-01: 散布機 1 台あたり i-gas 360/分（パイプ 60 個/分超過）。
+        (_, FlowGraphModel model) = Build(ApplicationFixtures.A01(), targets: new ProductionTarget("i-part", 60));
+
+        Assert.True(Edge(model, "item:i-gas", "fac:f-disp", FlowGraphEdgeKind.EnvironmentConsume).OverCapacity);
+        Assert.True(Node(model, "item:i-gas").OverCapacity);
+        Assert.True(Node(model, "fac:f-disp").OverCapacity);
+    }
+
+    // FG-17: 設備を切上台数ぶんのユニットへ展開する（仕様決定 AO）。
+    [Fact]
+    public void ExpandFacilitiesEmitsUnitNodes()
+    {
+        // i-t 72/分 → 実数 2.4 台 → 切上げ 3 台。ラン占有は 1.0・1.0・0.4。
+        (_, FlowGraphModel model) = Build(
+            ApplicationFixtures.A02(), expandFacilities: true, targets: new ProductionTarget("i-t", 72));
+
+        Assert.DoesNotContain(model.Nodes, n => n.Id == "fac:f-t");
+        Assert.Equal("稼働 100%", Node(model, "facunit:f-t#0").Note);
+        Assert.Equal("稼働 100%", Node(model, "facunit:f-t#1").Note);
+        Assert.Equal("稼働 40%", Node(model, "facunit:f-t#2").Note);
+
+        // 入出力は占有比（1/2.4, 1/2.4, 0.4/2.4）で分割される。
+        Assert.Equal(120, Edge(model, "item:i-u", "facunit:f-t#0", FlowGraphEdgeKind.RecipeInput).RatePerMinute, 6);
+        Assert.Equal(120, Edge(model, "item:i-u", "facunit:f-t#1", FlowGraphEdgeKind.RecipeInput).RatePerMinute, 6);
+        Assert.Equal(48, Edge(model, "item:i-u", "facunit:f-t#2", FlowGraphEdgeKind.RecipeInput).RatePerMinute, 6);
+        Assert.Equal(30, Edge(model, "facunit:f-t#0", "item:i-t", FlowGraphEdgeKind.RecipeOutput).RatePerMinute, 6);
+        Assert.Equal(12, Edge(model, "facunit:f-t#2", "item:i-t", FlowGraphEdgeKind.RecipeOutput).RatePerMinute, 6);
+
+        // ユニット入力が容量超過ならユニットノードにもフラグが立つ。
+        Assert.True(Node(model, "facunit:f-t#0").OverCapacity);
+        Assert.True(Edge(model, "item:i-u", "facunit:f-t#0", FlowGraphEdgeKind.RecipeInput).OverCapacity);
+    }
+
+    // FG-18: 固定消費は台数分表示で全ユニットへ等量に分ける（仕様決定 AO）。
+    [Fact]
+    public void ExpandFacilitiesSplitsFixedConsumption()
+    {
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-in", "原料", gatherable: true),
+             ApplicationFixtures.Item("i-pow", "動力素材", gatherable: true),
+             ApplicationFixtures.Item("i-out", "製品")],
+            [ApplicationFixtures.Facility("f-fc", "化学機", 10)],
+            [], [],
+            [ApplicationFixtures.Recipe("r-fc", "製品", [("i-in", 1)], [("i-out", 1)],
+                [ApplicationFixtures.Pair("f-fc", 30,
+                    fc: new FixedConsumption { ItemId = "i-pow", RatePerMinute = 12 })])]);
+
+        // i-out 2.5/分 → 切上げ 2 台。ユニットあたり 12/分（合計 24/分で不変）。
+        (_, FlowGraphModel model) = Build(
+            snapshot, expandFacilities: true, targets: new ProductionTarget("i-out", 2.5));
+
+        Assert.Equal(12, Edge(model, "item:i-pow", "facunit:f-fc#0", FlowGraphEdgeKind.FixedConsumption).RatePerMinute, 6);
+        Assert.Equal(12, Edge(model, "item:i-pow", "facunit:f-fc#1", FlowGraphEdgeKind.FixedConsumption).RatePerMinute, 6);
+    }
+
+    // FG-19: 散布機は環境ごとの専用ユニットになる（仕様決定 AO）。
+    [Fact]
+    public void ExpandFacilitiesEmitsDispenserUnits()
+    {
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-u", "上流素材", gatherable: true),
+             ApplicationFixtures.Item("i-gas", "活性ガス", TransportKind.Pipe, gatherable: true),
+             ApplicationFixtures.Item("i-x", "製品X"), ApplicationFixtures.Item("i-y", "製品Y")],
+            [ApplicationFixtures.Facility("f-a", "機A", 10),
+             ApplicationFixtures.Facility("f-b", "機B", 10),
+             ApplicationFixtures.Facility("f-disp", "散布機", 5)],
+            [ApplicationFixtures.Env("env-g", "ガス環境", "f-disp", "i-gas", 360)],
+            [],
+            [
+                ApplicationFixtures.Recipe("r-x", "製品X", [("i-u", 1)], [("i-x", 1)],
+                    [ApplicationFixtures.Pair("f-a", 6, "env-g")]),
+                ApplicationFixtures.Recipe("r-y", "製品Y", [("i-u", 1)], [("i-y", 1)],
+                    [ApplicationFixtures.Pair("f-b", 6, "env-g")]),
+            ]);
+
+        // 環境を要するレシピ 2 つ → 散布機 2 台 → 消費合計 720/分 を 360 ずつ分ける。
+        (_, FlowGraphModel model) = Build(
+            snapshot, expandFacilities: true,
+            targets: [new ProductionTarget("i-x", 10), new ProductionTarget("i-y", 10)]);
+
+        Assert.Equal("散布機", Node(model, "facunit:f-disp#0").Note);
+        Assert.Equal("散布機", Node(model, "facunit:f-disp#1").Note);
+        Assert.Equal(360, Edge(model, "item:i-gas", "facunit:f-disp#0", FlowGraphEdgeKind.EnvironmentConsume).RatePerMinute, 6);
+        Assert.Equal(360, Edge(model, "item:i-gas", "facunit:f-disp#1", FlowGraphEdgeKind.EnvironmentConsume).RatePerMinute, 6);
+        Assert.DoesNotContain(model.Nodes, n => n.Id == "fac:f-disp");
+    }
+
+    // FG-20: レーン増設（台数分割）で解消できる集計超過は対象外。両表示で判定が一致する（仕様決定 AN・AO）。
+    [Fact]
+    public void LaneSolvableOverflowIsNotFlagged()
+    {
+        // ユニットあたり 20/分（3 台で合計 60/分）の入力。集計はベルト容量を超えるがユニットでは超えない。
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-src", "素材", gatherable: true),
+             ApplicationFixtures.Item("i-o", "製品")],
+            [ApplicationFixtures.Facility("f-x", "加工機", 10)],
+            [], [],
+            [ApplicationFixtures.Recipe("r-x", "製品", [("i-src", 1)], [("i-o", 1)],
+                [ApplicationFixtures.Pair("f-x", 3)])]);
+
+        var targets = new[] { new ProductionTarget("i-o", 60) };
+        (_, FlowGraphModel collapsed) = Build(snapshot, targets: targets);
+        (_, FlowGraphModel expanded) = Build(snapshot, expandFacilities: true, targets: targets);
+
+        Assert.Equal(60, Edge(collapsed, "item:i-src", "fac:f-x", FlowGraphEdgeKind.RecipeInput).RatePerMinute, 6);
+        Assert.False(Edge(collapsed, "item:i-src", "fac:f-x", FlowGraphEdgeKind.RecipeInput).OverCapacity);
+        Assert.False(Node(collapsed, "item:i-src").OverCapacity);
+        Assert.False(Node(collapsed, "fac:f-x").OverCapacity);
+
+        foreach (int i in new[] { 0, 1, 2 })
+        {
+            FlowGraphEdge unitEdge = Edge(
+                expanded, "item:i-src", $"facunit:f-x#{i}", FlowGraphEdgeKind.RecipeInput);
+            Assert.Equal(20, unitEdge.RatePerMinute, 6);
+            Assert.False(unitEdge.OverCapacity);
+            Assert.False(Node(expanded, $"facunit:f-x#{i}").OverCapacity);
+        }
+    }
+
+    // FG-21: 切上げ 1 台の設備は展開しない（仕様決定 AO）。
+    [Fact]
+    public void SingleUnitFacilityIsNotExpanded()
+    {
+        // i-t 10/分 → 実数 1/3 台 → 切上げ 1 台。
+        (_, FlowGraphModel model) = Build(
+            ApplicationFixtures.A02(), expandFacilities: true, targets: new ProductionTarget("i-t", 10));
+
+        Assert.Equal("×1", Node(model, "fac:f-t").Note);
+        Assert.DoesNotContain(model.Nodes, n => n.Id.Contains('#'));
+    }
+
+    // FG-22: 設備 ID に '#' が含まれてもユニットノードと別設備ノードが衝突しない（仕様決定 AO）。
+    [Fact]
+    public void HashInFacilityIdDoesNotCollide()
+    {
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-u", "上流素材", gatherable: true),
+             ApplicationFixtures.Item("i-x", "製品X"), ApplicationFixtures.Item("i-y", "製品Y")],
+            [ApplicationFixtures.Facility("m", "機M", 10), ApplicationFixtures.Facility("m#1", "機Mサブ", 10)],
+            [], [],
+            [
+                ApplicationFixtures.Recipe("r-x", "製品X", [("i-u", 1)], [("i-x", 1)],
+                    [ApplicationFixtures.Pair("m", 6)]),
+                ApplicationFixtures.Recipe("r-y", "製品Y", [("i-u", 1)], [("i-y", 1)],
+                    [ApplicationFixtures.Pair("m#1", 6)]),
+            ]);
+
+        // m は 2 台（i-x 20/分）、m#1 は 1 台（i-y 10/分）。旧実装では fac:m#1 が衝突した。
+        (_, FlowGraphModel expanded) = Build(
+            snapshot, expandFacilities: true,
+            targets: [new ProductionTarget("i-x", 20), new ProductionTarget("i-y", 10)]);
+
+        Assert.Equal("機Mサブ", Node(expanded, "fac:m#1").Label);
+        Node(expanded, "facunit:m#0");
+        Node(expanded, "facunit:m#1");
+        Edge(expanded, "item:i-u", "facunit:m#1", FlowGraphEdgeKind.RecipeInput);
+        Edge(expanded, "item:i-u", "fac:m#1", FlowGraphEdgeKind.RecipeInput);
+
+        (_, FlowGraphModel collapsed) = Build(
+            snapshot, targets: [new ProductionTarget("i-x", 20), new ProductionTarget("i-y", 10)]);
+
+        Assert.Equal("機M", Node(collapsed, "fac:m").Label);
+        Assert.Equal("機Mサブ", Node(collapsed, "fac:m#1").Label);
+        Assert.Equal(20, Edge(collapsed, "item:i-u", "fac:m", FlowGraphEdgeKind.RecipeInput).RatePerMinute, 6);
+        Assert.Equal(10, Edge(collapsed, "item:i-u", "fac:m#1", FlowGraphEdgeKind.RecipeInput).RatePerMinute, 6);
+    }
+
+    // FG-23: 未調整ビューでは実機械の全速稼働流量を占有ユニットへ等量に分ける（AN・AO）。
+    [Fact]
+    public void UnadjustedViewSplitsFullMachineRateEvenly()
+    {
+        // i-out 27.5/分 → 実数 1.1 台（ユニット入力は実機械で 25/分、ベルト容量以下）。
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-in", "原料", gatherable: true),
+             ApplicationFixtures.Item("i-out", "製品")],
+            [ApplicationFixtures.Facility("f-x", "加工機", 10)],
+            [], [],
+            [ApplicationFixtures.Recipe("r-x", "製品", [("i-in", 1)], [("i-out", 1)],
+                [ApplicationFixtures.Pair("f-x", 2.4)])]);
+
+        (_, FlowGraphModel model) = Build(
+            snapshot, unadjusted: true, expandFacilities: true,
+            targets: new ProductionTarget("i-out", 27.5));
+
+        // 切上げ 2 台が全速稼働するのでユニットあたり 25/分（合計 50/分）。比率保持だと 45.45/分で誤って赤化する。
+        Assert.Equal(25, Edge(model, "item:i-in", "facunit:f-x#0", FlowGraphEdgeKind.RecipeInput).RatePerMinute, 6);
+        Assert.Equal(25, Edge(model, "item:i-in", "facunit:f-x#1", FlowGraphEdgeKind.RecipeInput).RatePerMinute, 6);
+        Assert.False(Node(model, "facunit:f-x#0").OverCapacity);
+        Assert.False(Node(model, "facunit:f-x#1").OverCapacity);
+    }
+
+    // FG-25: 未調整ビューではスケーリング後の機械数でユニットを再割当する（AN・AO）。
+    [Fact]
+    public void UnadjustedViewReallocatesScaledMachines()
+    {
+        // 0.9 台ずつ共有する 2 レシピ（実機械あたり i-u 24/分）。スケーリング後は各 1.0 台で
+        // ユニットごと 24/分。占有ユニットへの等量分配だとユニット 0 が 36/分で誤って赤化する。
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-u", "上流素材", gatherable: true),
+             ApplicationFixtures.Item("i-x", "製品X"), ApplicationFixtures.Item("i-y", "製品Y")],
+            [ApplicationFixtures.Facility("f-s", "共用機", 10)],
+            [], [],
+            [
+                ApplicationFixtures.Recipe("r-x", "製品X", [("i-u", 1)], [("i-x", 1)],
+                    [ApplicationFixtures.Pair("f-s", 2.5)]),
+                ApplicationFixtures.Recipe("r-y", "製品Y", [("i-u", 1)], [("i-y", 1)],
+                    [ApplicationFixtures.Pair("f-s", 2.5)]),
+            ]);
+
+        (_, FlowGraphModel model) = Build(
+            snapshot, unadjusted: true, expandFacilities: true,
+            targets: [new ProductionTarget("i-x", 21.6), new ProductionTarget("i-y", 21.6)]);
+
+        Assert.Equal(24, Edge(model, "item:i-u", "facunit:f-s#0", FlowGraphEdgeKind.RecipeInput).RatePerMinute, 6);
+        Assert.Equal(24, Edge(model, "item:i-u", "facunit:f-s#1", FlowGraphEdgeKind.RecipeInput).RatePerMinute, 6);
+        Assert.False(Edge(model, "item:i-u", "facunit:f-s#0", FlowGraphEdgeKind.RecipeInput).OverCapacity);
+        Assert.False(Node(model, "facunit:f-s#0").OverCapacity);
+        Assert.False(Node(model, "facunit:f-s#1").OverCapacity);
+    }
+
+    // FG-26: TransportKind=None の入力は容量判定対象外（AN）。
+    [Fact]
+    public void VirtualItemInputIsNotFlagged()
+    {
+        // 固定消費が仮想アイテム（電力相当）でも容量超過にならない。
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-in", "原料", gatherable: true),
+             ApplicationFixtures.Item("i-pow", "電力", TransportKind.None, gatherable: true),
+             ApplicationFixtures.Item("i-out", "製品")],
+            [ApplicationFixtures.Facility("f-v", "加工機", 10)],
+            [], [],
+            [ApplicationFixtures.Recipe("r-v", "製品", [("i-in", 1)], [("i-out", 1)],
+                [ApplicationFixtures.Pair("f-v", 2,
+                    fc: new FixedConsumption { ItemId = "i-pow", RatePerMinute = 100 })])]);
+
+        (_, FlowGraphModel model) = Build(
+            snapshot, targets: new ProductionTarget("i-out", 10));
+
+        Assert.False(Edge(model, "item:i-pow", "fac:f-v", FlowGraphEdgeKind.FixedConsumption).OverCapacity);
+        Assert.False(Node(model, "item:i-pow").OverCapacity);
+        Assert.False(Node(model, "fac:f-v").OverCapacity);
+    }
+
+    // FG-24: 同一アイテムの複数ランの入力はユニットで合算して容量判定する（AN）。
+    [Fact]
+    public void SharedUnitInputsAreSummedForCapacity()
+    {
+        // 2 レシピが同一ユニットへ同じアイテムを各 20/分入力 → 合計 40/分がベルト容量超過。
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-u", "上流素材", gatherable: true),
+             ApplicationFixtures.Item("i-x", "製品X"), ApplicationFixtures.Item("i-y", "製品Y")],
+            [ApplicationFixtures.Facility("f-s", "共用機", 10)],
+            [], [],
+            [
+                ApplicationFixtures.Recipe("r-x", "製品X", [("i-u", 1)], [("i-x", 1)],
+                    [ApplicationFixtures.Pair("f-s", 1.5)]),
+                ApplicationFixtures.Recipe("r-y", "製品Y", [("i-u", 1)], [("i-y", 1)],
+                    [ApplicationFixtures.Pair("f-s", 1.5)]),
+            ]);
+
+        (_, FlowGraphModel model) = Build(
+            snapshot, targets: [new ProductionTarget("i-x", 20), new ProductionTarget("i-y", 20)]);
+
+        FlowGraphEdge edge = Edge(model, "item:i-u", "fac:f-s", FlowGraphEdgeKind.RecipeInput);
+        Assert.Equal(40, edge.RatePerMinute, 6);
+        Assert.True(edge.OverCapacity);
+        Assert.True(Node(model, "item:i-u").OverCapacity);
+        Assert.True(Node(model, "fac:f-s").OverCapacity);
     }
 
     // FG-14: 空の計画は例外なく空モデルを返す。
