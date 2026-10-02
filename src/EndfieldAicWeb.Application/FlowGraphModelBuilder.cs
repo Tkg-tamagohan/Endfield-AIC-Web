@@ -52,7 +52,7 @@ public sealed record FlowGraphEdge(
     bool IsByproduct,
     bool OverCapacity);
 
-/// <summary>生産フローグラフ全体。MaxRatePerMinute は粒子密度の正規化に使う。</summary>
+/// <summary>生産フローグラフ全体。MaxRatePerMinute は粒子速度の正規化に使う（密度は絶対流量で飽和、仕様決定 AP）。</summary>
 public sealed record FlowGraphModel(
     IReadOnlyList<FlowGraphNode> Nodes,
     IReadOnlyList<FlowGraphEdge> Edges,

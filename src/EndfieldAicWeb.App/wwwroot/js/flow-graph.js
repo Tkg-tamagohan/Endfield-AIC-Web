@@ -11,6 +11,11 @@ const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 1.5; // アイコンが原寸を超えて拡大されない範囲（仕様決定 AL）
 const EDGE_SEGMENTS = 20;
 const EDGE_HALF_W = 2.0;
+// 粒子の個数は絶対流量に比例させ、30 個/分で飽和させる（仕様決定 AP）。
+// グラフ内最大流量との相対比だと高流量の計画で粒子が過密になり見づらいため。
+const PARTICLE_COUNT_MIN = 3;
+const PARTICLE_COUNT_MAX = 10;
+const PARTICLE_SATURATE_PER_MINUTE = 30;
 
 // FlowGraphEdgeKind の enum 序数に対応する描画色（RGBA、app.css の変数と同色）。
 const EDGE_COLORS = [
@@ -463,7 +468,8 @@ function makeHandle(canvas, layer, device, context, format) {
                 );
                 prev = cur;
             }
-            const count = Math.max(2, Math.min(30, Math.round(3 + 26 * (e.ratePerMinute / maxRate))));
+            const norm = Math.min(e.ratePerMinute / PARTICLE_SATURATE_PER_MINUTE, 1);
+            const count = Math.round(PARTICLE_COUNT_MIN + (PARTICLE_COUNT_MAX - PARTICLE_COUNT_MIN) * norm);
             for (let i = 0; i < count; i++) {
                 instances.push(edgeIndex, i / count);
             }
