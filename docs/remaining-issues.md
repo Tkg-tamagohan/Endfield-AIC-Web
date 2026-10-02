@@ -45,6 +45,7 @@ UI 層の変更頻度が上がった時点で再検討とする。
 公開アプリ（`src/EndfieldAicWeb.App/Pages/Home.razor`）と管理ツールの計算プレビュー（`src/EndfieldAicWeb.Admin/Pages/PreviewPage.razor`）は、目標入力・ペア選択・散布機台数・単位切替・結果表示など同型の UI をページごとに別実装している。
 仕様決定 AG では管理ツール側への機能移植はコピー追従で行い、razor の共有化（Razor Class Library 化）は見送る方針とした。
 共有ロジックは Application 層（`ResultViewBuilder` 等）に寄せる現状維持で、差分の取りこぼしや修正の二重化が実害として現れた時点で RCL 化を再検討する。
+なお本項目は Phase 22 として計画済みであり（`phases/implementation-plan-phase22.md`・仕様決定 BB〜BE）、実害の発生を確認して RCL 化を決定した。
 
 ## 改善方針の検討
 
