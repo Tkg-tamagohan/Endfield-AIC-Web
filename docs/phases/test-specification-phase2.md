@@ -210,8 +210,8 @@
 
 | ID | 内容 | 期待 |
 |---|---|---|
-| CYC-01 | 相互循環は警告し残差を未充足へ | F-04、`i-a` 10/分 → `CycleDetected`、`i-a` 需要 20・未充足 10、`i-b` 需要 10・未充足 0 |
-| CYC-02 | 自己ループ | F-04、`i-s` 10/分 → `CycleDetected`、未充足 10 |
+| CYC-01 | 相互循環は警告し残差を未充足へ（Phase 18 で回帰確認として再掲。[test-specification-phase18.md](test-specification-phase18.md) §2） | F-04、`i-a` 10/分 → `CycleDetected`、`i-a` 需要 20・未充足 10、`i-b` 需要 10・未充足 0 |
+| CYC-02 | 自己ループ（同上） | F-04、`i-s` 10/分 → `CycleDetected`、未充足 10 |
 | CYC-03 | 循環以外の需要は通常計算 | F-04 派生、`i-a` 10 + `i-part` 30 → `i-part` 未充足 0、f-asm 実数 2 |
 
 ### BYP: 副産物の充当と余剰
@@ -224,7 +224,7 @@
 | BYP-04 | 同一レシピを複数需要が選択 | F-05、`i-q` の上書きを `r-m` のペアへ、`i-p` 15 + `i-q` 45 → `r-m` 22.5 サイクル/分、`i-p` 余剰 7.5 |
 | BYP-05 | 目標順序で結果が変わらない | F-05、`i-q` 20 → `i-p` 15 の順でも BYP-03 と同じ帳簿 |
 | BYP-06 | 部分副産物で先行稼働・外部調達が縮小 | F-05 派生、`i-q` 20 → `i-p` 15 → `r-q` 5 サイクル/分、`i-oreq` Raw 15 |
-| BYP-07 | 循環未充足へ後から副産物が届くと未充足が縮小 | F-04 派生、`i-a` 10 + `i-x` 5 → `i-a` 需要 20・未充足 5 |
+| BYP-07 | 循環未充足へ後から副産物が届くと未充足が縮小（Phase 18 で回帰確認として再掲。[test-specification-phase18.md](test-specification-phase18.md) §2） | F-04 派生、`i-a` 10 + `i-x` 5 → `i-a` 需要 20・未充足 5 |
 
 ### FLW: 流量調整（O。推奨制限の単位は Phase 16 の仕様決定 AM で個/分に改訂）
 
@@ -263,10 +263,10 @@
 |---|---|---|
 | FIX-01 | 固定消費が切上台数比例で需要へ | F-11、`i-fc` 10/分 → f-fc 実数 5・切上 5、`i-fuel` 需要 30/分（6/分×5台） |
 | FIX-02 | 基準は実数でなく切上台数（V） | F-11、`i-fc` 5.1/分 → f-fc 実数 2.55・切上 3、`i-fuel` 需要 18/分（6/分×3台） |
-| FIX-03 | 固定消費素材の生産が展開され収束する | F-11 に r-fuel を加えた変形、`i-fc` 10/分 → `i-fuel` 供給は Recipe `r-fuel`、収束して全充足 |
+| FIX-03 | 固定消費素材の生産が展開され収束する（Phase 11 の仕様決定 AD で期待値改訂。新期待は [test-specification-phase11.md](test-specification-phase11.md) §3 REG を参照） | F-11 に r-fuel を加えた変形、`i-fc` 10/分 → `i-fuel` 供給は Recipe `r-fuel`、収束して全充足 |
 | FIX-04 | 提供設備とレシピ設備が兼用なら散布機込みの切上台数が乗数 | F-11 変形（`env-fcx` の ProviderFacilityId=`f-fc`、r-fcx ペア (f-fc, 30秒, env, FixedConsumption=`i-fuel`×30/分)）、`i-fcx` 10/分 → f-fc 切上 6、`i-fuel` 需要 180/分 |
 
-### EVT: イベント限定アイテム（T/X）
+### EVT: イベント限定アイテム（T/X。[test-specification-phase4.md](test-specification-phase4.md) §EVT の EVT-01〜05（イベント自動有効化、Application 層）とは同番号の別対象）
 
 | ID | 内容 | 期待 |
 |---|---|---|
@@ -280,7 +280,7 @@
 
 | ID | 内容 | 期待 |
 |---|---|---|
-| CNV-01 | 環境消費が生産レシピへ展開して収束 | F-13、`i-xp` 30/分 → `i-gasp` 需要 360/分が `r-gasp` で生産（供給 Recipe）、f-mix 稼働、f-disp 1台 |
+| CNV-01 | 環境消費が生産レシピへ展開して収束（Phase 11 の仕様決定 AD で期待値改訂。新期待は [test-specification-phase11.md](test-specification-phase11.md) §3 REG を参照） | F-13、`i-xp` 30/分 → `i-gasp` 需要 360/分が `r-gasp` で生産（供給 Recipe）、f-mix 稼働、f-disp 1台 |
 | CNV-02 | 収束しない場合は警告して結果を返す | F-13、`i-fuelself` 1/分 → `ConvergenceNotReached` 警告（例外ではない）。未収束でも最後に適用した需要が帳簿へ反映され、要求量は供給＋未充足と一致する |
 
 ### WRN: 警告と入力検証

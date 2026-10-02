@@ -50,7 +50,7 @@
 | IMP-04 | 未登録パスの読み取り | 登録なしで `ReadAllBytes` | null |
 | IMP-05 | クリア | 登録後に `Clear()` | `Paths` が空、`ReadAllBytes` が null |
 
-### EXP: IconExportPlanner
+### EXP: IconExportPlanner（[test-specification-phase2.md](test-specification-phase2.md) §EXP の EXP-01〜05（需要展開）とは同番号の別対象）
 
 | ID | 内容 | 入力 | 期待 |
 |---|---|---|---|
@@ -101,6 +101,8 @@
 
 CIV-02・CIV-03 の違反検出は dotnet test の CIV-06 へ移管した（スクリプトを対象データへ一時変更して実行する手動検証としては CIV-04 のみ残す）。
 CIV-05・CIV-06 は dotnet test の `BundledMasterDataTests` として常時実行する。
+CIV-01 は CIV-05・CIV-06 が実質包含する（構文・構造・意味検証とマニフェスト↔実ファイル照合の常時実行）。
+CIV-04 は `tools/validate_master.py` の警告経路（`icon_warnings`）として CI の build-test ジョブで常時実行されている。
 スクリプトはスキーマ適合と警告系の検査のみを担い、失敗系チェック（文字種・File 形式・実在・Bytes/Sha256）は C# 側の規則で担保する。
 
 ## 4. 受け入れ条件との対応

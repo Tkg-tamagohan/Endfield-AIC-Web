@@ -57,7 +57,7 @@
 | GAT-13 | 採取上限は需要の発生源を問わず（環境消費由来） | m-cap、環境消費で i-ore を消費する環境を使うペア目標 | 同上 |
 | GAT-14 | 超過レシピの入力も採取上限の対象（連鎖） | m-cap、i-ore 200/分 | i-ore 採取 60 + r-ore 展開 140。r-ore は i-stone を 140 需要するが上限 30 で採取 30、残りは i-stone の代替がないため未充足 110 + `GatherCapExceeded` |
 | GAT-15 | 副産物は採取より先に残差を減らす | F-15 派生: i-ore を副産する r-side（i-stone×1 → i-part×1 + i-ore×30）、m-cap、i-part 需要と i-ore 100/分 | i-ore: 副産物 30 + 採取 60 + Recipe 10 |
-| GAT-16 | 採取素材のレシピが循環する場合 | F-15 派生: i-ore 上限超過の r-ore が i-x を要し i-x が i-ore を要する循環 | `CycleDetected` 警告、採取分は維持される |
+| GAT-16 | 採取素材のレシピが循環する場合（Phase 18 で回帰確認として再掲。[test-specification-phase18.md](test-specification-phase18.md) §2） | F-15 派生: i-ore 上限超過の r-ore が i-x を要し i-x が i-ore を要する循環 | `CycleDetected` 警告、採取分は維持される |
 | GAT-17 | 不明なマップ Id（暫定解釈） | MapId="m-ghost"、i-ore 50/分 | `InvalidGatherMap` 警告、i-ore 採取 0、全量 r-ore 展開 |
 | GAT-18 | 不正な上書きは無視＋警告（暫定解釈） | m-cap、i-ore 上書き −5、存在しない i-ghost 上書き 10、非採取素材 i-part 上書き 10 | `InvalidGatherRateOverride` 警告。i-ore はマップ値 60 を使い i-ore 需要 100 → 採取 60 + Recipe 40 |
 | GAT-19 | 採取素材でも所属イベントが非有効なら不可（X の維持） | i-ore を ev-off 所属にした派生、m-cap | `EventItemUnavailable` 警告、採取 0、未充足 |

@@ -200,25 +200,26 @@ public class AdminToolsTests
     // VER: DataVersion 提案
 
     [Theory]
-    [InlineData("0.1.0", "0.1.1")]
-    [InlineData("1.9.9", "1.9.10")]
-    [InlineData("10.20.30", "10.20.31")]
+    [InlineData("0.1.0", "0.1.1")] // VER-01
+    [InlineData("1.9.9", "1.9.10")] // VER-02
+    [InlineData("10.20.30", "10.20.31")] // VER-03
     public void VER_semver形式はpatchを1上げる(string current, string expected)
     {
         Assert.Equal(expected, DataVersionBumper.SuggestNext(current));
     }
 
     [Theory]
-    [InlineData("1.0")]
-    [InlineData("v1.0.0")]
-    [InlineData("1.0.0-beta")]
-    [InlineData("1.0.0.1")]
-    [InlineData("")]
+    [InlineData("1.0")] // VER-04
+    [InlineData("v1.0.0")] // VER-04
+    [InlineData("1.0.0-beta")] // VER-04
+    [InlineData("1.0.0.1")] // VER-04
+    [InlineData("")] // VER-04
     public void VER_非semver形式は提案しない(string current)
     {
         Assert.Null(DataVersionBumper.SuggestNext(current));
     }
 
+    // VER-04（null 入力）
     [Fact]
     public void VER_nullは提案しない()
     {
