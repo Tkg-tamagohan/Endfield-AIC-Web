@@ -61,8 +61,9 @@ public sealed record FlowGraphModel(
 /// <summary>
 /// ProductionPlan から生産フローグラフ（仕様決定 AI）の表示モデルを組み立てる。
 /// エッジ流量は表示中ビューに合わせ、未調整ビューでは ResultViewBuilder と同じ設備倍率を掛ける。
-/// 層割りは最長パス法。循環依存（CycleDetected で打ち切られた残存経路を含む）は
-/// 後退エッジとして無視してレイアウトだけを確定させる。
+/// 層割りは目標・未消費アイテムを Layer0 とする出口側起点の最長距離（仕様決定 BF）。
+/// 循環依存（CycleDetected で打ち切られた残存経路を含む）は
+/// 後退エッジとして層割りに使わずレイアウトだけを確定させる（仕様決定 BH）。
 /// 容量超過判定は設備への入力エッジ単位（仕様決定 AN）。
 /// expandFacilities=true のとき設備を切上台数ぶんのユニットノードへ展開する（仕様決定 AO）。
 /// </summary>
@@ -488,15 +489,17 @@ public static class FlowGraphModelBuilder
     }
 
     /// <summary>
-    /// 最長パスで層割りし、ランク内順序を先行ノードの重心（バリセンター）で並べる。
-    /// 循環の残存ノードは後退エッジを無視して確定済み先行の次層に置く。
+    /// 出口側起点の最長距離で層割りし、ランク内順序を先行ノードの重心（バリセンター）で並べる。
+    /// 層は Layer0（目標・未消費アイテム）から上流へ遡る距離で、同じノードが複数の層に
+    /// 出る場合は大きい層にまとめる（仕様決定 BF）。消費される目標もこの規則に従う（BG）。
+    /// 循環の残存ノードは後退エッジを無視し、確定済みの後続だけで層を決める（BH）。
+    /// 表示は Layer0 を右端列とするため、返すランクは最大層からの反転値。
     /// </summary>
     private static (Dictionary<string, int> Rank, Dictionary<string, int> Order) AssignRanks(
         IReadOnlyDictionary<string, FlowGraphNode> nodes,
         IReadOnlyList<FlowGraphEdge> edges)
     {
         var preds = nodes.Keys.ToDictionary(id => id, _ => new List<string>(), StringComparer.Ordinal);
-        var indegree = nodes.Keys.ToDictionary(id => id, _ => 0, StringComparer.Ordinal);
         var succs = nodes.Keys.ToDictionary(id => id, _ => new List<string>(), StringComparer.Ordinal);
         foreach (FlowGraphEdge edge in edges)
         {
@@ -507,14 +510,21 @@ public static class FlowGraphModelBuilder
 
             preds[edge.ToId].Add(edge.FromId);
             succs[edge.FromId].Add(edge.ToId);
-            indegree[edge.ToId]++;
         }
 
-        var rank = new Dictionary<string, int>(StringComparer.Ordinal);
+        // Layer0 の起点: 目標アイテム、およびどの設備にも消費されない（下流エッジのない）
+        // アイテム（未消費の副産物や余剰を含む）。採取ノードは最深の供給先の次層に沈む。
+        bool IsAnchor(string id) =>
+            nodes[id].Kind == FlowGraphNodeKind.Item
+            && (nodes[id].IsTarget || succs[id].Count == 0);
+
+        // 下流側が確定した順に層を確定する。pending は未確定の後続ノード数。
+        var layer = new Dictionary<string, int>(StringComparer.Ordinal);
+        var pending = nodes.Keys.ToDictionary(id => id, id => succs[id].Count, StringComparer.Ordinal);
         var queue = new SortedSet<string>(StringComparer.Ordinal);
         foreach (string id in nodes.Keys)
         {
-            if (indegree[id] == 0)
+            if (pending[id] == 0)
             {
                 queue.Add(id);
             }
@@ -524,26 +534,63 @@ public static class FlowGraphModelBuilder
         {
             string id = queue.Min!;
             queue.Remove(id);
-            rank[id] = preds[id].Count == 0 ? 0 : 1 + preds[id].Max(p => rank.GetValueOrDefault(p, -1));
-            foreach (string succ in succs[id])
+            layer[id] = 1 + succs[id]
+                .Select(s => layer.GetValueOrDefault(s, -1))
+                .DefaultIfEmpty(-1)
+                .Max();
+            foreach (string pred in preds[id])
             {
-                if (--indegree[succ] == 0)
+                if (--pending[pred] == 0)
                 {
-                    queue.Add(succ);
+                    queue.Add(pred);
                 }
             }
         }
 
-        // 循環の残り: 確定済み先行だけを見て次層へ置く（後退エッジはランク計算に使わない）。
-        foreach (string id in nodes.Keys.OrderBy(k => k, StringComparer.Ordinal))
+        // 循環の残り: 起点を種に、確定済みの後続だけを見て層を決める（後退エッジは使わない）。
+        var deferred = nodes.Keys
+            .Where(id => !layer.ContainsKey(id))
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToList();
+        while (deferred.Count > 0)
         {
-            if (rank.ContainsKey(id))
+            var next = new List<string>();
+            foreach (string id in deferred)
             {
-                continue;
+                // 起点でなく後続も未確定のノードは、循環の向こう側へ展開が戻るまで待つ。
+                if (!IsAnchor(id) && !succs[id].Any(layer.ContainsKey))
+                {
+                    next.Add(id);
+                    continue;
+                }
+
+                layer[id] = 1 + succs[id]
+                    .Where(s => layer.ContainsKey(s))
+                    .Select(s => layer[s])
+                    .DefaultIfEmpty(-1)
+                    .Max();
             }
 
-            rank[id] = 1 + preds[id].Select(p => rank.GetValueOrDefault(p, -1)).DefaultIfEmpty(-1).Max();
+            if (next.Count == deferred.Count)
+            {
+                // 起点に届かない閉じた循環（通常は発生しない）。確定済み後続だけで打ち切る。
+                foreach (string id in next)
+                {
+                    layer[id] = 1 + succs[id]
+                        .Where(s => layer.ContainsKey(s))
+                        .Select(s => layer[s])
+                        .DefaultIfEmpty(-1)
+                        .Max();
+                }
+                break;
+            }
+
+            deferred = next;
         }
+
+        int maxLayer = layer.Count > 0 ? layer.Values.Max() : 0;
+        var rank = nodes.Keys.ToDictionary(
+            id => id, id => maxLayer - layer[id], StringComparer.Ordinal);
 
         // ランク内順序: 初回は Id 昇順、以降は先行ノード位置の平均（バリセンター）で並べ替える。
         var nodesByRank = nodes.Keys

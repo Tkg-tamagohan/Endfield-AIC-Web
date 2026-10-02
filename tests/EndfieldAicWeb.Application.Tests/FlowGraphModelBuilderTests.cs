@@ -124,7 +124,7 @@ public class FlowGraphModelBuilderTests
         Assert.Equal(24, Edge(model, "item:i-pow", "fac:f-fc", FlowGraphEdgeKind.FixedConsumption).RatePerMinute, 6);
     }
 
-    // FG-08: 層割りは最長パスで行う。
+    // FG-08: 層割りは出口側起点の最長距離で行う（仕様決定 BF）。
     [Fact]
     public void RanksFollowLongestPath()
     {
@@ -146,9 +146,10 @@ public class FlowGraphModelBuilderTests
         Assert.Equal(0, Node(model, "gather").Rank);
         Assert.True(Node(model, "fac:f-b").Rank > Node(model, "fac:f-a").Rank);
         Assert.True(Node(model, "item:i-t").Rank > Node(model, "fac:f-b").Rank);
+        Assert.Equal(model.Nodes.Max(n => n.Rank), Node(model, "item:i-t").Rank);
     }
 
-    // FG-09: 循環経路を含む計画でも停止する（後退エッジを無視）。
+    // FG-09: 循環経路を含む計画でも停止する（後退エッジを無視）。ループ内の目標は Layer0（仕様決定 BH）。
     [Fact]
     public void CyclicPlanStillRanks()
     {
@@ -197,9 +198,10 @@ public class FlowGraphModelBuilderTests
         Assert.Equal(4, model.Nodes.Count);
         Assert.Equal(4, model.Edges.Count);
         Assert.True(model.Nodes.Max(n => n.Rank) >= 1);
+        Assert.Equal(model.Nodes.Max(n => n.Rank), Node(model, "item:i-a").Rank);
     }
 
-    // FG-10: 未充足のみのアイテムは起点側（rank 0）に置かれる。
+    // FG-10: 未充足のみのアイテムも Layer0（仕様決定 BF。単独ノードのため rank 0）。
     [Fact]
     public void UnmetOnlyItemIsRankZero()
     {
@@ -212,8 +214,102 @@ public class FlowGraphModelBuilderTests
 
         FlowGraphNode node = Node(model, "item:i-need");
         Assert.Equal(5, node.UnmetPerMinute, 6);
-        Assert.Equal(0, node.Rank);
+        Assert.Equal(model.Nodes.Max(n => n.Rank), node.Rank);
         Assert.DoesNotContain(model.Nodes, n => n.Kind == FlowGraphNodeKind.Gather);
+    }
+
+    // FG-27: 消費される目標は消費設備の直上流に置かれる（仕様決定 BG）。
+    [Fact]
+    public void ConsumedTargetSitsBeforeConsumer()
+    {
+        // 目標 i-t が別目標 i-z の素材でもある計画。i-t は Layer0 に置かれない。
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-u", "上流素材", gatherable: true),
+             ApplicationFixtures.Item("i-t", "中間目標"),
+             ApplicationFixtures.Item("i-z", "最終目標")],
+            [ApplicationFixtures.Facility("f-t", "機T", 10), ApplicationFixtures.Facility("f-z", "機Z", 10)],
+            [], [],
+            [
+                ApplicationFixtures.Recipe("r-t", "中間目標", [("i-u", 1)], [("i-t", 1)],
+                    [ApplicationFixtures.Pair("f-t", 6)]),
+                ApplicationFixtures.Recipe("r-z", "最終目標", [("i-t", 1)], [("i-z", 1)],
+                    [ApplicationFixtures.Pair("f-z", 6)]),
+            ]);
+
+        (_, FlowGraphModel model) = Build(
+            snapshot, targets: [new ProductionTarget("i-t", 10), new ProductionTarget("i-z", 20)]);
+
+        Assert.Equal(Node(model, "fac:f-z").Rank - 1, Node(model, "item:i-t").Rank);
+        Assert.True(Node(model, "item:i-t").Rank < Node(model, "item:i-z").Rank);
+        Assert.Equal(model.Nodes.Max(n => n.Rank), Node(model, "item:i-z").Rank);
+    }
+
+    // FG-28: 未消費の副産物は Layer0（右端列）にまとまる（仕様決定 BF）。
+    [Fact]
+    public void UnconsumedByproductSitsAtRightEdge()
+    {
+        Recipe recipe = ApplicationFixtures.Recipe(
+            "r-bp", "副産物レシピ", [("i-u", 1)], [("i-p", 1), ("i-s", 1)],
+            [ApplicationFixtures.Pair("f-a", 6)]);
+        recipe.Outputs[1].SortOrder = 1;
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-u", "上流素材", gatherable: true),
+             ApplicationFixtures.Item("i-p", "主産物"),
+             ApplicationFixtures.Item("i-s", "副産物")],
+            [ApplicationFixtures.Facility("f-a", "加工機", 10)],
+            [], [], [recipe]);
+
+        (_, FlowGraphModel model) = Build(snapshot, targets: new ProductionTarget("i-p", 10));
+
+        Assert.Equal(Node(model, "item:i-p").Rank, Node(model, "item:i-s").Rank);
+        Assert.Equal(model.Nodes.Max(n => n.Rank), Node(model, "item:i-s").Rank);
+    }
+
+    // FG-29: 鎖の短い目標も Layer0（右端列）に固定される（仕様決定 BF）。
+    [Fact]
+    public void ShortChainTargetIsAnchoredRight()
+    {
+        // i-x は 1 段、i-t は 3 段の深さを持つ 2 目標。旧来の起点側最長パスでは i-x が中間に浮いた。
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-u", "上流素材", gatherable: true),
+             ApplicationFixtures.Item("i-m", "中間品"),
+             ApplicationFixtures.Item("i-t", "製品"),
+             ApplicationFixtures.Item("i-x", "短鎖製品")],
+            [ApplicationFixtures.Facility("f-a", "機A", 10),
+             ApplicationFixtures.Facility("f-b", "機B", 10),
+             ApplicationFixtures.Facility("f-c", "機C", 10)],
+            [], [],
+            [
+                ApplicationFixtures.Recipe("r-m", "中間品", [("i-u", 1)], [("i-m", 1)],
+                    [ApplicationFixtures.Pair("f-a", 6)]),
+                ApplicationFixtures.Recipe("r-t", "製品", [("i-m", 1)], [("i-t", 1)],
+                    [ApplicationFixtures.Pair("f-b", 6)]),
+                ApplicationFixtures.Recipe("r-x", "短鎖製品", [("i-u", 1)], [("i-x", 1)],
+                    [ApplicationFixtures.Pair("f-c", 6)]),
+            ]);
+
+        (_, FlowGraphModel model) = Build(
+            snapshot, targets: [new ProductionTarget("i-t", 10), new ProductionTarget("i-x", 10)]);
+
+        int rightmost = model.Nodes.Max(n => n.Rank);
+        Assert.Equal(rightmost, Node(model, "item:i-t").Rank);
+        Assert.Equal(rightmost, Node(model, "item:i-x").Rank);
+        Assert.True(Node(model, "item:i-x").Rank > Node(model, "fac:f-c").Rank);
+    }
+
+    // FG-30: 台数分表示のユニットは設備と同じ層規則で割り当たる（仕様決定 BF・AO）。
+    [Fact]
+    public void UnitNodesShareFacilityLayer()
+    {
+        // i-t 72/分 → 切上げ 3 台。ユニットはすべて i-t の 1 つ左の列に揃う。
+        (_, FlowGraphModel model) = Build(
+            ApplicationFixtures.A02(), expandFacilities: true, targets: new ProductionTarget("i-t", 72));
+
+        int targetRank = Node(model, "item:i-t").Rank;
+        foreach (int i in new[] { 0, 1, 2 })
+        {
+            Assert.Equal(targetRank - 1, Node(model, $"facunit:f-t#{i}").Rank);
+        }
     }
 
     // FG-11: 余剰のみに登場するアイテムもノード化する。
