@@ -271,6 +271,7 @@ flowchart LR
 
 - 計算アプリ・管理ツールともに Blazor WebAssembly（スタンドアロン、.NET 8）とし、Cloudflare Pages で静的配信する（仕様決定 B）。
 - 計算ページの UI は両アプリ共通の Razor Class Library（`EndfieldAicWeb.SharedUi`）に集約し、両ページはマスタ読み込みのゲートのみを持つ（仕様決定 BB）。
+- 両アプリ共通のグローバルスタイル（テーマトークン・汎用クラス）は同 RCL の `wwwroot/css/shared.css` に集約し、`_content/` 経由で配信する。各 `app.css` はアプリ固有のルールのみを持つ（仕様決定 BI）。
 - 管理ツールは別 Pages（専用ドメイン）にデプロイし、Cloudflare Access（Zero Trust 無料枠、メール OTP）で管理者のみに制限する（仕様決定 E）。
 - Workers・D1 は持たない。共有データが復活した時点で追加を再検討する（仕様決定 B）。
 
