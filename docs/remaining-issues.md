@@ -67,6 +67,13 @@ Phase 22-1 で追加した `AdminCalculatorIcons` は、`ICalculatorIcons` を `
 実装は単純だが `EndfieldAicWeb.Admin.Tests` の規約上の対象であり、未解決時の null 返却や `RecipeIconKey` の主出力フォールバックを検証する専用テストを持たない。
 次のテスト系整備で追加する余地がある。
 
+### 「URL から取り込み」の既定 URL と Cloudflare Access
+
+管理ツールの「URL から取り込み」の既定 URL は公開アプリ側（`https://endfield-aic.pages.dev/data/master.json`）を指している。
+公開アプリが Cloudflare Access で一時非公開の間は、取得が OTP ログイン要求に阻まれて既定 URL からの取り込みは利用できない。
+同梱のマスタ JSON とローカルファイルからの取り込みは影響を受けない。
+公開アプリの再公開（Access 解除）で自然解消する見込みだが、Access 期間中の代替経路（ローカル JSON 配信など）を用意するかは未決である。
+
 ## 改善方針の検討
 
 2026-09-30 に各項目の改善方針を検討し、推奨案どおり実施した記録である。
