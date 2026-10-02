@@ -256,7 +256,6 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 - [x] `dotnet test` 全緑を確認する
 
 - **受け入れ条件**: 公開 App の生産リスト行が管理ツール計算プレビューと同型で表示され、各既定値が改訂どおりになる。詳細は `phases/implementation-plan-phase20.md` と `phases/test-specification-phase20.md`。
-<<<<<<< HEAD
 
 ### Phase 21: 既定レシピ選択への必要設備数条件の追加（PR: 同バージョンレシピの効率順位付け）
 

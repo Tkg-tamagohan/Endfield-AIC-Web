@@ -312,6 +312,105 @@ public class FlowGraphModelBuilderTests
         }
     }
 
+    // FG-31: 出力を持たない設備（散布機）は Layer0 に置かず、消費アイテムの直下流に置く（仕様決定 BF）。
+    [Fact]
+    public void DispenserSitsDownstreamOfConsumedItem()
+    {
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-u", "上流素材", gatherable: true),
+             ApplicationFixtures.Item("i-gas", "活性ガス", TransportKind.Pipe, gatherable: true),
+             ApplicationFixtures.Item("i-x", "製品X")],
+            [ApplicationFixtures.Facility("f-a", "機A", 10),
+             ApplicationFixtures.Facility("f-disp", "散布機", 5)],
+            [ApplicationFixtures.Env("env-g", "ガス環境", "f-disp", "i-gas", 360)],
+            [],
+            [
+                ApplicationFixtures.Recipe("r-x", "製品X", [("i-u", 1)], [("i-x", 1)],
+                    [ApplicationFixtures.Pair("f-a", 6, "env-g")]),
+            ]);
+
+        (_, FlowGraphModel model) = Build(snapshot, targets: new ProductionTarget("i-x", 10));
+
+        // 散布機はガスの 1 列右。目標アイテムと同列の Layer0 には置かれない。
+        Assert.Equal(Node(model, "item:i-gas").Rank + 1, Node(model, "fac:f-disp").Rank);
+    }
+
+    // FG-32: 複数の出口を持つ循環では、浅い出口で仮確定したノードを深い出口側へ緩和する（仕様決定 BH）。
+    [Fact]
+    public void CyclicNodeRelaxesTowardDeepestExit()
+    {
+        // i-a と i-b が相互生産の循環。i-a は浅い出口（→i-z 目標）、i-b は深い出口（→i-m→i-w 目標）。
+        // i-a は i-b 側の深い出口まで緩和され、i-a→f-b の供給エッジが後退エッジにならない。
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-a", "素材A"), ApplicationFixtures.Item("i-b", "素材B"),
+             ApplicationFixtures.Item("i-m", "中間品"), ApplicationFixtures.Item("i-z", "製品Z"),
+             ApplicationFixtures.Item("i-w", "製品W")],
+            [ApplicationFixtures.Facility("f-a", "機A", 10), ApplicationFixtures.Facility("f-b", "機B", 10),
+             ApplicationFixtures.Facility("f-z", "機Z", 10), ApplicationFixtures.Facility("f-w1", "機W1", 10),
+             ApplicationFixtures.Facility("f-w2", "機W2", 10)],
+            [], [],
+            [
+                ApplicationFixtures.Recipe("r-ab", "素材B", [("i-a", 1)], [("i-b", 1)],
+                    [ApplicationFixtures.Pair("f-b", 6)]),
+                ApplicationFixtures.Recipe("r-ba", "素材A", [("i-b", 1)], [("i-a", 1)],
+                    [ApplicationFixtures.Pair("f-a", 6)]),
+                ApplicationFixtures.Recipe("r-z", "製品Z", [("i-a", 1)], [("i-z", 1)],
+                    [ApplicationFixtures.Pair("f-z", 6)]),
+                ApplicationFixtures.Recipe("r-w1", "中間品", [("i-b", 1)], [("i-m", 1)],
+                    [ApplicationFixtures.Pair("f-w1", 6)]),
+                ApplicationFixtures.Recipe("r-w2", "製品W", [("i-m", 1)], [("i-w", 1)],
+                    [ApplicationFixtures.Pair("f-w2", 6)]),
+            ]);
+        var plan = new ProductionPlan
+        {
+            ItemRequirements =
+            [
+                new ItemRequirement("i-a", 20, [new SupplyPortion(SupplyKind.Recipe, "r-ba", 20)], 0),
+                new ItemRequirement("i-b", 20, [new SupplyPortion(SupplyKind.Recipe, "r-ab", 20)], 0),
+                new ItemRequirement("i-m", 10, [new SupplyPortion(SupplyKind.Recipe, "r-w1", 10)], 0),
+                new ItemRequirement("i-z", 10, [new SupplyPortion(SupplyKind.Recipe, "r-z", 10)], 0),
+                new ItemRequirement("i-w", 10, [new SupplyPortion(SupplyKind.Recipe, "r-w2", 10)], 0),
+            ],
+            FacilityRequirements =
+            [
+                new FacilityRequirement("f-a", 1, 1),
+                new FacilityRequirement("f-b", 1, 1),
+                new FacilityRequirement("f-z", 1, 1),
+                new FacilityRequirement("f-w1", 1, 1),
+                new FacilityRequirement("f-w2", 1, 1),
+            ],
+            RecipeRuns =
+            [
+                new RecipeRun("r-ab", "f-b", 10),
+                new RecipeRun("r-ba", "f-a", 10),
+                new RecipeRun("r-z", "f-z", 10),
+                new RecipeRun("r-w1", "f-w1", 10),
+                new RecipeRun("r-w2", "f-w2", 10),
+            ],
+            PairSelections =
+            [
+                new PairSelection("i-a", "r-ba", ApplicationFixtures.Pair("f-a", 6, recipeId: "r-ba")),
+                new PairSelection("i-b", "r-ab", ApplicationFixtures.Pair("f-b", 6, recipeId: "r-ab")),
+                new PairSelection("i-m", "r-w1", ApplicationFixtures.Pair("f-w1", 6, recipeId: "r-w1")),
+                new PairSelection("i-z", "r-z", ApplicationFixtures.Pair("f-z", 6, recipeId: "r-z")),
+                new PairSelection("i-w", "r-w2", ApplicationFixtures.Pair("f-w2", 6, recipeId: "r-w2")),
+            ],
+            EnvironmentRequirements = [],
+            TotalPowerConsumption = 0,
+            Surpluses = [],
+            FlowAdjustments = [],
+            Warnings = [new CalculationWarning(WarningCode.CycleDetected, "cycle")],
+        };
+
+        FlowGraphModel model = FlowGraphModelBuilder.Build(
+            plan, snapshot, new ContextFilter(), [new ProductionTarget("i-z", 10), new ProductionTarget("i-w", 10)], false);
+
+        // i-a は i-b 側の深い出口まで緩和され、i-a→f-b の供給エッジは左→右のまま後退しない。
+        Assert.True(Node(model, "item:i-a").Rank < Node(model, "fac:f-b").Rank);
+        // 後退エッジになるのは i-b→f-a 側だけ。
+        Assert.True(Node(model, "item:i-b").Rank > Node(model, "fac:f-a").Rank);
+    }
+
     // FG-11: 余剰のみに登場するアイテムもノード化する。
     [Fact]
     public void SurplusOnlyItemBecomesNode()

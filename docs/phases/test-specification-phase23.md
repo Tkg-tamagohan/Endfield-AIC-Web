@@ -17,6 +17,8 @@
 | FG-28 | 未消費の副産物は Layer0（BF） | FG-05 と同形（副産物 i-s、目標 i-p） | item:i-s が item:i-p と同じ最大ランク（右端列） |
 | FG-29 | 鎖の短い目標も右端に固定（BF） | 深さの異なる 2 目標（i-x は 1 段、i-t は 3 段） | item:i-x・item:i-t がともに最大ランク。item:i-x が生産設備より右 |
 | FG-30 | 台数分ユニットは設備と同じ層規則（BF・AO） | A-02、expandFacilities | facunit:f-t#* がすべて同一ランクで item:i-t の 1 つ左 |
+| FG-31 | 出力のない設備（散布機）は消費アイテムの直下流（BF） | FG-19 と同形（散布機が i-gas を消費） | fac:f-disp が item:i-gas の 1 列右。Layer0（目標と同列）に置かれない |
+| FG-32 | 複数の出口を持つ循環は深い出口側へ緩和する（BH） | i-a↔i-b 循環＋i-a の浅い出口（i-z）と i-b の深い出口（i-m→i-w） | item:i-a が fac:f-b の左（供給エッジは後退しない）。後退エッジは item:i-b→fac:f-a のみ |
 
 ## 2. 手動確認項目
 

@@ -493,7 +493,10 @@ public static class FlowGraphModelBuilder
     /// 層は Layer0（目標・未消費アイテム）から上流へ遡る距離で、同じノードが複数の層に
     /// 出る場合は大きい層にまとめる（仕様決定 BF）。消費される目標もこの規則に従う（BG）。
     /// 循環の残存ノードは後退エッジを無視し、確定済みの後続だけで層を決める（BH）。
-    /// 表示は Layer0 を右端列とするため、返すランクは最大層からの反転値。
+    /// 複数の出口を持つ循環では、自分自身を経由しない後続からより深い層が届く限り
+    /// 層を緩和して最深へ引き直す。散布機など出力を持たない設備ノードは層割りの
+    /// 対象外とし、消費アイテムの直下流に置く。表示は Layer0 を右端列とするため、
+    /// 返すランクは最大層からの反転値。
     /// </summary>
     private static (Dictionary<string, int> Rank, Dictionary<string, int> Order) AssignRanks(
         IReadOnlyDictionary<string, FlowGraphNode> nodes,
@@ -512,32 +515,55 @@ public static class FlowGraphModelBuilder
             succs[edge.FromId].Add(edge.ToId);
         }
 
+        // 出力を持たない設備などの終端ノードへのエッジは層割りに使わない。
+        // 終端ノードは最後に、最も深い消費アイテムの直下流へ置く。
+        var terminals = new HashSet<string>(
+            nodes.Keys.Where(id => nodes[id].Kind != FlowGraphNodeKind.Item && succs[id].Count == 0),
+            StringComparer.Ordinal);
+        var effSuccs = nodes.Keys.ToDictionary(
+            id => id,
+            id => succs[id].Where(s => !terminals.Contains(s)).ToList(),
+            StringComparer.Ordinal);
+
         // Layer0 の起点: 目標アイテム、およびどの設備にも消費されない（下流エッジのない）
         // アイテム（未消費の副産物や余剰を含む）。採取ノードは最深の供給先の次層に沈む。
         bool IsAnchor(string id) =>
             nodes[id].Kind == FlowGraphNodeKind.Item
-            && (nodes[id].IsTarget || succs[id].Count == 0);
+            && (nodes[id].IsTarget || effSuccs[id].Count == 0);
 
         // 下流側が確定した順に層を確定する。pending は未確定の後続ノード数。
         var layer = new Dictionary<string, int>(StringComparer.Ordinal);
-        var pending = nodes.Keys.ToDictionary(id => id, id => succs[id].Count, StringComparer.Ordinal);
+        var pending = nodes.Keys.ToDictionary(id => id, id => effSuccs[id].Count, StringComparer.Ordinal);
         var queue = new SortedSet<string>(StringComparer.Ordinal);
         foreach (string id in nodes.Keys)
         {
-            if (pending[id] == 0)
+            if (pending[id] == 0 && !terminals.Contains(id))
             {
                 queue.Add(id);
             }
+        }
+
+        int MaxAssignedSucc(string id, out string? via)
+        {
+            via = null;
+            int best = -1;
+            foreach (string s in effSuccs[id])
+            {
+                if (layer.TryGetValue(s, out int l) && l > best)
+                {
+                    best = l;
+                    via = s;
+                }
+            }
+
+            return best;
         }
 
         while (queue.Count > 0)
         {
             string id = queue.Min!;
             queue.Remove(id);
-            layer[id] = 1 + succs[id]
-                .Select(s => layer.GetValueOrDefault(s, -1))
-                .DefaultIfEmpty(-1)
-                .Max();
+            layer[id] = 1 + MaxAssignedSucc(id, out _);
             foreach (string pred in preds[id])
             {
                 if (--pending[pred] == 0)
@@ -549,26 +575,29 @@ public static class FlowGraphModelBuilder
 
         // 循環の残り: 起点を種に、確定済みの後続だけを見て層を決める（後退エッジは使わない）。
         var deferred = nodes.Keys
-            .Where(id => !layer.ContainsKey(id))
+            .Where(id => !layer.ContainsKey(id) && !terminals.Contains(id))
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToList();
+        var deferredSet = new HashSet<string>(deferred, StringComparer.Ordinal);
+        // support: そのノードの層がどの循環内後続を経由して決まったか。緩和で自分自身を
+        // 経由する後続を除外し、後退エッジを逆流させないために使う。
+        var support = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         while (deferred.Count > 0)
         {
             var next = new List<string>();
             foreach (string id in deferred)
             {
                 // 起点でなく後続も未確定のノードは、循環の向こう側へ展開が戻るまで待つ。
-                if (!IsAnchor(id) && !succs[id].Any(layer.ContainsKey))
+                if (!IsAnchor(id) && !effSuccs[id].Any(layer.ContainsKey))
                 {
                     next.Add(id);
                     continue;
                 }
 
-                layer[id] = 1 + succs[id]
-                    .Where(s => layer.ContainsKey(s))
-                    .Select(s => layer[s])
-                    .DefaultIfEmpty(-1)
-                    .Max();
+                layer[id] = 1 + MaxAssignedSucc(id, out string? via);
+                support[id] = via is not null && deferredSet.Contains(via)
+                    ? new HashSet<string>(support[via], StringComparer.Ordinal) { via }
+                    : new HashSet<string>(StringComparer.Ordinal);
             }
 
             if (next.Count == deferred.Count)
@@ -576,16 +605,55 @@ public static class FlowGraphModelBuilder
                 // 起点に届かない閉じた循環（通常は発生しない）。確定済み後続だけで打ち切る。
                 foreach (string id in next)
                 {
-                    layer[id] = 1 + succs[id]
-                        .Where(s => layer.ContainsKey(s))
-                        .Select(s => layer[s])
-                        .DefaultIfEmpty(-1)
-                        .Max();
+                    layer[id] = 1 + MaxAssignedSucc(id, out _);
+                    support[id] = new HashSet<string>(StringComparer.Ordinal);
                 }
                 break;
             }
 
             deferred = next;
+        }
+
+        // 緩和: 複数の出口を持つ循環では、仮確定より深い層が後続から届くことがある。
+        // 自分自身を経由しない後続（support に含まれない）からの更新だけを取り込み、
+        // 最長距離が確定するまで繰り返す。Layer0 の起点は固定のまま動かさない。
+        bool changed = true;
+        while (changed)
+        {
+            changed = false;
+            foreach (string id in deferredSet)
+            {
+                if (IsAnchor(id))
+                {
+                    continue;
+                }
+
+                foreach (string succ in effSuccs[id])
+                {
+                    if (!deferredSet.Contains(succ) || support[succ].Contains(id))
+                    {
+                        continue;
+                    }
+
+                    int candidate = 1 + layer[succ];
+                    if (candidate > layer[id])
+                    {
+                        layer[id] = candidate;
+                        support[id] = new HashSet<string>(support[succ], StringComparer.Ordinal) { succ };
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        // 終端ノード（散布機など出力を持たない設備）は最も深い消費アイテムの直下流に置く。
+        foreach (string id in terminals)
+        {
+            layer[id] = preds[id]
+                .Where(layer.ContainsKey)
+                .Select(p => layer[p])
+                .DefaultIfEmpty(1)
+                .Max() - 1;
         }
 
         int maxLayer = layer.Count > 0 ? layer.Values.Max() : 0;
