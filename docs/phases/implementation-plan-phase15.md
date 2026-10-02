@@ -86,7 +86,7 @@ Home.razor ── FlowGraphModelBuilder（Application・純粋関数）
 `wwwroot/js/flow-graph.js` は ES module で、`create(canvas, layer)` が `null` または描画ハンドル `{ update, refit, dispose }` を返す。
 
 - `create(canvas, layer)`：`navigator.gpu` の有無と `requestAdapter`/`requestDevice` の成否を判定し、失敗時は `null` を返すだけで何もしない
-- `update(model)`：ノードのランクと順序からピクセル座標を決め（rank→横、rank 内順序→縦）、各 DOM ノードへ CSS `translate` を設定し、エッジのベジェ曲線を三角形帯へ展開して頂点バッファを作り直す。ノード・エッジの構造署名が前回と同じときは fitView をスキップし、ユーザーのパン・ズームを維持する
+- `update(model)`：ノードのランクと順序からピクセル座標を決め（rank→横、rank 内順序→縦）、各 DOM ノードへ CSS `translate` を設定し、エッジのベジェ曲線を三角形帯へ展開して頂点バッファを作り直す。配置と実測寸法の署名が前回と同じときは fitView をスキップし、ユーザーのパン・ズームを維持する
 - 粒子はエッジごとにインスタンスを持ち、頂点シェーダで `time` ユニフォームからベジェ上の位置を評価する。個数と速度はエッジ流量の最大値に対する比率で決める
 - 描画パイプラインはエッジ帯と粒子ビルボードの 2 本のみ（ノード・ラベル・アイコンは DOM のため WGSL では扱わない）
 - パンは canvas 上のドラッグ、ズームはホイール（カーソル中心、0.4〜1.5 倍にクランプ）。canvas のユニフォーム行列と DOM ノード層の CSS transform に同じ変換を適用する
@@ -113,7 +113,7 @@ Home.razor ── FlowGraphModelBuilder（Application・純粋関数）
 6. 輸送容量超過はアイテムノードの赤縁とその流入エッジの赤化で表す（§3 の判定は計算本体の警告と同じ基準）
 7. グラフは「調整済／未調整」切替に追従して流量・台数を変える（§3 の倍率共有）
 8. エッジ色は種別で分ける：RecipeOutput はアクセント、Gathered は緑系、RecipeInput・FixedConsumption・EnvironmentConsume はミュート色、容量超過は赤
-9. ノード・エッジの構造署名が変わらない再計算（表示単位の切替など）では fitView せず、ユーザーのパン・ズーム位置を維持する
+9. 配置・寸法が変わらない再計算（表示単位や流量の変更など）では fitView せず、ユーザーのパン・ズーム位置を維持する
 
 ## 7. テスト
 

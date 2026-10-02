@@ -365,25 +365,20 @@ function makeHandle(canvas, layer, device, context, format) {
         return { p0, p1, p2, p3 };
     }
 
-    // ノード・エッジの構造と表示に影響する値の署名。再計算で内容が変わらない限り
-    // ユーザーのパン・ズームを維持するために使う。
+    // レイアウトに影響する構造（配置と実測寸法）の署名。署名が同じ限り fitView をせず
+    // ユーザーのパン・ズームを維持する。流量など寸法に影響しない値は含めない。
     let lastTopology = '';
-    function topologyKey(m) {
-        const ns = (m?.nodes ?? []).map(n => [
-            n.id, n.rank, n.order, n.label ?? '', n.note ?? '',
-            Math.round((n.requiredPerMinute ?? 0) * 100),
-            Math.round((n.unmetPerMinute ?? 0) * 100),
-            Math.round((n.surplusPerMinute ?? 0) * 100),
-        ].join(':')).join('|');
-        const es = (m?.edges ?? []).map(e => `${e.fromId}>${e.toId}`).join('|');
-        return ns + '#' + es;
+    function topologyKey(m, rects) {
+        return (m?.nodes ?? []).map(n => {
+            const r = rects.get(n.id);
+            return `${n.id}:${n.rank}:${n.order}:${r ? r.w : 0}x${r ? r.h : 0}`;
+        }).join('|');
     }
 
     function update(model) {
         const nodes = model?.nodes ?? [];
         const edgeList = model?.edges ?? [];
         const maxRate = Math.max(model?.maxRatePerMinute ?? 0, 1e-9);
-        const topoKey = topologyKey(model);
 
         // DOM ノードの実サイズを測ってランク×順序の座標に配置する。
         const rects = new Map();
@@ -429,6 +424,7 @@ function makeHandle(canvas, layer, device, context, format) {
             maxX = x - NODE_GAP_X + MARGIN;
         }
         worldBounds = { w: maxX, h: maxH };
+        const topoKey = topologyKey(model, rects);
         if (topoKey !== lastTopology) {
             lastTopology = topoKey;
             fitView();
