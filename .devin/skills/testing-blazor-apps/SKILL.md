@@ -31,6 +31,7 @@ dotnet run --project src/EndfieldAicWeb.Admin --no-launch-profile --urls http://
 - Chrome は `/home/ubuntu/.local/bin/google-chrome`（Chrome for Testing）。`DISPLAY=:0`。
 - WASM 読み込みには数秒かかる。`#app` 内のローディングスピナーが消えて本文が描画されるまで待つ。失敗時は画面下部に `#blazor-error-ui` のエラーバーが出る。
 - アドレスバー直打ちでルートに戻るとき、Chrome のオートコンプリートが履歴の `/counter` 等を補完して別パスへ飛ぶことがある。確実に戻るにはトレーリングスラッシュ付きで `127.0.0.1:5180/` と入れる。App にナビリンクはなく、Admin ではナビの「データ管理」リンクが同じ役割を果たす。
+- `127.0.0.1` が Chrome で NXDOMAIN になることがある: `http://127.0.0.1:5180/` を開くと `DNS_PROBE_FINISHED_NXDOMAIN` で「This site can't be reached」になり、Reload しても解消しないことがある（curl では 200 が返るのでサーバ側は正常）。その場合は `http://localhost:5180/` / `http://localhost:5181/` で開くと通る（Phase 26 で実測）。
 - アドレスバー（ctrl+l）で別ページ URL を打つとアプリがフルリロードされ、読み込み済みの in-memory 文書が消える。ページ間の移動はアプリ内のナビゲーションリンクをクリックしてクライアントサイド遷移する。App は初回ロードで `data/master.json` を自動読込するため復元するが、Admin はホームで「同梱マスタを読み込む」を押し直す必要がある（Phase 20 で実測）。
 - `google-chrome <URL>` で起動すると「New Tab」と目的ページの 2 ウィンドウが開くことがある。`read_dom` や `browser_console`、ページ HTML 取得は New Tab 側にバインドされ対象ページの DOM が取れない。テスト対象は同一ウィンドウのタブに集約し（ctrl+t で開く）、余分なウィンドウは閉じるか無視してスクリーンショット中心で検証する。
 
