@@ -4,11 +4,11 @@ namespace EndfieldAicWeb.Infrastructure.Tests;
 
 public class MasterJsonScaffoldTests
 {
-    // docs/requirements.md §5.9 のルートキー定義が根拠
+    // docs/requirements.md §5.10 のルートキー定義が根拠
     private static readonly string[] RequiredRootKeys =
     [
         "SchemaVersion", "DataVersion", "Items", "Facilities",
-        "Environments", "GameEvents", "Recipes", "Icons",
+        "Environments", "GameEvents", "Recipes", "Maps", "Icons",
     ];
 
     [Fact(DisplayName = "SCAF-02: master.json がスキーマ v1 のルートキーを持つ")]

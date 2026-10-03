@@ -136,7 +136,7 @@ public sealed class AdminDocumentService
     /// <summary>最後に書き出しを成功させた時点の編集回数。</summary>
     private int _counterAtExport = -1;
 
-    /// <summary>URL（相対パスまたは絶対 URL）から正本 JSON を取得して読み込む。
+    /// <summary>URL（相対パスまたは絶対 URL）からマスタ JSON を取得して読み込む。
     /// 待機中に別の読み込みが始まった場合は結果を捨てる（新しいほうが優先）。</summary>
     public async Task<bool> LoadFromUrlAsync(string url)
     {

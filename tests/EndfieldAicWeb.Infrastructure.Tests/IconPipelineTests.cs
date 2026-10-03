@@ -412,7 +412,7 @@ public class IconPipelineTests
     }
 
     [Fact]
-    public void ZIP05_正本JSONのないzipは読み取りに失敗する()
+    public void ZIP05_マスタJSONのないzipは読み取りに失敗する()
     {
         byte[] zip;
         using (var stream = new MemoryStream())

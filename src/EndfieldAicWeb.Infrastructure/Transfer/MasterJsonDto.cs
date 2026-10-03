@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace EndfieldAicWeb.Infrastructure.Transfer;
 
 /// <summary>
-/// マスタ JSON のトップレベル構造（SchemaVersion=1、docs/requirements.md §5.9）。
+/// マスタ JSON のトップレベル構造（SchemaVersion=1、docs/requirements.md §5.10）。
 /// 読み込み・エクスポートで共有する。
 /// スキーマ required 準拠で全プロパティを <c>required</c> とし、キー欠落はデシリアライズ時に拒否する。
 /// 値が null かどうかは構造検証（<see cref="MasterJsonReader"/>）で判定するため nullable フィールドとする。

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Tkg-tamagohan/Endfield-AIC-Web/data/master.schema.json",
   "title": "AIC マスタ JSON（SchemaVersion=1）",
-  "description": "正本マスタデータの構造定義。エンティティのフィールド構成のみを定める。参照整合性・ペア一意性・enum 定義値の意味検証など、文書をまたいだ規則は Domain の検証（requirements §5、仕様決定 P/R）で扱い、本スキーマの対象外とする。",
+  "description": "マスタデータ原本の構造定義。エンティティのフィールド構成のみを定める。参照整合性・ペア一意性・enum 定義値の意味検証など、文書をまたいだ規則は Domain の検証（requirements §5、仕様決定 P/R）で扱い、本スキーマの対象外とする。",
   "type": "object",
   "required": ["SchemaVersion", "DataVersion", "Items", "Facilities", "Environments", "GameEvents", "Recipes", "Maps", "Icons"],
   "additionalProperties": false,

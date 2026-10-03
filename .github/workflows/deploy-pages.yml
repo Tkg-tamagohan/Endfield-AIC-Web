@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # 両デプロイ共通の品質ゲート。同梱する正本 JSON は両プロジェクトで共通のため
+  # 両デプロイ共通の品質ゲート。同梱するマスタ JSON は両プロジェクトで共通のため
   # 片側だけ検証を通すと、壊れたデータがもう一方へ配信されてしまう。
   verify:
     runs-on: ubuntu-latest
@@ -47,7 +47,7 @@ jobs:
           command: pages deploy artifacts/app/wwwroot --project-name=endfield-aic --branch ${{ github.ref_name }}
 
   # 管理ツール（Admin WASM）。別 Pages プロジェクトへデプロイし、
-  # Cloudflare Access で公開側と切り離す（要件 §7、仕様決定 E）。
+  # Cloudflare Access で公開側と切り離す（要件 §3、仕様決定 E）。
   deploy-admin:
     needs: verify
     runs-on: ubuntu-latest

@@ -132,7 +132,7 @@ public class MasterExporterTests
         Assert.Throws<MasterValidationException>(() => MasterExporter.Export(document));
     }
 
-    // ---------- RND: 往復（data/master.json を正本として使う） ----------
+    // ---------- RND: 往復（data/master.json を原本として使う） ----------
 
     [Fact(DisplayName = "RND-01: master.json を読み込み→エクスポート→読み込み→エクスポートで 2 出力が文字列一致")]
     public void RoundTrip_StableOutput()
