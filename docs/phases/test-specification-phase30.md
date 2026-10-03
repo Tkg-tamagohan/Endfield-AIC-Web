@@ -1,11 +1,11 @@
 # Phase 30 テスト仕様
 
 **対象フェーズ**: Phase 30（輸送容量超過の警告とグラフ赤化の撤去）
-**前提ドキュメント**: [implementation-plan-phase30.md](implementation-plan-phase30.md)、[decision-records.md](../decision-records.md)（仕様決定 BU）
+**前提ドキュメント**: [implementation-plan-phase30.md](implementation-plan-phase30.md)、[decision-records.md](../decision-records.md)（仕様決定 BV）
 **関連ドキュメント**: [test-specification-phase2.md](test-specification-phase2.md)（WRN 系列の先行群）、[test-specification-phase17.md](test-specification-phase17.md)（撤去対象の判定基準 AN の先行群）
 
 > 本書は Phase 30 の検査項目を ID 付きで管理する。実施結果は PR 本文に表で記録する。
-> ID 採番: 回帰ケースは `WarningTests.cs` の WRN- 連番を継続（WRN-07〜。着手時に現行最大を再確認）。手動確認は MN- 連番を継続（MN-122〜）。廃止・改訂する既存 ID は「廃止」「改訂」と記す。
+> ID 採番: 回帰ケースは `WarningTests.cs` の WRN- 連番を継続（WRN-07〜。着手時に現行最大を再確認）。手動確認は MN- 連番を継続（MN-127〜）。廃止・改訂する既存 ID は「廃止」「改訂」と記す。
 
 ## 1. モデル検査（xUnit）
 
@@ -13,8 +13,8 @@
 
 | ID | 内容 | 条件 | 期待 |
 |---|---|---|---|
-| WRN-07 | ユニット入力がベルト容量を超える構成でも警告が出ない（BU の撤去回帰） | F-06、`i-t` 60/分（ユニット入力 120/分、旧 TRN-01 の発火構成） | `plan.Warnings` が空 |
-| WRN-08 | 散布機の環境消費がパイプ容量を超える構成でも警告が出ない（BU の撤去回帰） | F-10、`i-std` 10/分（散布機ユニットの `i-gas` 360/分、旧 TRN-02 の発火構成） | `plan.Warnings` が空 |
+| WRN-07 | ユニット入力がベルト容量を超える構成でも警告が出ない（BV の撤去回帰） | F-06、`i-t` 60/分（ユニット入力 120/分、旧 TRN-01 の発火構成） | `plan.Warnings` が空 |
+| WRN-08 | 散布機の環境消費がパイプ容量を超える構成でも警告が出ない（BV の撤去回帰） | F-10、`i-std` 10/分（散布機ユニットの `i-gas` 360/分、旧 TRN-02 の発火構成） | `plan.Warnings` が空 |
 
 ### 廃止するケース
 
@@ -45,4 +45,4 @@
 
 | ID | 内容 | 手順 | 期待 |
 |---|---|---|---|
-| MN-122 | 容量超過のレシピで警告・赤化が出ない | 公開アプリで赤銅圧力タンク（`recipe-cupriumCanister`。成形機へ赤銅塊 60 個/分のベルト超過構成）を目標に計算し、警告欄とフローグラフの集約表示・台数分表示を確認する | 警告欄に輸送容量の警告が出ない。グラフに赤いエッジと警告色ノード（未充足由来を除く）が出ない |
+| MN-127 | 容量超過のレシピで警告・赤化が出ない | 公開アプリで赤銅圧力タンク（`recipe-cupriumCanister`。成形機へ赤銅塊 60 個/分のベルト超過構成）を目標に計算し、警告欄とフローグラフの集約表示・台数分表示を確認する | 警告欄に輸送容量の警告が出ない。グラフに赤いエッジと警告色ノード（未充足由来を除く）が出ない |

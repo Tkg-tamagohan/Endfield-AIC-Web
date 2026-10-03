@@ -1,18 +1,18 @@
 # Phase 30 実装詳細計画
 
 **対象フェーズ**: Phase 30（輸送容量超過の警告とグラフ赤化の撤去）
-**前提ドキュメント**: [implementation-plan.md](../implementation-plan.md)、[requirements.md](../requirements.md)、[decision-records.md](../decision-records.md)（仕様決定 BU。関連: AM・AN・AO）
+**前提ドキュメント**: [implementation-plan.md](../implementation-plan.md)、[requirements.md](../requirements.md)、[decision-records.md](../decision-records.md)（仕様決定 BV。関連: AM・AN・AO）
 **関連ドキュメント**: [test-specification-phase30.md](test-specification-phase30.md)（本 Phase のテスト仕様）、[implementation-plan-phase17.md](implementation-plan-phase17.md)（判定基準 AN と台数分表示 AO の先行型）、[implementation-plan-phase26.md](implementation-plan-phase26.md)（末尾集約と機械群評価の先行型）
 
 > 本書は Phase 30 の作業項目を、作業者が追加の判断なしに実行できる粒度へ分解したものである。
 > 文書・実装・テストは 1 つの PR にまとめて main へマージする。
-> 番号は依頼時の仮採番どおり 30 とする（Phase 29 は本書作成時点で未割当）。
+> 番号は依頼時の仮採番どおり 30 とする。Phase 29 は本書作成時点で未割当であったが、後に「レシピの Id・名前の自動入力」として確定した（仕様決定 BU）。本書の仕様決定は計画時の仮採番 BU から BV へ移した。
 
 ## 1. スコープ
 
 ### やること
 
-- 「設備 1 ユニットへの同一アイテム入力流量 > 輸送容量（ベルト 30 個/分・パイプ 60 個/分）」の警告（`TransportCapacityExceeded`）と、同一判定によるフローグラフの赤化（`OverCapacity` のエッジと両端ノード）を撤去する（仕様決定 BU、AN の撤去）
+- 「設備 1 ユニットへの同一アイテム入力流量 > 輸送容量（ベルト 30 個/分・パイプ 60 個/分）」の警告（`TransportCapacityExceeded`）と、同一判定によるフローグラフの赤化（`OverCapacity` のエッジと両端ノード）を撤去する（仕様決定 BV、AN の撤去）
 - 判定のためだけに存在する機構を併せて撤去する。対象は発火経路 `AddTransportWarnings`、機械群評価 `FacilityUnitLayout.MaxMachineInputs` とその記録系 `FacilityUnitOverspill`/`OverspillGroups`、容量定数 `BeltCapacityPerMinute`/`PipeCapacityPerMinute`、レコード項目 `OverCapacity`、描画側の赤色分岐
 - 容量警告を前提にした既存テストを整理し（TRN 系列の廃止・FG の容量系アサーション除去）、撤去の回帰ケースを追加する
 - スキル文書の容量警告の記述を追従させる（`.devin/skills/testing-blazor-apps` と個人プラグインスキル）
@@ -66,7 +66,7 @@
 
 | ファイル | 変更 |
 |---|---|
-| `docs/decision-records.md` | BU（本計画で追加済み） |
+| `docs/decision-records.md` | BV（本計画で追加済み） |
 | `docs/requirements.md` | §4.2 の容量警告の箇条を削除、§5.3 `TransportKind` の説明と §10 仮想アイテムの説明を残る用途へ同期（いずれも計画 PR で反映済み） |
 | `docs/implementation-plan.md` | §3 の出力一覧と手順 9 から容量判定の記述を除外、Phase 30 行を追加（いずれも計画 PR で反映済み）。実装 PR でチェックを `[x]` にする |
 | `docs/remaining-issues.md` | 大型化学反応炉の搬入・搬出レート判定の復帰項目（計画 PR で追加済み） |
@@ -78,7 +78,7 @@
 ### 3-1. 撤去する判定とその経路
 
 仕様決定 AN の判定は「設備 1 ユニットへの同一アイテム入力合計（レシピ入力＋固定消費＋環境消費）> `TransportKind` 容量」を警告し、グラフでは同判定で入力エッジとその両端ノードを赤化していた。
-仕様決定 BU でこの判定ごと撤去する。
+仕様決定 BV でこの判定ごと撤去する。
 警告側は `Aggregate` からの呼び出しと `AddTransportWarnings` 全体を削除する。メソッド内でユニットごとの機械定数（固定消費・環境消費の等量加算）を組み立てる `flatInputs` 経路と、末尾集約の機械群を仮想機械へ充填して評価する `MaxMachineInputs` も呼び出し元がなくなるため同時に削除する。
 グラフ側は `inputTotals` の積み上げ（構成エッジの合算＋`MaxMachineInputs`）・`overInputs`・`overCapacityItems`/`overCapacityFacilities`・`OverCapacity` フラグ・`fnode-alert` の `OverCapacity` 条件・`OVER_COLOR` 分岐を削除する。
 

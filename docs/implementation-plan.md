@@ -68,7 +68,7 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 | 共通属性 | Id, Name, Description, IconKey(null 可), VersionAdded, VersionRemoved(null 可) | 全マスタエンティティに付与（仕様決定 N）。 |
 | Item | 共通属性, Category, IsGatherable, TransportKind, GameEventId(null=常設) | Category は表示用タグ、`IsGatherable=true` が需要展開の終端（採取扱い。マップ選択時は採取上限が適用、仕様決定 AC/AD）。`TransportKind=None` は仮想アイテム（レシピ入力不可・生産リスト候補外）。非有効イベント配下は生産・外部調達とも不可（仕様決定 X）。 |
 | Environment | 共通属性, ProviderFacilityId, ConsumeItemId, ConsumeRatePerMinute, CoverableMachines, GameEventId(null=常設) | 環境を供給する設備（散布機）・継続消費アイテム・消費速度（個/分）を持つ（仕様決定 H、単位は AF）。供給設備 1 台がカバーできる機械台数を `CoverableMachines`（正の整数）で持つ（仕様決定 BP）。カバー範囲（面積）は持たない（W）。 |
-| Recipe | 共通属性, Inputs, Outputs, Facilities(RecipeFacility[]), GameEventId(null=常設) | `CycleTime`・`FacilityId` はレシピ本体からペアへ移動。Outputs は `ItemId＋Quantity＋SortOrder`（SortOrder=0 が主産物）。 |
+| Recipe | 共通属性, Inputs, Outputs, Facilities(RecipeFacility[]), GameEventId(null=常設) | `CycleTime`・`FacilityId` はレシピ本体からペアへ移動。Outputs は `ItemId＋Quantity＋SortOrder`（規約は 0 から連番を付け、SortOrder 最小の行が主産物）。 |
 | Facility | 共通属性, Width, Height, PowerConsumption | 縦横は「設備面積最小」最適化（F）のために保持。発電識別・保持枠・ポート・衝突クラスは持たない（G/W/Y）。 |
 | RecipeFacility | RecipeId, FacilityId, CycleTime, EnvironmentId(null=不要), FixedConsumption(null 可) | レシピ×設備の紐付け。一意性は全要素の組で判定（仕様決定 P）。`FixedConsumption` は `(ItemId, 個/分)`（単位は AF）。 |
 | GameEvent | Id, Name, ActiveFrom(null 可), ActiveTo(null 可) | 両 null は常設（仕様決定 T）。 |
@@ -326,11 +326,19 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 - [ ] `dotnet test` 全緑を確認する。同梱マスタに複数ペア行を持つレシピはなく、単体テストが検証の主経路
 - **受け入れ条件**: 同 `CycleTime` で「環境あり・固定消費なし」と「環境なし・固定消費あり」のペアが競合したとき、環境ありのペアが既定になる。詳細は `phases/implementation-plan-phase28.md` と `phases/test-specification-phase28.md`。
 
+### Phase 29: レシピの Id・名前の自動入力（PR: 主産物からの自動提案）
+
+- [ ] 管理ツールのレシピ編集で Id・名前を主産物から自動提案し、直近の提案値と一致する間は主産物の変更に追随、手動編集で固定とする（仕様決定 BU）。提案値へ戻すボタンも設ける
+- [ ] レシピの新規 Id 採番を `recipe-NNN` から `recipe-<slug>`（衝突時のみ 2 桁連番）へ置き換える
+- [ ] `dotnet test` 全緑を確認し、ブラウザ E2E（追随・固定・提案ボタン・ペア RecipeId 伝搬）を実施する
+- **受け入れ条件**: 新規レシピで出力アイテムを選ぶと Id・名前が主産物へ追随し、手動編集で固定・ボタンで提案値へ戻せる。詳細は `phases/implementation-plan-phase29.md` と `phases/test-specification-phase29.md`。
+
 ### Phase 30: 輸送容量超過の警告とグラフ赤化の撤去（PR: 判定機構の撤去）
 
-- [ ] 「設備 1 ユニットへの入力流量 > 輸送容量」の警告と、同一判定によるフローグラフの容量超過赤化（`OverCapacity` エッジと両端ノード）を撤去する（仕様決定 BU、AN の撤去）。容量評価専用の機構（`AddTransportWarnings`・`MaxMachineInputs`・`OverspillGroups`・容量定数・警告コード・赤色分岐）も併せて撤去し、台数分表示（AO）のユニット割当と `TransportKind` は据え置く
+- [ ] 「設備 1 ユニットへの入力流量 > 輸送容量」の警告と、同一判定によるフローグラフの容量超過赤化（`OverCapacity` エッジと両端ノード）を撤去する（仕様決定 BV、AN の撤去）。容量評価専用の機構（`AddTransportWarnings`・`MaxMachineInputs`・`OverspillGroups`・容量定数・警告コード・赤色分岐）も併せて撤去し、台数分表示（AO）のユニット割当と `TransportKind` は据え置く
 - [ ] `dotnet test` 全緑を確認し、ブラウザ E2E（`recipe-cupriumCanister` 等の容量超過構成で警告・赤化が出ないこと）を実施する
 - **受け入れ条件**: ベルト 30 個/分・パイプ 60 個/分を超える入力を持つ計画で、警告欄にもグラフにも容量超過の表示が出ない。詳細は `phases/implementation-plan-phase30.md` と `phases/test-specification-phase30.md`。
+
 
 ## 5. 実装メモ・規約
 
