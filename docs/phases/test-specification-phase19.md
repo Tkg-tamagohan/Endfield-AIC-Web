@@ -31,6 +31,9 @@
 | FIL-06 | カテゴリのみ指定 | クエリ空・カテゴリ指定 | そのカテゴリのアイテム全件を返す |
 | FIL-07 | カテゴリ未指定は従来どおり | category に null | クエリ絞り込みのみで動く（回帰） |
 
+FIL-05〜07 は `ItemSearch` の呼び出し元が Phase 20 で消滅し、`ItemSearchTests` が Phase 22-2（仕様決定 BB〜BE）で削除されたため廃止項目である。
+[test-specification-phase4.md](test-specification-phase4.md) §FIL の FIL-05（選択解除判定）は同番号の別対象で、`ItemDeselectTests` として現存する。
+
 razor の UI 状態遷移（カテゴリ select の切替、行ごとの独立状態、ListPane の合成絞り込み）は bUnit 未導入のため対象外とする（remaining-issues.md「Razor ページ内 UI 状態遷移のテスト空白」）。
 `dotnet test` は回帰確認として全件実行し、全緑であることを受け入れ条件とする。
 

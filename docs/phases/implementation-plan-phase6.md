@@ -15,7 +15,7 @@
   - ホーム `/`：マスタ JSON の読み込み（同梱のデプロイ済み・URL 指定・ファイル選択）、DataVersion の編集、整合性検証の実行と結果一覧、JSON エクスポート（ファイルダウンロード）
   - エンティティ編集ページ `/items`・`/facilities`・`/environments`・`/events`・`/recipes`：左ペイン一覧（検索・新規・削除）＋右ペイン編集フォーム
   - 計算プレビュー `/preview`：編集中データで Domain の計算を実行し、素材・設備・環境・電力・余剰・警告を表示する（投入データの妥当性確認用、要件 §7-3）
-- `EndfieldAicWeb.Application` の管理用ユースケース群（§8）
+- `EndfieldAicWeb.Application` の管理用ユースケース群（§7）
 - `EndfieldAicWeb.Admin` の構成変更
   - Infrastructure 参照の追加（`MasterJsonLoader`・`MasterExporter`）
   - `data/master.json`・`data/icons/` の同梱ターゲット（App と同じ方式。アイコン自体の取り込みは Phase 7）
