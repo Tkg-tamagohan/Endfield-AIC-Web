@@ -24,11 +24,12 @@
 - 種↔作物の正味増循環を解く計算拡張（仕様決定 AQ・AR。ループゲイン 1 未満の循環は解放反復で外部投入なしの定常解を求め、初期在庫は対象外。炭塊・息壌への未充足波及を解消）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/51>
 - 公開版と管理ツールの計算ページ UI の共有化（Phase 22、仕様決定 BB〜BE。共有 RCL `EndfieldAicWeb.SharedUi` へ計算パネルを集約し、Admin 側もグラフ表示・「天然資源」表記・イベント注記を統一）: 計画 <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/55>・22-1 移設 <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/56>・22-2 差異統一 <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/57>
 - 管理ツールの Pages プレビュードメイン（`*.endfield-aic-admin.pages.dev`）の Access 保護: Cloudflare Access 側で対応（2026-10-02）
+- ペア選択候補ラベルの重複（仕様決定 BN。`Description` 非空のレシピは計算ページのレシピ名表示箇所すべてで「名前（説明）」に併記し、炭塊の 2 経路を識別可能にした）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/TODO>
 
 ## 残っている項目
 
 以下は引き続き対応を先送りした項目である。
-構造の整合性や保守性に関わるものが中心だが、ペア選択候補ラベルの重複のようにユーザー向けの影響を伴う未決事項も含む。
+構造の整合性や保守性に関わるものが中心である。
 
 ### エンティティの不変化への移行
 
@@ -51,13 +52,6 @@ Phase 22 で計算ページは共有 RCL `EndfieldAicWeb.SharedUi` へ集約し�
 管理ツールの `ItemPicker`・`RefSelect`・`SelectOption` は編集系ページで継続して使っており、共有ライブラリへの移設も「実施時の判断」とされた末、編集系ページへの波及が大きいため見送られた（phase22 計画 §6）。
 計算パネルの生産行はネイティブ select の独自マークアップを維持しており、`ItemPicker` 系との二系統が残っている。
 再検討の条件は「編集系ページの仕様変更が入った時点」とする。
-
-### ペア選択候補ラベルの重複
-
-共有 `CalculatorPanel` の `OptionLabel` は「レシピ名 ／ 設備名 N秒・環境名・固定消費・（既定）」を返す。
-炭塊の 2 経路（`recipe-carbon03`・`recipe-carbon04`）は同名・同設備・同サイクルでラベルが同文になり、既定側の「（既定）」だけが差異になる。
-ユーザーが両候補を区別できない実害があるため、識別情報の追加が必要だった。
-仕様決定 BN で解決方針が確定した: `Description` が空でないレシピは、計算ページのレシピ名表示箇所すべて（ペア選択候補ラベル・供給内訳・流量調整ヒント）で「名前（説明）」と併記する。Phase 25 で実装予定。
 
 ### 「採取素材」と「天然資源」の適用範囲
 
