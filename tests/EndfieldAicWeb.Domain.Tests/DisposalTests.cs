@@ -452,11 +452,12 @@ public class DisposalTests
             Assert.Single(plan.Surpluses, s => s.ItemId == "i-sew").ExcessPerMinute, 6);
     }
 
-    [Fact(DisplayName = "DSP-24: 計算目標のアイテムは処理入力にもならない")]
-    public void TargetInputIsNotConsumedByDisposal()
+    [Fact(DisplayName = "DSP-24: 計算目標のアイテムは処理対象にならず補助入力として需要計上")]
+    public void TargetInputIsAuxiliaryNotDisposalTarget()
     {
-        // 処理レシピの入力に計算目標のアイテムが混ざる構成。i-aux は r-m の副産物でも
-        // 供給されるため余剰 20 を持つが、目標アイテムは処理対象にも補助入力にもならない（CA）。
+        // 処理レシピの入力に計算目標のアイテムが混ざる構成。i-aux は目標のため処理対象の
+        // 起点・上限・確定から外れるが（CA）、処理レシピの入力として消費予定は計上される
+        // （補助入力と同型の帳簿付け。Devin Review の指摘に基づく暫定解釈）。
         MasterDataSnapshot master = F.Snapshot(
             [F.Item("i-ore", "採取素材", TransportKind.Belt, null, true),
              F.Item("i-p"), F.Item("i-sew"), F.Item("i-aux")],
@@ -470,13 +471,43 @@ public class DisposalTests
 
         ProductionPlan plan = F.Run(master, [("i-p", 30.0), ("i-aux", 10.0)]);
 
-        // i-sew の残り余剰 30 だけが上限を決め、目標 i-aux は消費も確定もされない。
-        Assert.Equal(30.0, Assert.Single(plan.RecipeRuns, r => r.RecipeId == "r-disp").CyclesPerMinute, 6);
+        // i-sew の残り余剰 30 だけが上限を決める。i-aux の需要は目標 10 + 処理 30 = 40
+        // となり、副産物 30 + r-auxp 10 で充足される（処理需要による生産が許容される）。
+        Assert.Equal(30.0,
+            Assert.Single(plan.RecipeRuns, r => r.RecipeId == "r-disp").CyclesPerMinute, 6);
         ItemRequirement aux = Assert.Single(plan.ItemRequirements, r => r.ItemId == "i-aux");
-        Assert.Equal(10.0, aux.RequiredPerMinute, 6);
-        Assert.Equal(20.0,
-            Assert.Single(plan.Surpluses, s => s.ItemId == "i-aux").ExcessPerMinute, 6);
+        Assert.Equal(40.0, aux.RequiredPerMinute, 6);
+        Assert.Equal(0.0, aux.UnmetPerMinute, 6);
+        Assert.Contains(plan.RecipeRuns, r => r.RecipeId == "r-auxp");
+        Assert.DoesNotContain(plan.Surpluses, s => s.ItemId == "i-aux");
         Assert.DoesNotContain(plan.Surpluses, s => s.ItemId == "i-sew");
+    }
+
+    [Fact(DisplayName = "DSP-25: 非有効イベント所属の処理入力は未充足と警告")]
+    public void InactiveInputIsUnmetWithWarning()
+    {
+        // i-sew の余剰が処理ランを駆動し、入力の i-inact は非有効イベント所属。
+        // 上限・確定の対象にはしないが需要は計上され、通常の展開で未充足＋警告になる
+        // （Devin Review の指摘に基づく暫定解釈）。
+        MasterDataSnapshot master = F.Snapshot(
+            [F.Item("i-ore", "採取素材", TransportKind.Belt, null, true), F.Item("i-p"),
+             F.Item("i-sew"), F.Item("i-inact", "触媒", TransportKind.Belt, "ev-off")],
+            [F.Facility("f-asm"), F.Facility("f-trt")],
+            [
+                F.Recipe("r-m", "f-asm", 4.0, [("i-ore", 1.0)], [("i-p", 1.0), ("i-sew", 1.0)]),
+                F.Recipe("r-disp", "f-trt", 4.0, [("i-sew", 1.0), ("i-inact", 1.0)], []),
+            ],
+            gameEvents: [F.GameEvent("ev-off")]);
+
+        ProductionPlan plan = F.Run(master, [("i-p", 30.0)]);
+
+        // i-sew の残り余剰 30 で 30 サイクル。i-inact は需要 30 が未充足になる。
+        Assert.Equal(30.0,
+            Assert.Single(plan.RecipeRuns, r => r.RecipeId == "r-disp").CyclesPerMinute, 6);
+        ItemRequirement inact = Assert.Single(plan.ItemRequirements, r => r.ItemId == "i-inact");
+        Assert.Equal(30.0, inact.RequiredPerMinute, 6);
+        Assert.Equal(30.0, inact.UnmetPerMinute, 6);
+        Assert.Contains(plan.Warnings, w => w.Code == WarningCode.EventItemUnavailable);
     }
 
     [Fact(DisplayName = "DSP-22: 補助入力の不足で処理が止まらない")]
