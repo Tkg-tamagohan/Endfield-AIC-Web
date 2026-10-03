@@ -1,6 +1,7 @@
 using System.Globalization;
 using EndfieldAicWeb.Domain.Calculation;
 using EndfieldAicWeb.Domain.Models;
+using EndfieldAicWeb.Domain.Validation;
 using DomainEnv = EndfieldAicWeb.Domain.Models.Environment;
 
 namespace EndfieldAicWeb.Application;
@@ -90,7 +91,7 @@ public static class CalculationInputBuilder
             if (!double.TryParse(row.RateText, NumberStyles.Float, CultureInfo.InvariantCulture, out double rate)
                 || !double.IsFinite(rate) || rate <= 0)
             {
-                error = $"{item.Name} の数量を 0 より大きい数値で入力してください。";
+                error = $"{EntityDisplay.Format(item.Name, item.Id)} の数量を 0 より大きい数値で入力してください。";
                 return false;
             }
 
@@ -129,7 +130,7 @@ public static class CalculationInputBuilder
             if (!int.TryParse(row.CountText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int count)
                 || count < row.Min || count > row.Max)
             {
-                error = $"{row.EnvName} の散布機台数は {row.Min}〜{row.Max} の整数で入力してください。";
+                error = $"{EntityDisplay.Format(row.EnvName, row.EnvId)} の散布機台数は {row.Min}〜{row.Max} の整数で入力してください。";
                 return false;
             }
 
@@ -218,14 +219,14 @@ public static class CalculationInputBuilder
 
             if (!snapshot.ItemsById.TryGetValue(row.ItemId, out Item? item) || !item.IsGatherable)
             {
-                error = $"{row.ItemName} は採取素材ではありません。";
+                error = $"{EntityDisplay.Format(item?.Name ?? row.ItemName, row.ItemId)} は採取素材ではありません。";
                 return false;
             }
 
             if (!double.TryParse(row.RateText, NumberStyles.Float, CultureInfo.InvariantCulture, out double rate)
                 || !double.IsFinite(rate) || rate < 0)
             {
-                error = $"{row.ItemName} の利用可能レートは 0 以上の数値で入力してください。";
+                error = $"{EntityDisplay.Format(item.Name, item.Id)} の利用可能レートは 0 以上の数値で入力してください。";
                 return false;
             }
 

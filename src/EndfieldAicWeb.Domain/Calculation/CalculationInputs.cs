@@ -66,6 +66,7 @@ public sealed class MasterDataSnapshot
     private readonly IReadOnlyDictionary<string, Environment> _environmentsById = new Dictionary<string, Environment>(StringComparer.Ordinal);
     private readonly IReadOnlyDictionary<string, Recipe> _recipesById = new Dictionary<string, Recipe>(StringComparer.Ordinal);
     private readonly IReadOnlyDictionary<string, GameMap> _mapsById = new Dictionary<string, GameMap>(StringComparer.Ordinal);
+    private readonly IReadOnlyDictionary<string, GameEvent> _gameEventsById = new Dictionary<string, GameEvent>(StringComparer.Ordinal);
     private readonly IReadOnlyDictionary<string, IReadOnlyList<Recipe>> _recipesByOutputItemId = new Dictionary<string, IReadOnlyList<Recipe>>(StringComparer.Ordinal);
     private readonly IReadOnlyDictionary<string, IReadOnlyList<Recipe>> _disposalRecipesByInputItemId = new Dictionary<string, IReadOnlyList<Recipe>>(StringComparer.Ordinal);
 
@@ -112,6 +113,8 @@ public sealed class MasterDataSnapshot
         {
             ArgumentNullException.ThrowIfNull(value);
             _gameEvents = Array.AsReadOnly(value.ToArray());
+            _gameEventsById = new ReadOnlyDictionary<string, GameEvent>(
+                _gameEvents.ToDictionary(e => e.Id, StringComparer.Ordinal));
         }
     }
 
@@ -155,6 +158,9 @@ public sealed class MasterDataSnapshot
 
     /// <summary>MapId → GameMap。</summary>
     public IReadOnlyDictionary<string, GameMap> MapsById => _mapsById;
+
+    /// <summary>GameEventId → GameEvent。</summary>
+    public IReadOnlyDictionary<string, GameEvent> GameEventsById => _gameEventsById;
 
     /// <summary>出力アイテム Id → そのアイテムを出力するレシピ一覧。</summary>
     public IReadOnlyDictionary<string, IReadOnlyList<Recipe>> RecipesByOutputItemId => _recipesByOutputItemId;

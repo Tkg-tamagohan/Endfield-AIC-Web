@@ -1,4 +1,5 @@
 using EndfieldAicWeb.Domain.Models;
+using EndfieldAicWeb.Domain.Validation;
 using Environment = EndfieldAicWeb.Domain.Models.Environment;
 
 namespace EndfieldAicWeb.Domain.Calculation;
@@ -14,6 +15,9 @@ internal sealed class CalculationSession
     private readonly IReadOnlyList<PairOverride> _overrides;
     private readonly IReadOnlyList<EnvironmentCountOverride> _environmentOverrides;
     private readonly IReadOnlyList<GatherRateOverride> _gatherOverrides;
+
+    /// <summary>警告文面のエンティティ参照を `名前（Id）` へ整形する解決器（仕様決定 CF）。</summary>
+    private readonly EntityDisplay _display;
 
     /// <summary>採取素材ごとの有効採取上限（個/分、PositiveInfinity は上限なし）。構築時に一度だけ解決する。</summary>
     private readonly Dictionary<string, double> _gatherCaps;
@@ -112,6 +116,7 @@ internal sealed class CalculationSession
         _overrides = overrides;
         _environmentOverrides = environmentOverrides;
         _gatherOverrides = gatherOverrides;
+        _display = new EntityDisplay(master);
         _gatherCaps = GatherCapResolver.Resolve(master, context, gatherOverrides, Warnings);
 
         // 散布機台数の上書きを機械数上限へ展開する（仕様決定 BR）。
@@ -249,7 +254,7 @@ internal sealed class CalculationSession
             {
                 Warnings.Add(new CalculationWarning(
                     WarningCode.GatherCapExceeded,
-                    $"アイテム {itemId} の需要が採取上限（{_gatherCaps.GetValueOrDefault(itemId):0.###} 個/分）を超え、代替レシピもないため {unmet:0.###} 個/分が不足します。"));
+                    $"アイテム {_display.Item(itemId)} の需要が採取上限（{_gatherCaps.GetValueOrDefault(itemId):0.###} 個/分）を超え、代替レシピもないため {unmet:0.###} 個/分が不足します。"));
             }
         }
 
@@ -275,7 +280,7 @@ internal sealed class CalculationSession
                 double cap = _envCaps.GetValueOrDefault(envId);
                 Warnings.Add(new CalculationWarning(
                     WarningCode.EnvironmentCoverageExceeded,
-                    $"環境 {envId} の散布機がカバーできる機械数（{cap:0.###} 機）を超える {effectiveMachines:0.###} 機分の生産が未充足です。"));
+                    $"環境 {_display.Environment(envId)} の散布機がカバーできる機械数（{cap:0.###} 機）を超える {effectiveMachines:0.###} 機分の生産が未充足です。"));
             }
         }
     }
@@ -657,7 +662,7 @@ internal sealed class CalculationSession
                 AddUnmet(itemId, need);
                 Warnings.Add(new CalculationWarning(
                     WarningCode.EventItemUnavailable,
-                    $"アイテム {itemId} はイベント {_master.ItemsById[itemId].GameEventId} が有効でないため生産・調達できません。"));
+                    $"アイテム {_display.Item(itemId)} はイベント {_display.GameEvent(_master.ItemsById[itemId].GameEventId!)} が有効でないため生産・調達できません。"));
             }
 
             return;
@@ -722,7 +727,7 @@ internal sealed class CalculationSession
                 {
                     Warnings.Add(new CalculationWarning(
                         WarningCode.PairConflict,
-                        $"アイテム {itemId} のレシピ {selection.Recipe.Id} には既に別のペアが稼働中のため、先に確定したペア（{running.Pair.FacilityId}）を採用します。"));
+                        $"アイテム {_display.Item(itemId)} のレシピ {_display.Recipe(selection.Recipe.Id)} には既に別のペアが稼働中のため、先に確定したペア（{_display.Facility(running.Pair.FacilityId)}）を採用します。"));
                 }
 
                 selection = running;
@@ -742,7 +747,7 @@ internal sealed class CalculationSession
             {
                 Warnings.Add(new CalculationWarning(
                     WarningCode.NoRecipeAvailable,
-                    $"アイテム {itemId} を生産できるレシピがありません。"));
+                    $"アイテム {_display.Item(itemId)} を生産できるレシピがありません。"));
             }
 
             return;
@@ -758,7 +763,7 @@ internal sealed class CalculationSession
             AddUnmet(itemId, remainder);
             Warnings.Add(new CalculationWarning(
                 WarningCode.NoRecipeAvailable,
-                $"アイテム {itemId} のレシピ {recipe.Id} の出力数量が 0 以下のため生産できません。"));
+                $"アイテム {_display.Item(itemId)} のレシピ {_display.Recipe(recipe.Id)} の出力数量が 0 以下のため生産できません。"));
             return;
         }
 
@@ -840,7 +845,7 @@ internal sealed class CalculationSession
             gain *= inputQty / outputQty;
         }
 
-        string path = string.Join(" → ", _stack.Skip(cycleStart).Append(itemId));
+        string path = string.Join(" → ", _stack.Skip(cycleStart).Append(itemId).Select(_display.Item));
         string firstHop = cycleStart + 1 < _stack.Count ? _stack[cycleStart + 1] : itemId;
         if (!_cycleDetections.TryGetValue(itemId, out List<CycleDetection>? detections))
         {
@@ -1112,7 +1117,7 @@ internal sealed class CalculationSession
             {
                 Warnings.Add(new CalculationWarning(
                     WarningCode.InvalidEnvironmentOverride,
-                    $"環境 {envId} の散布機台数の上書きが負のため既定値を使います: {envOverride.Count}"));
+                    $"環境 {_display.Environment(envId)} の散布機台数の上書きが負のため既定値を使います: {envOverride.Count}"));
             }
 
             dispenserCountByEnv[envId] = envOverride is { Count: >= 0 }
@@ -1126,7 +1131,7 @@ internal sealed class CalculationSession
             {
                 Warnings.Add(new CalculationWarning(
                     WarningCode.InvalidEnvironmentOverride,
-                    $"散布機台数の上書きが存在しない環境を指しています: {envOverride.EnvironmentId}"));
+                    $"散布機台数の上書きが存在しない環境を指しています: {_display.Environment(envOverride.EnvironmentId)}"));
             }
         }
 

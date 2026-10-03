@@ -114,4 +114,65 @@ public class WarningTests
 
         Assert.Empty(plan.Warnings);
     }
+
+    [Fact(DisplayName = "WRN-09: 警告文のアイテム参照が名前（Id）表記（CF）")]
+    public void NoRecipeWarningUsesNameWithId()
+    {
+        MasterDataSnapshot master = F.Snapshot(
+            [F.Item("i-x", name: "加工部品")], [], []);
+
+        ProductionPlan plan = F.Run(master, [("i-x", 10.0)]);
+
+        CalculationWarning warning =
+            Assert.Single(plan.Warnings, w => w.Code == WarningCode.NoRecipeAvailable);
+        Assert.Contains("アイテム", warning.Message);
+        Assert.Contains("加工部品（i-x）", warning.Message);
+    }
+
+    [Fact(DisplayName = "WRN-10: 存在しない参照は Id のみ表示（CF フォールバック）")]
+    public void UnresolvedReferenceFallsBackToIdOnly()
+    {
+        ProductionPlan plan = F.Run(
+            F.F01(), [("i-part", 30.0)],
+            environmentOverrides: [new EnvironmentCountOverride("env-none", 2)]);
+
+        CalculationWarning warning =
+            Assert.Single(plan.Warnings, w => w.Code == WarningCode.InvalidEnvironmentOverride);
+        Assert.Contains("env-none", warning.Message);
+        Assert.DoesNotContain("（", warning.Message);
+    }
+
+    [Fact(DisplayName = "WRN-11: 循環パスの各要素が名前（Id）表記（CF）")]
+    public void CyclePathElementsUseNameWithId()
+    {
+        MasterDataSnapshot master = F.Snapshot(
+            [F.Item("i-a", name: "アイテムA"), F.Item("i-b", name: "アイテムB")],
+            [F.Facility("f-cyc")],
+            [
+                F.Recipe("r-cyc-a", "f-cyc", 6.0, [("i-b", 1.0)], [("i-a", 1.0)]),
+                F.Recipe("r-cyc-b", "f-cyc", 6.0, [("i-a", 1.0)], [("i-b", 1.0)]),
+            ]);
+
+        ProductionPlan plan = F.Run(master, [("i-a", 10.0)]);
+
+        CalculationWarning warning =
+            Assert.Single(plan.Warnings, w => w.Code == WarningCode.CycleDetected);
+        Assert.Contains("アイテムA（i-a） → アイテムB（i-b） → アイテムA（i-a）", warning.Message);
+    }
+
+    [Fact(DisplayName = "WRN-12: イベント参照が名前（Id）で解決される（CF）")]
+    public void EventReferenceUsesNameWithId()
+    {
+        MasterDataSnapshot master = F.Snapshot(
+            [F.Item("i-ltd", "部品", TransportKind.Belt, "ev-ltd", name: "限定部品")],
+            [],
+            [],
+            gameEvents: [F.GameEvent("ev-ltd", name: "期間限定イベント")]);
+
+        ProductionPlan plan = F.Run(master, [("i-ltd", 10.0)]);
+
+        CalculationWarning warning =
+            Assert.Single(plan.Warnings, w => w.Code == WarningCode.EventItemUnavailable);
+        Assert.Contains("期間限定イベント（ev-ltd）", warning.Message);
+    }
 }

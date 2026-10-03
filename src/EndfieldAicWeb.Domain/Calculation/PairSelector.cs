@@ -1,4 +1,5 @@
 using EndfieldAicWeb.Domain.Models;
+using EndfieldAicWeb.Domain.Validation;
 using Environment = EndfieldAicWeb.Domain.Models.Environment;
 
 namespace EndfieldAicWeb.Domain.Calculation;
@@ -34,6 +35,7 @@ public static class PairSelector
         ArgumentNullException.ThrowIfNull(overrides);
 
         var warnings = new List<CalculationWarning>();
+        var display = new EntityDisplay(master);
 
         IEnumerable<Recipe> candidates = master.RecipesByOutputItemId.TryGetValue(itemId, out IReadOnlyList<Recipe>? list)
             ? list.Where(r => IsEventEligible(r.GameEventId, context))
@@ -52,7 +54,7 @@ public static class PairSelector
 
             warnings.Add(new CalculationWarning(
                 WarningCode.InvalidPairOverride,
-                $"アイテム {itemId} に指定されたペア（{pairOverride.RecipeId} / {pairOverride.FacilityId}）は選択できないため、デフォルト選択へフォールバックします。"));
+                $"アイテム {display.Item(itemId)} に指定されたペア（{display.Recipe(pairOverride.RecipeId)} / {display.Facility(pairOverride.FacilityId)}）は選択できないため、デフォルト選択へフォールバックします。"));
         }
 
         foreach (Recipe recipe in ordered)
@@ -147,7 +149,7 @@ public static class PairSelector
         return candidates
             .Select(r => (
                 Recipe: r,
-                Version: ParseVersionOrOldest(r.Id, r.VersionAdded, warnings),
+                Version: ParseVersionOrOldest(r.Id, r.VersionAdded, master, warnings),
                 Rate: EffectiveRate(r, itemId, master, context)))
             .OrderByDescending(t => t.Version is not null)
             .ThenByDescending(t => t.Version)
@@ -191,6 +193,7 @@ public static class PairSelector
     private static SemVersion? ParseVersionOrOldest(
         string recipeId,
         string? versionText,
+        MasterDataSnapshot master,
         ICollection<CalculationWarning> warnings)
     {
         if (SemVersion.TryParse(versionText, out SemVersion parsed))
@@ -198,9 +201,10 @@ public static class PairSelector
             return parsed;
         }
 
+        var display = new EntityDisplay(master);
         warnings.Add(new CalculationWarning(
             WarningCode.InvalidVersionString,
-            $"レシピ {recipeId} の VersionAdded {versionText} は semver としてパースできないため、最古として扱います。"));
+            $"レシピ {display.Recipe(recipeId)} の VersionAdded {versionText} は semver としてパースできないため、最古として扱います。"));
         return null;
     }
 

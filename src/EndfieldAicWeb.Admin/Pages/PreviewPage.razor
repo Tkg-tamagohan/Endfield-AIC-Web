@@ -11,7 +11,7 @@ else if (_snapshotErrors.Count > 0)
 {
     <section class="panel">
         <h2 class="panel-title">文書に違反があるため計算できません（@_snapshotErrors.Count 件）</h2>
-        <ValidationErrorList Errors="_snapshotErrors" />
+        <ValidationErrorList Errors="_snapshotErrors" Document="Store.Document" />
     </section>
 }
 else

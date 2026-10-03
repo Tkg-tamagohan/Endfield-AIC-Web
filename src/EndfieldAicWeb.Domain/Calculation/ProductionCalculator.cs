@@ -1,4 +1,5 @@
 using EndfieldAicWeb.Domain.Models;
+using EndfieldAicWeb.Domain.Validation;
 
 namespace EndfieldAicWeb.Domain.Calculation;
 
@@ -32,17 +33,18 @@ public static class ProductionCalculator
         ArgumentNullException.ThrowIfNull(environmentOverrides);
         ArgumentNullException.ThrowIfNull(gatherOverrides);
 
+        var display = new EntityDisplay(master);
         foreach (ProductionTarget target in targets)
         {
             if (target.RatePerMinute <= 0 || !double.IsFinite(target.RatePerMinute))
             {
                 throw new ArgumentException(
-                    $"目標の RatePerMinute は正の有限値である必要があります: {target.ItemId} = {target.RatePerMinute}");
+                    $"目標の RatePerMinute は正の有限値である必要があります: {display.Item(target.ItemId)} = {target.RatePerMinute}");
             }
 
             if (!master.ItemsById.ContainsKey(target.ItemId))
             {
-                throw new ArgumentException($"目標のアイテムがマスタに存在しません: {target.ItemId}");
+                throw new ArgumentException($"目標のアイテムがマスタに存在しません: {display.Item(target.ItemId)}");
             }
         }
 

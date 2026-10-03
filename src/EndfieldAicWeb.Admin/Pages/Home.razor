@@ -44,7 +44,7 @@
         <ul class="error-list">
             @foreach (MasterValidationError err in Store.LoadErrors)
             {
-                <li>@err.EntityKind @err.EntityId @err.Field — @err.Message</li>
+                <li>@err.EntityKind @EntityText(err) @err.Field — @err.Message</li>
             }
         </ul>
     }
@@ -108,7 +108,7 @@
         </div>
         @if (Store.ValidationErrors.Count > 0)
         {
-            <ValidationErrorList Errors="Store.ValidationErrors" />
+            <ValidationErrorList Errors="Store.ValidationErrors" Document="Store.Document" />
         }
     </section>
 
@@ -257,6 +257,15 @@
     }
 
     private void RunValidation() => Store.Validate();
+
+    private EntityDisplay? _display;
+
+    /// <summary>違反行のエンティティ参照を `名前（Id）` へ整形する（仕様決定 CF）。文書未取得時は Id のみ。</summary>
+    private string EntityText(MasterValidationError err)
+    {
+        _display ??= Store.Document is { } doc ? new EntityDisplay(doc) : null;
+        return _display?.For(err.EntityKind, err.EntityId) ?? err.EntityId;
+    }
 
     private async Task ExportZip()
     {

@@ -1,4 +1,5 @@
 @page "/"
+@using EndfieldAicWeb.Domain.Validation
 @inject MasterDataService MasterData
 @inject IconCatalog Icons
 
@@ -21,7 +22,7 @@
             <ul class="error-list">
                 @foreach (var err in MasterData.Errors)
                 {
-                    <li>@err.EntityKind @err.EntityId @err.Field — @err.Message</li>
+                    <li>@err.EntityKind @EntityText(err) @err.Field — @err.Message</li>
                 }
             </ul>
         </section>
@@ -47,4 +48,13 @@ else
     private MasterDataSnapshot? GetSnapshot() => MasterData.Snapshot;
 
     private string VersionLabel => $"データ版 {MasterData.Document?.DataVersion}";
+
+    private EntityDisplay? _display;
+
+    /// <summary>エラーのエンティティ参照を `名前（Id）` へ整形する（仕様決定 CF）。文書未取得時は Id のみ。</summary>
+    private string EntityText(MasterValidationError err)
+    {
+        _display ??= MasterData.Document is { } doc ? new EntityDisplay(doc) : null;
+        return _display?.For(err.EntityKind, err.EntityId) ?? err.EntityId;
+    }
 }

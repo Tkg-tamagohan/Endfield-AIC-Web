@@ -1,4 +1,5 @@
 using EndfieldAicWeb.Domain.Models;
+using EndfieldAicWeb.Domain.Validation;
 
 namespace EndfieldAicWeb.Domain.Calculation;
 
@@ -32,7 +33,7 @@ internal static class DisposalSelector
         List<Recipe> ordered = candidates
             .Select(r => (
                 Recipe: r,
-                Version: ParseVersionOrOldest(r.Id, r.VersionAdded, warnings),
+                Version: ParseVersionOrOldest(r.Id, r.VersionAdded, master, warnings),
                 Rate: EffectiveDisposalRate(r, itemId, master, context)))
             .OrderByDescending(t => t.Version is not null)
             .ThenByDescending(t => t.Version)
@@ -87,6 +88,7 @@ internal static class DisposalSelector
     private static SemVersion? ParseVersionOrOldest(
         string recipeId,
         string? versionText,
+        MasterDataSnapshot master,
         ICollection<CalculationWarning> warnings)
     {
         if (SemVersion.TryParse(versionText, out SemVersion parsed))
@@ -94,9 +96,10 @@ internal static class DisposalSelector
             return parsed;
         }
 
+        var display = new EntityDisplay(master);
         warnings.Add(new CalculationWarning(
             WarningCode.InvalidVersionString,
-            $"レシピ {recipeId} の VersionAdded {versionText} は semver としてパースできないため、最古として扱います。"));
+            $"レシピ {display.Recipe(recipeId)} の VersionAdded {versionText} は semver としてパースできないため、最古として扱います。"));
         return null;
     }
 

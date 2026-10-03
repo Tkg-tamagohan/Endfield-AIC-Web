@@ -9,8 +9,11 @@ namespace EndfieldAicWeb.Domain.Validation;
 /// </summary>
 public static class MasterValidator
 {
-    /// <summary>単一 Item のフィールド内規則を検査する（参照整合性は含まない）。</summary>
-    public static void ValidateItem(Item item, ICollection<MasterValidationError> errors)
+    /// <summary>
+    /// 単一 Item のフィールド内規則を検査する（参照整合性は含まない）。
+    /// display は文面のエンティティ参照を `名前（Id）` へ整形する解決器（任意、省略時は Id のみ出力）。
+    /// </summary>
+    public static void ValidateItem(Item item, ICollection<MasterValidationError> errors, EntityDisplay? display = null)
     {
         ArgumentNullException.ThrowIfNull(item);
         ArgumentNullException.ThrowIfNull(errors);
@@ -20,8 +23,11 @@ public static class MasterValidator
         RequireEnum(item.TransportKind, "Item", item.Id, "TransportKind", errors);
     }
 
-    /// <summary>単一 Facility のフィールド内規則を検査する（参照整合性は含まない）。</summary>
-    public static void ValidateFacility(Facility facility, ICollection<MasterValidationError> errors)
+    /// <summary>
+    /// 単一 Facility のフィールド内規則を検査する（参照整合性は含まない）。
+    /// display は文面のエンティティ参照を `名前（Id）` へ整形する解決器（任意、省略時は Id のみ出力）。
+    /// </summary>
+    public static void ValidateFacility(Facility facility, ICollection<MasterValidationError> errors, EntityDisplay? display = null)
     {
         ArgumentNullException.ThrowIfNull(facility);
         ArgumentNullException.ThrowIfNull(errors);
@@ -50,8 +56,11 @@ public static class MasterValidator
         }
     }
 
-    /// <summary>単一 Environment のフィールド内規則を検査する（参照整合性は含まない）。</summary>
-    public static void ValidateEnvironment(Environment environment, ICollection<MasterValidationError> errors)
+    /// <summary>
+    /// 単一 Environment のフィールド内規則を検査する（参照整合性は含まない）。
+    /// display は文面のエンティティ参照を `名前（Id）` へ整形する解決器（任意、省略時は Id のみ出力）。
+    /// </summary>
+    public static void ValidateEnvironment(Environment environment, ICollection<MasterValidationError> errors, EntityDisplay? display = null)
     {
         ArgumentNullException.ThrowIfNull(environment);
         ArgumentNullException.ThrowIfNull(errors);
@@ -77,8 +86,11 @@ public static class MasterValidator
         }
     }
 
-    /// <summary>単一 GameEvent のフィールド内規則を検査する。</summary>
-    public static void ValidateGameEvent(GameEvent gameEvent, ICollection<MasterValidationError> errors)
+    /// <summary>
+    /// 単一 GameEvent のフィールド内規則を検査する。
+    /// display は文面のエンティティ参照を `名前（Id）` へ整形する解決器（任意、省略時は Id のみ出力）。
+    /// </summary>
+    public static void ValidateGameEvent(GameEvent gameEvent, ICollection<MasterValidationError> errors, EntityDisplay? display = null)
     {
         ArgumentNullException.ThrowIfNull(gameEvent);
         ArgumentNullException.ThrowIfNull(errors);
@@ -101,11 +113,15 @@ public static class MasterValidator
         }
     }
 
-    /// <summary>単一 Recipe のフィールド内規則を検査する（参照整合性は ValidateAll）。</summary>
-    public static void ValidateRecipe(Recipe recipe, ICollection<MasterValidationError> errors)
+    /// <summary>
+    /// 単一 Recipe のフィールド内規則を検査する（参照整合性は ValidateAll）。
+    /// display は文面のエンティティ参照を `名前（Id）` へ整形する解決器（任意、省略時は Id のみ出力）。
+    /// </summary>
+    public static void ValidateRecipe(Recipe recipe, ICollection<MasterValidationError> errors, EntityDisplay? display = null)
     {
         ArgumentNullException.ThrowIfNull(recipe);
         ArgumentNullException.ThrowIfNull(errors);
+        EntityDisplay resolver = display ?? EntityDisplay.Empty;
 
         CheckCommonFields(recipe, "Recipe", errors);
 
@@ -135,13 +151,13 @@ public static class MasterValidator
             }
         }
 
-        ValidateRecipeItems(recipe.Inputs, i => i.ItemId, i => i.Quantity, recipe.Id, "Inputs", errors);
-        ValidateRecipeItems(recipe.Outputs, o => o.ItemId, o => o.Quantity, recipe.Id, "Outputs", errors);
-        ValidatePairs(recipe, errors);
+        ValidateRecipeItems(recipe.Inputs, i => i.ItemId, i => i.Quantity, recipe.Id, "Inputs", errors, resolver);
+        ValidateRecipeItems(recipe.Outputs, o => o.ItemId, o => o.Quantity, recipe.Id, "Outputs", errors, resolver);
+        ValidatePairs(recipe, errors, resolver);
     }
 
     /// <summary>レシピのペア一覧のフィールド内規則と一意性（仕様決定 P）を検査する。</summary>
-    private static void ValidatePairs(Recipe recipe, ICollection<MasterValidationError> errors)
+    private static void ValidatePairs(Recipe recipe, ICollection<MasterValidationError> errors, EntityDisplay display)
     {
         if (recipe.Facilities is null)
         {
@@ -165,7 +181,7 @@ public static class MasterValidator
             {
                 errors.Add(new MasterValidationError(
                     "Recipe", recipe.Id, $"{name}.RecipeId",
-                    $"{name}.RecipeId は所属レシピの Id と一致する必要があります: {pair.RecipeId} != {recipe.Id}"));
+                    $"{name}.RecipeId は所属レシピの Id と一致する必要があります: {display.Recipe(pair.RecipeId)} != {display.Recipe(recipe.Id)}"));
             }
 
             if (!double.IsFinite(pair.CycleTime) || pair.CycleTime <= 0)
@@ -209,16 +225,20 @@ public static class MasterValidator
             {
                 errors.Add(new MasterValidationError(
                     "Recipe", recipe.Id, "Facilities",
-                    $"Facilities に全要素が一致するペアの重複があります: {pair.FacilityId} / {pair.CycleTime}s / 環境={pair.EnvironmentId ?? "なし"}"));
+                    $"Facilities に全要素が一致するペアの重複があります: {display.Facility(pair.FacilityId)} / {pair.CycleTime}s / 環境={(pair.EnvironmentId is { } envId ? display.Environment(envId) : "なし")}"));
             }
         }
     }
 
-    /// <summary>単一 GameMap のフィールド内規則を検査する（参照整合性は ValidateAll）。</summary>
-    public static void ValidateGameMap(GameMap map, ICollection<MasterValidationError> errors)
+    /// <summary>
+    /// 単一 GameMap のフィールド内規則を検査する（参照整合性は ValidateAll）。
+    /// display は文面のエンティティ参照を `名前（Id）` へ整形する解決器（任意、省略時は Id のみ出力）。
+    /// </summary>
+    public static void ValidateGameMap(GameMap map, ICollection<MasterValidationError> errors, EntityDisplay? display = null)
     {
         ArgumentNullException.ThrowIfNull(map);
         ArgumentNullException.ThrowIfNull(errors);
+        EntityDisplay resolver = display ?? EntityDisplay.Empty;
 
         CheckCommonFields(map, "GameMap", errors);
 
@@ -253,7 +273,7 @@ public static class MasterValidator
                 {
                     errors.Add(new MasterValidationError(
                         "GameMap", map.Id, "GatherRates",
-                        $"GatherRates に同一アイテムが重複しています: {rate.ItemId}"));
+                        $"GatherRates に同一アイテムが重複しています: {resolver.Item(rate.ItemId)}"));
                 }
             }
 
@@ -279,7 +299,8 @@ public static class MasterValidator
         Func<T, double> quantityOf,
         string recipeId,
         string memberName,
-        ICollection<MasterValidationError> errors)
+        ICollection<MasterValidationError> errors,
+        EntityDisplay display)
     {
         if (items is null)
         {
@@ -305,7 +326,7 @@ public static class MasterValidator
                 {
                     errors.Add(new MasterValidationError(
                         "Recipe", recipeId, memberName,
-                        $"{memberName} に同一アイテムが重複しています: {itemId}"));
+                        $"{memberName} に同一アイテムが重複しています: {display.Item(itemId)}"));
                 }
             }
 
@@ -338,42 +359,44 @@ public static class MasterValidator
         ArgumentNullException.ThrowIfNull(maps);
         ArgumentNullException.ThrowIfNull(errors);
 
+        var display = new EntityDisplay(items, facilities, environments, recipes, maps, gameEvents);
+
         foreach (Item item in items)
         {
-            ValidateItem(item, errors);
+            ValidateItem(item, errors, display);
         }
 
         foreach (Facility facility in facilities)
         {
-            ValidateFacility(facility, errors);
+            ValidateFacility(facility, errors, display);
         }
 
         foreach (Environment environment in environments)
         {
-            ValidateEnvironment(environment, errors);
+            ValidateEnvironment(environment, errors, display);
         }
 
         foreach (GameEvent gameEvent in gameEvents)
         {
-            ValidateGameEvent(gameEvent, errors);
+            ValidateGameEvent(gameEvent, errors, display);
         }
 
         foreach (Recipe recipe in recipes)
         {
-            ValidateRecipe(recipe, errors);
+            ValidateRecipe(recipe, errors, display);
         }
 
         foreach (GameMap map in maps)
         {
-            ValidateGameMap(map, errors);
+            ValidateGameMap(map, errors, display);
         }
 
-        EnsureUniqueIds(items.Select(i => i.Id), "Items", errors);
-        EnsureUniqueIds(facilities.Select(f => f.Id), "Facilities", errors);
-        EnsureUniqueIds(environments.Select(e => e.Id), "Environments", errors);
-        EnsureUniqueIds(gameEvents.Select(e => e.Id), "GameEvents", errors);
-        EnsureUniqueIds(recipes.Select(r => r.Id), "Recipes", errors);
-        EnsureUniqueIds(maps.Select(m => m.Id), "Maps", errors);
+        EnsureUniqueIds(items.Select(i => i.Id), "Items", display, errors);
+        EnsureUniqueIds(facilities.Select(f => f.Id), "Facilities", display, errors);
+        EnsureUniqueIds(environments.Select(e => e.Id), "Environments", display, errors);
+        EnsureUniqueIds(gameEvents.Select(e => e.Id), "GameEvents", display, errors);
+        EnsureUniqueIds(recipes.Select(r => r.Id), "Recipes", display, errors);
+        EnsureUniqueIds(maps.Select(m => m.Id), "Maps", display, errors);
 
         var itemsById = new Dictionary<string, Item>(StringComparer.Ordinal);
         var facilityIds = new HashSet<string>(StringComparer.Ordinal);
@@ -413,7 +436,7 @@ public static class MasterValidator
 
         foreach (Item item in items)
         {
-            CheckGameEventRef("Item", item.Id, item.GameEventId, gameEventIds, errors);
+            CheckGameEventRef("Item", item.Id, item.GameEventId, gameEventIds, display, errors);
         }
 
         foreach (Environment environment in environments)
@@ -423,7 +446,7 @@ public static class MasterValidator
             {
                 errors.Add(new MasterValidationError(
                     "Environment", environment.Id, "ProviderFacilityId",
-                    $"ProviderFacilityId が参照する設備が存在しません: {environment.ProviderFacilityId}"));
+                    $"ProviderFacilityId が参照する設備が存在しません: {display.Facility(environment.ProviderFacilityId)}"));
             }
 
             if (!string.IsNullOrEmpty(environment.ConsumeItemId)
@@ -431,20 +454,20 @@ public static class MasterValidator
             {
                 errors.Add(new MasterValidationError(
                     "Environment", environment.Id, "ConsumeItemId",
-                    $"ConsumeItemId が参照するアイテムが存在しません: {environment.ConsumeItemId}"));
+                    $"ConsumeItemId が参照するアイテムが存在しません: {display.Item(environment.ConsumeItemId)}"));
             }
 
-            CheckGameEventRef("Environment", environment.Id, environment.GameEventId, gameEventIds, errors);
+            CheckGameEventRef("Environment", environment.Id, environment.GameEventId, gameEventIds, display, errors);
         }
 
         foreach (Recipe recipe in recipes)
         {
-            ValidateRecipeInContext(recipe, itemsById, facilityIds, environmentIds, gameEventIds, errors);
+            ValidateRecipeInContext(recipe, itemsById, facilityIds, environmentIds, gameEventIds, display, errors);
         }
 
         foreach (GameMap map in maps)
         {
-            ValidateGameMapInContext(map, itemsById, gameEventIds, errors);
+            ValidateGameMapInContext(map, itemsById, gameEventIds, display, errors);
         }
     }
 
@@ -452,9 +475,10 @@ public static class MasterValidator
         GameMap map,
         IReadOnlyDictionary<string, Item> itemsById,
         IReadOnlyCollection<string> gameEventIds,
+        EntityDisplay display,
         ICollection<MasterValidationError> errors)
     {
-        CheckGameEventRef("GameMap", map.Id, map.GameEventId, gameEventIds, errors);
+        CheckGameEventRef("GameMap", map.Id, map.GameEventId, gameEventIds, display, errors);
 
         if (map.GatherRates is null)
         {
@@ -474,13 +498,13 @@ public static class MasterValidator
             {
                 errors.Add(new MasterValidationError(
                     "GameMap", map.Id, field,
-                    $"GatherRates が参照するアイテムが存在しません: {rate.ItemId}"));
+                    $"GatherRates が参照するアイテムが存在しません: {display.Item(rate.ItemId)}"));
             }
             else if (!item.IsGatherable)
             {
                 errors.Add(new MasterValidationError(
                     "GameMap", map.Id, field,
-                    $"GatherRates が参照するアイテムは採取素材ではありません: {rate.ItemId}"));
+                    $"GatherRates が参照するアイテムは採取素材ではありません: {display.Item(rate.ItemId)}"));
             }
         }
     }
@@ -494,9 +518,10 @@ public static class MasterValidator
         IReadOnlyCollection<string> facilityIds,
         IReadOnlyCollection<string> environmentIds,
         IReadOnlyCollection<string> gameEventIds,
+        EntityDisplay display,
         ICollection<MasterValidationError> errors)
     {
-        CheckGameEventRef("Recipe", recipe.Id, recipe.GameEventId, gameEventIds, errors);
+        CheckGameEventRef("Recipe", recipe.Id, recipe.GameEventId, gameEventIds, display, errors);
 
         foreach (RecipeInput input in recipe.Inputs ?? [])
         {
@@ -504,7 +529,7 @@ public static class MasterValidator
             {
                 errors.Add(new MasterValidationError(
                     "Recipe", recipe.Id, "Inputs",
-                    $"Inputs が参照するアイテムが存在しません: {input.ItemId}"));
+                    $"Inputs が参照するアイテムが存在しません: {display.Item(input.ItemId)}"));
             }
         }
 
@@ -514,7 +539,7 @@ public static class MasterValidator
             {
                 errors.Add(new MasterValidationError(
                     "Recipe", recipe.Id, "Outputs",
-                    $"Outputs が参照するアイテムが存在しません: {output.ItemId}"));
+                    $"Outputs が参照するアイテムが存在しません: {display.Item(output.ItemId)}"));
             }
         }
 
@@ -524,14 +549,14 @@ public static class MasterValidator
             {
                 errors.Add(new MasterValidationError(
                     "Recipe", recipe.Id, "Facilities",
-                    $"Facilities の FacilityId が参照する設備が存在しません: {pair.FacilityId}"));
+                    $"Facilities の FacilityId が参照する設備が存在しません: {display.Facility(pair.FacilityId)}"));
             }
 
             if (!string.IsNullOrEmpty(pair.EnvironmentId) && !environmentIds.Contains(pair.EnvironmentId))
             {
                 errors.Add(new MasterValidationError(
                     "Recipe", recipe.Id, "Facilities",
-                    $"Facilities の EnvironmentId が参照する環境が存在しません: {pair.EnvironmentId}"));
+                    $"Facilities の EnvironmentId が参照する環境が存在しません: {display.Environment(pair.EnvironmentId)}"));
             }
 
             if (pair.FixedConsumption is FixedConsumption fixedConsumption
@@ -540,7 +565,7 @@ public static class MasterValidator
             {
                 errors.Add(new MasterValidationError(
                     "Recipe", recipe.Id, "Facilities",
-                    $"FixedConsumption.ItemId が参照するアイテムが存在しません: {fixedConsumption.ItemId}"));
+                    $"FixedConsumption.ItemId が参照するアイテムが存在しません: {display.Item(fixedConsumption.ItemId)}"));
             }
         }
 
@@ -554,7 +579,7 @@ public static class MasterValidator
             {
                 errors.Add(new MasterValidationError(
                     "Recipe", recipe.Id, "Inputs",
-                    $"Inputs に仮想アイテム（TransportKind.None）を含めることはできません: {input.ItemId}"));
+                    $"Inputs に仮想アイテム（TransportKind.None）を含めることはできません: {display.Item(input.ItemId)}"));
             }
         }
     }
@@ -612,6 +637,7 @@ public static class MasterValidator
         string entityId,
         string? gameEventId,
         IReadOnlyCollection<string> gameEventIds,
+        EntityDisplay display,
         ICollection<MasterValidationError> errors)
     {
         if (!string.IsNullOrEmpty(gameEventId))
@@ -621,7 +647,7 @@ public static class MasterValidator
             {
                 errors.Add(new MasterValidationError(
                     entityKind, entityId, "GameEventId",
-                    $"GameEventId が参照するイベントが存在しません: {gameEventId}"));
+                    $"GameEventId が参照するイベントが存在しません: {display.GameEvent(gameEventId)}"));
             }
         }
     }
@@ -692,6 +718,7 @@ public static class MasterValidator
     private static void EnsureUniqueIds(
         IEnumerable<string?> ids,
         string collectionName,
+        EntityDisplay display,
         ICollection<MasterValidationError> errors)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -700,7 +727,7 @@ public static class MasterValidator
             if (!string.IsNullOrEmpty(id) && !seen.Add(id))
             {
                 errors.Add(new MasterValidationError(
-                    collectionName, id!, "Id", $"{collectionName} に ID の重複があります: {id}"));
+                    collectionName, id!, "Id", $"{collectionName} に ID の重複があります: {display.For(collectionName, id!)}"));
             }
         }
     }

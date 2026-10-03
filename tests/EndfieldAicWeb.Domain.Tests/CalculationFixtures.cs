@@ -16,10 +16,11 @@ internal static class CalculationFixtures
         string category = "部品",
         TransportKind kind = TransportKind.Belt,
         string? gameEventId = null,
-        bool isGatherable = false) => new()
+        bool isGatherable = false,
+        string? name = null) => new()
     {
         Id = id,
-        Name = id,
+        Name = name ?? id,
         Category = category,
         TransportKind = kind,
         VersionAdded = "1.0.0",
@@ -27,10 +28,10 @@ internal static class CalculationFixtures
         IsGatherable = isGatherable,
     };
 
-    public static Facility Facility(string id, double powerConsumption = 0.0) => new()
+    public static Facility Facility(string id, double powerConsumption = 0.0, string? name = null) => new()
     {
         Id = id,
-        Name = id,
+        Name = name ?? id,
         Width = 1,
         Height = 1,
         PowerConsumption = powerConsumption,
@@ -43,10 +44,11 @@ internal static class CalculationFixtures
         string consumeItemId,
         double ratePerMinute,
         string? gameEventId = null,
-        int coverableMachines = 4) => new()
+        int coverableMachines = 4,
+        string? name = null) => new()
     {
         Id = id,
-        Name = id,
+        Name = name ?? id,
         ProviderFacilityId = providerFacilityId,
         ConsumeItemId = consumeItemId,
         ConsumeRatePerMinute = ratePerMinute,
@@ -116,10 +118,10 @@ internal static class CalculationFixtures
             versionRemoved,
             gameEventId);
 
-    public static GameEvent GameEvent(string id) => new()
+    public static GameEvent GameEvent(string id, string? name = null) => new()
     {
         Id = id,
-        Name = id,
+        Name = name ?? id,
         VersionAdded = "1.0.0",
     };
 
@@ -127,10 +129,11 @@ internal static class CalculationFixtures
     public static GameMap Map(
         string id,
         (string ItemId, bool IsUnlimited, double? Rate)[]? rows = null,
-        string? gameEventId = null) => new()
+        string? gameEventId = null,
+        string? name = null) => new()
     {
         Id = id,
-        Name = id,
+        Name = name ?? id,
         VersionAdded = "1.0.0",
         GameEventId = gameEventId,
         GatherRates = (rows ?? [])
