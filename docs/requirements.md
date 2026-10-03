@@ -186,9 +186,11 @@ erDiagram
 |------|-----|------|
 | （共通属性） | — | 5.2 参照 |
 | Inputs | RecipeInput[] | 素材（ItemId＋個数） |
-| Outputs | RecipeOutput[] | 成果物（ItemId＋個数＋SortOrder。SortOrder=0 が主産物） |
+| Outputs | RecipeOutput[] | 成果物（ItemId＋個数＋SortOrder。規約は 0 から連番を付け、SortOrder 最小の行が主産物） |
 | Facilities | RecipeFacility[] | 実行可能な設備とのペア |
 | GameEventId | 文字列・null | 所属イベント |
+
+管理ツールでレシピを編集するとき、Id と名前を主産物（`SortOrder` 最小の出力アイテム。同率は先頭行）から自動提案する。名前はアイテム名とし、Id は `recipe-<slug>`（slug は ItemId 先頭の `item-` を除いた部分で、`item-` で始まらない ItemId は全体を使う）とし、衝突時のみ 2 桁連番で最初の空きを採番する。値が直近の提案値と一致する間は主産物の変更に追随して提案値へ更新し、手動編集した時点で固定する。提案値へ戻すボタンも設ける（仕様決定 BU）。
 
 ### 5.6 Facility
 

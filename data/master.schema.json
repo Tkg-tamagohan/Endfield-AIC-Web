@@ -108,7 +108,7 @@
       "properties": {
         "ItemId": { "type": "string", "minLength": 1 },
         "Quantity": { "type": "number", "exclusiveMinimum": 0 },
-        "SortOrder": { "type": "integer", "minimum": 0, "description": "0 が主産物" }
+        "SortOrder": { "type": "integer", "minimum": 0, "description": "0 から連番。最小の行が主産物" }
       }
     },
     "fixedConsumption": {
