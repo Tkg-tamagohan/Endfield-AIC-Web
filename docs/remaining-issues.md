@@ -24,7 +24,7 @@
 - 種↔作物の正味増循環を解く計算拡張（仕様決定 AQ・AR。ループゲイン 1 未満の循環は解放反復で外部投入なしの定常解を求め、初期在庫は対象外。炭塊・息壌への未充足波及を解消）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/51>
 - 公開版と管理ツールの計算ページ UI の共有化（Phase 22、仕様決定 BB〜BE。共有 RCL `EndfieldAicWeb.SharedUi` へ計算パネルを集約し、Admin 側もグラフ表示・「天然資源」表記・イベント注記を統一）: 計画 <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/55>・22-1 移設 <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/56>・22-2 差異統一 <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/57>
 - 管理ツールの Pages プレビュードメイン（`*.endfield-aic-admin.pages.dev`）の Access 保護: Cloudflare Access 側で対応（2026-10-02）
-- ペア選択候補ラベルの重複（仕様決定 BN。`Description` 非空のレシピは計算ページのレシピ名表示箇所すべてで「名前（説明）」に併記し、炭塊の 2 経路を識別可能にした）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/TODO>
+- ペア選択候補ラベルの重複（仕様決定 BN。`Description` 非空のレシピは計算ページのレシピ名表示箇所すべてで「名前（説明）」に併記し、炭塊の 2 経路を識別可能にした）: <https://github.com/Tkg-tamagohan/Endfield-AIC-Web/pull/73>
 
 ## 残っている項目
 
