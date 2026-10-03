@@ -1,6 +1,6 @@
 {
   "SchemaVersion": 1,
-  "DataVersion": "0.2.4",
+  "DataVersion": "0.2.5",
   "Items": [
     {
       "Category": "鉱物",
@@ -632,13 +632,13 @@
         {
           "FacilityId": "fac-forgeOfTheSky",
           "CycleTime": 2,
-          "EnvironmentId": null,
+          "EnvironmentId": "env-stable",
           "FixedConsumption": null
         }
       ],
       "Id": "recipe-xiranite02",
       "Name": "息壌",
-      "Description": "",
+      "Description": "安定環境",
       "IconKey": null,
       "VersionAdded": "1.4.0",
       "VersionRemoved": null
@@ -668,7 +668,7 @@
       ],
       "Id": "recipe-carbon04",
       "Name": "炭塊",
-      "Description": "",
+      "Description": "芽針",
       "IconKey": null,
       "VersionAdded": "1.0.0",
       "VersionRemoved": null
@@ -822,7 +822,7 @@
       ],
       "Id": "recipe-carbon03",
       "Name": "炭塊",
-      "Description": "",
+      "Description": "サンドリーフ",
       "IconKey": null,
       "VersionAdded": "1.0.0",
       "VersionRemoved": null
