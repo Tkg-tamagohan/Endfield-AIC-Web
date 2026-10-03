@@ -3,7 +3,7 @@ using EndfieldAicWeb.Domain.Calculation;
 namespace EndfieldAicWeb.Application;
 
 /// <summary>
-/// 計算結果の既定ビュー規則（仕様決定 O・I の UI 既定）。
+/// 計算結果の既定ビュー規則（仕様決定 O・I・BS の UI 既定）。
 /// </summary>
 public static class PlanViewDefaults
 {
@@ -19,15 +19,21 @@ public static class PlanViewDefaults
     }
 
     /// <summary>
-    /// 環境ごとの散布機台数入力の上限。環境要件が持つ必要台数（機械数からの
-    /// 自動見積もり、仕様決定 BQ・BR）を返す。
-    /// 上書き後の台数ではなく需要基準のため、0 に下げても元の台数へ戻せる。
+    /// 環境ごとの散布機台数入力の範囲（仕様決定 BS）。
+    /// 下限は環境要件が持つ必要台数（機械数からの自動見積もり、仕様決定 BQ・BR）、
+    /// 上限はその環境を利用する機械数合計の切上げ。計画に登場しない環境は (0, 0)。
+    /// 上書き後の台数ではなく需要基準のため、入力を変えても範囲は変わらない。
     /// </summary>
-    public static int DispenserLimit(ProductionPlan plan, string environmentId)
+    public static (int Min, int Max) DispenserRange(ProductionPlan plan, string environmentId)
     {
         ArgumentNullException.ThrowIfNull(plan);
-        return plan.EnvironmentRequirements
-            .FirstOrDefault(e => e.EnvironmentId == environmentId)
-            ?.RequiredDispenserCount ?? 0;
+        EnvironmentRequirement? env = plan.EnvironmentRequirements
+            .FirstOrDefault(e => e.EnvironmentId == environmentId);
+        return env is null
+            ? (0, 0)
+            : (env.RequiredDispenserCount, (int)Math.Ceiling(env.UsedMachineCount - Epsilon));
     }
+
+    /// <summary>切上げ時に引く端数誤差分（Domain の ProductionCalculator.Ceil と同じ扱い）。</summary>
+    private const double Epsilon = 1e-9;
 }

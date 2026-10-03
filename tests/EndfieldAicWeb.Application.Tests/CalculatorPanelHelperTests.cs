@@ -400,6 +400,6 @@ public class InputRowStateTests
         Assert.Equal("", new GatherRateState("i-ore").RateText);
 
         var env = ApplicationFixtures.Env("env-a", "環境A", "f-disp", "i-gas", 60);
-        Assert.Equal("", new EnvCountState(env, 3).CountText);
+        Assert.Equal("", new EnvCountState(env, 1, 3).CountText);
     }
 }

@@ -16,13 +16,14 @@ public sealed class TargetRowState
     public string? Category;
 }
 
-/// <summary>散布機台数 1 行の入力値（環境 Id・表示名・台数文字列・自動検出の上限）。</summary>
-public sealed record EnvCountInput(string EnvId, string EnvName, string? CountText, int Max);
+/// <summary>散布機台数 1 行の入力値（環境 Id・表示名・台数文字列・入力範囲の下限と上限）。</summary>
+public sealed record EnvCountInput(string EnvId, string EnvName, string? CountText, int Min, int Max);
 
-/// <summary>散布機台数 1 行の入力状態（対象環境・自動上限・台数の文字列）。</summary>
-public sealed class EnvCountState(DomainEnv environment, int max)
+/// <summary>散布機台数 1 行の入力状態（対象環境・入力範囲・台数の文字列）。</summary>
+public sealed class EnvCountState(DomainEnv environment, int min, int max)
 {
     public DomainEnv Env { get; } = environment;
+    public int Min { get; set; } = min;
     public int Max { get; set; } = max;
     public string CountText = "";
 }
@@ -107,7 +108,8 @@ public static class CalculationInputBuilder
 
     /// <summary>
     /// 散布機台数の入力行を EnvironmentCountOverride の列に変換する。
-    /// 空欄の行は自動値扱いで無視する。整数でない・0 未満・上限超過の行があればエラーを返す。
+    /// 空欄の行は自動値扱いで無視する。整数でない・範囲外（下限未満・上限超過）の
+    /// 行があればエラーを返す（入力範囲は仕様決定 BS）。
     /// </summary>
     public static bool TryParseEnvironmentCounts(
         IEnumerable<EnvCountInput> inputs,
@@ -125,9 +127,9 @@ public static class CalculationInputBuilder
             }
 
             if (!int.TryParse(row.CountText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int count)
-                || count < 0 || count > row.Max)
+                || count < row.Min || count > row.Max)
             {
-                error = $"{row.EnvName} の散布機台数は 0〜{row.Max} の整数で入力してください。";
+                error = $"{row.EnvName} の散布機台数は {row.Min}〜{row.Max} の整数で入力してください。";
                 return false;
             }
 
@@ -138,16 +140,16 @@ public static class CalculationInputBuilder
     }
 
     /// <summary>
-    /// 再計算をまたいで保持する散布機台数の入力を、新しい自動上限と整合させる。
-    /// 整数かつ 0〜上限の範囲内の値だけを残し、上限超過・非整数・負数は
-    /// 空欄（自動値）へ戻す（仕様決定 AH）。
+    /// 再計算をまたいで保持する散布機台数の入力を、新しい入力範囲と整合させる。
+    /// 整数かつ下限〜上限の範囲内の値だけを残し、範囲外・非整数は
+    /// 空欄（自動値）へ戻す（仕様決定 AH・BS）。
     /// ユーザーが直前に入力した値の検証は <see cref="TryParseEnvironmentCounts"/> が担うため、
     /// ここでは保持値の丸め（クランプ）は行わず自動値への復帰のみを行う。
     /// </summary>
-    public static string ReconcileEnvCountText(string? countText, int max)
+    public static string ReconcileEnvCountText(string? countText, int min, int max)
     {
         if (int.TryParse(countText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int count)
-            && count >= 0 && count <= max)
+            && count >= min && count <= max)
         {
             return countText!;
         }
