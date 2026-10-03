@@ -904,17 +904,6 @@ public static class FlowGraphModelBuilder
                     ? barycenterPreds[id].Average(p => rank[p] * 1_000_000.0 + order[p])
                     : rank[id] * 1_000_000.0 + order[id],
                 StringComparer.Ordinal);
-            // 環境供給設備のソートキーは仮想先行の利用設備の位置へ吸着させる
-            // （+εでその直後に並べる）。異なる層の消費アイテム先行と混ぜる平均では
-            // 行内順が利用設備から離れうるため（仕様決定 BM の隣接規則）。
-            foreach (string provider in envFixed.Keys)
-            {
-                if (virtualPreds.TryGetValue(provider, out List<string>? users) && users.Count > 0)
-                {
-                    string user = users.MinBy(u => barycenter[u])!;
-                    barycenter[provider] = barycenter[user] + 0.5;
-                }
-            }
             foreach (List<string> ids in nodesByRank.Values)
             {
                 ids.Sort((a, b) =>
@@ -922,6 +911,20 @@ public static class FlowGraphModelBuilder
                     int cmp = barycenter[a].CompareTo(barycenter[b]);
                     return cmp != 0 ? cmp : StringComparer.Ordinal.Compare(a, b);
                 });
+                // 環境供給設備はバリセンターの値ではなく、ソート後に最小層を取った
+                // 利用設備の直後へ挿入し直す（仕様決定 BM の隣接規則）。キー比較では
+                // 無関係なノードが間に割り込みうるため、隣接は挿入で保証する。
+                // 利用設備が同じランクにいない場合は行末へ退避する（通常は起きない
+                // 防御的経路）。
+                foreach (string provider in ids.Where(envFixed.ContainsKey).ToList())
+                {
+                    ids.Remove(provider);
+                    int userIdx = virtualPreds.TryGetValue(provider, out List<string>? users)
+                        ? users.Select(u => ids.IndexOf(u)).Where(i => i >= 0).DefaultIfEmpty(-1).Min()
+                        : -1;
+                    ids.Insert(userIdx >= 0 ? userIdx + 1 : ids.Count, provider);
+                }
+
                 for (int i = 0; i < ids.Count; i++)
                 {
                     order[ids[i]] = i;
