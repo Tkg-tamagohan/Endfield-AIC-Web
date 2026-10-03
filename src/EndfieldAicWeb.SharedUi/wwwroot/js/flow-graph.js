@@ -233,7 +233,7 @@ function makeHandle(canvas, layer, device, context, format) {
     let destroyed = false;
 
     const view = { s: 1, tx: 0, ty: 0 };
-    let worldBounds = { w: 0, h: 0 };
+    let worldBounds = { x: 0, y: 0, w: 0, h: 0 };
     let running = false;
     let visible = true;
     let inView = true;
@@ -320,8 +320,8 @@ function makeHandle(canvas, layer, device, context, format) {
         }
         view.s = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.min(cw / worldBounds.w, ch / worldBounds.h)));
         view.s = Math.min(view.s, 1);
-        view.tx = (cw - worldBounds.w * view.s) / 2;
-        view.ty = (ch - worldBounds.h * view.s) / 2;
+        view.tx = (cw - worldBounds.w * view.s) / 2 - worldBounds.x * view.s;
+        view.ty = (ch - worldBounds.h * view.s) / 2 - worldBounds.y * view.s;
     }
 
     // ---- パン・ピンチ・ズーム ----
@@ -460,14 +460,41 @@ function makeHandle(canvas, layer, device, context, format) {
             const d = Math.max(36, Math.abs(p3[1] - p0[1]) * 0.5);
             let c1x = p0[0], c2x = p3[0];
             if (p3[1] > p0[1]) {
-                // 後退エッジ: 同じ列のノードどうしでは制御点の x が一致してループが潰れ、
-                // 間のノードカードをまたぐ。空きのある側面へ制御点を張り出してループを見せる。
-                let worldW = 0;
-                for (const r of rects.values()) worldW = Math.max(worldW, r.x + r.w);
-                const rightRoom = worldW - Math.max(a.x + a.w, b.x + b.w);
-                const leftRoom = Math.min(a.x, b.x);
-                const side = rightRoom >= leftRoom ? 1 : -1;
-                const off = Math.max(a.w, b.w) / 2 + 32;
+                // 後退エッジ: 同じ列のノードどうしではループが潰れ、間の行のノードカードをまたぐ。
+                // 曲線の側面への最大到達は制御点距離の約 0.75 倍に留まるため、実際のベジェ曲線を
+                // サンプリングして「間にあるノード矩形をすべて避ける」最小の張り出し量を決める。
+                const loY = p0[1], hiY = p3[1];
+                const mids = [];
+                for (const r of rects.values()) {
+                    if (r === a || r === b) continue;
+                    if (r.y + r.h > loY + 4 && r.y < hiY - 4) mids.push(r);
+                }
+                const PAD = 10;
+                const offFor = (side) => {
+                    let off = Math.max(a.w, b.w) / 2 + 32;
+                    for (let iter = 0; iter < 10; iter++) {
+                        const c1 = [p0[0] + side * off, p0[1] - d];
+                        const c2 = [p3[0] + side * off, p3[1] + d];
+                        let clear = true;
+                        for (let i = 0; i <= 48 && clear; i++) {
+                            const pt = cubic(p0, c1, c2, p3, i / 48);
+                            for (const r of mids) {
+                                if (pt[1] > r.y - PAD && pt[1] < r.y + r.h + PAD &&
+                                    pt[0] > r.x - PAD && pt[0] < r.x + r.w + PAD) {
+                                    clear = false;
+                                    break;
+                                }
+                            }
+                        }
+                        if (clear) return off;
+                        off = off * 1.6 + 24;
+                    }
+                    return off;
+                };
+                const offL = offFor(-1);
+                const offR = offFor(1);
+                const side = offR <= offL ? 1 : -1;
+                const off = side === 1 ? offR : offL;
                 c1x += side * off;
                 c2x += side * off;
             }
@@ -548,7 +575,7 @@ function makeHandle(canvas, layer, device, context, format) {
                 y += meta.h + NODE_GAP_Y;
                 maxY = y - NODE_GAP_Y + MARGIN;
             }
-            worldBounds = { w: maxW, h: maxY };
+            worldBounds = { x: 0, y: 0, w: maxW, h: maxY };
         } else {
             let maxH = 0;
             const rankMeta = new Map();
@@ -582,9 +609,39 @@ function makeHandle(canvas, layer, device, context, format) {
                 x += meta.w + NODE_GAP_X;
                 maxX = x - NODE_GAP_X + MARGIN;
             }
-            worldBounds = { w: maxX, h: maxH };
+            worldBounds = { x: 0, y: 0, w: maxX, h: maxH };
         }
-        const topoKey = topologyKey(model, rects, vertical);
+
+        // エッジ幾何を先に確定し、後退エッジのループがノードの世界矩形より外へ出る場合は
+        // フィット範囲へ含める（はみ出たループが領域端で欠けないため）。
+        const geoms = [];
+        let edgeMinX = Infinity, edgeMinY = Infinity, edgeMaxX = -Infinity, edgeMaxY = -Infinity;
+        for (const e of edgeList) {
+            const g = edgeGeometry(e, rects, vertical);
+            if (!g) continue;
+            geoms.push([e, g]);
+            // 側面ループ化する縦の後退エッジのみ範囲へ含める。前進エッジの制御点の
+            // 微小なオーバーシュートは従来どおりマージン側へ描画する。
+            if (!(vertical && g.p3[1] > g.p0[1])) continue;
+            edgeMinX = Math.min(edgeMinX, g.p0[0], g.p1[0], g.p2[0], g.p3[0]);
+            edgeMinY = Math.min(edgeMinY, g.p0[1], g.p1[1], g.p2[1], g.p3[1]);
+            edgeMaxX = Math.max(edgeMaxX, g.p0[0], g.p1[0], g.p2[0], g.p3[0]);
+            edgeMaxY = Math.max(edgeMaxY, g.p0[1], g.p1[1], g.p2[1], g.p3[1]);
+        }
+        if (edgeMinX !== Infinity) {
+            const bx = Math.min(worldBounds.x, edgeMinX);
+            const by = Math.min(worldBounds.y, edgeMinY);
+            worldBounds = {
+                x: bx,
+                y: by,
+                w: Math.max(worldBounds.x + worldBounds.w, edgeMaxX) - bx,
+                h: Math.max(worldBounds.y + worldBounds.h, edgeMaxY) - by,
+            };
+        }
+        // 後退エッジの張り出しはモデルのエッジ構成由来でノード署名に現れないため、
+        // フィット境界へ含めた分だけ署名へ追加して再フィット漏れを防ぐ。
+        const topoKey = topologyKey(model, rects, vertical) +
+            (edgeMinX === Infinity ? '' : `|e${Math.round(edgeMinX)}_${Math.round(edgeMaxX)}_${Math.round(edgeMinY)}_${Math.round(edgeMaxY)}`);
         if (topoKey !== lastTopology) {
             lastTopology = topoKey;
             fitView();
@@ -594,9 +651,7 @@ function makeHandle(canvas, layer, device, context, format) {
         const verts = [];
         const params = [];
         const instances = [];
-        for (const e of edgeList) {
-            const g = edgeGeometry(e, rects, vertical);
-            if (!g) continue;
+        for (const [e, g] of geoms) {
             const color = e.overCapacity ? OVER_COLOR : EDGE_COLORS[e.kind] ?? EDGE_COLORS[0];
             const edgeIndex = params.length;
             params.push({
