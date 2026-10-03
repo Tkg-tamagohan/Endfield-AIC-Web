@@ -1171,7 +1171,7 @@ public class FlowGraphModelBuilderTests
             ],
             EnvironmentRequirements =
             [
-                new EnvironmentRequirement("env-g", "f-disp", 1, "i-gas", 360, 1),
+                new EnvironmentRequirement("env-g", "f-disp", 1, "i-gas", 360, 1, 1.0),
             ],
             TotalPowerConsumption = 0,
             Surpluses = [],

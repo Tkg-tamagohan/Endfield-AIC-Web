@@ -821,10 +821,12 @@ internal sealed class CalculationSession
 
         // 散布機台数: 既定は同環境を要する稼働機械数と有効削減機械数の合計を
         // CoverableMachines で割った切上げ（仕様決定 BQ。I の「レシピにつき 1 台」の改定）。
+        // その合計は利用機械数として環境要件へ残し、UI の入力上限の算定に使う（仕様決定 BS）。
         // ユーザー上書きを優先する。計算に登場しない環境への上書きは無視する。
         // 環境行は稼働中ランの環境に加え、カバー不足で稼働が停止した要求を持つ環境も出す（§3.2）。
         var dispenserCountByEnv = new Dictionary<string, int>(StringComparer.Ordinal);
         var requiredCountByEnv = new Dictionary<string, int>(StringComparer.Ordinal);
+        var usedMachinesByEnv = new Dictionary<string, double>(StringComparer.Ordinal);
         IEnumerable<string> envIds = envMachines.Keys.Concat(
             blockedMachinesByEnv
                 .Where(kv => kv.Value > ProductionCalculator.Epsilon)
@@ -836,9 +838,10 @@ internal sealed class CalculationSession
                 continue;
             }
 
-            int required = ProductionCalculator.Ceil(
-                (envMachines.GetValueOrDefault(envId) + blockedMachinesByEnv.GetValueOrDefault(envId))
-                / env.CoverableMachines);
+            double usedMachines =
+                envMachines.GetValueOrDefault(envId) + blockedMachinesByEnv.GetValueOrDefault(envId);
+            usedMachinesByEnv[envId] = usedMachines;
+            int required = ProductionCalculator.Ceil(usedMachines / env.CoverableMachines);
             requiredCountByEnv[envId] = required;
 
             EnvironmentCountOverride? envOverride =
@@ -865,7 +868,7 @@ internal sealed class CalculationSession
             }
         }
 
-        return new FacilityCounts(exactByFacility, dispenserCountByEnv, requiredCountByEnv);
+        return new FacilityCounts(exactByFacility, dispenserCountByEnv, requiredCountByEnv, usedMachinesByEnv);
     }
 
     /// <summary>

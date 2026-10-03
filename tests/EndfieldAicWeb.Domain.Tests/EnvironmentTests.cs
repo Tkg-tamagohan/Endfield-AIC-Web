@@ -236,4 +236,25 @@ public class EnvironmentTests
         Assert.Equal(1, Assert.Single(resolved.EnvironmentRequirements).RequiredDispenserCount);
         Assert.False(HasWarning(resolved, WarningCode.EnvironmentCoverageExceeded));
     }
+
+    [Fact(DisplayName = "ENV-17: 利用機械数は実績＋有効削減機械数の合計（必要台数の見積もり分子）")]
+    public void UsedMachineCountIsRequiredCountNumerator()
+    {
+        // i-hp 65/分 → 4 秒ペアで 65×4/60 ≈ 4.33 機。上限算定のため実数のまま返す（仕様決定 BS）。
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F10(), [("i-hp", 65.0)]);
+
+        EnvironmentRequirement envReq = Assert.Single(plan.EnvironmentRequirements);
+        Assert.Equal(65.0 * 4.0 / 60.0, envReq.UsedMachineCount, Precision);
+        Assert.Equal(2, envReq.RequiredDispenserCount);
+
+        // カバー不足の防御的経路でも同じ分母（実績 4.0 機＋有効削減 0.33 機）を返す。
+        ProductionPlan blocked = CalculationFixtures.Run(
+            CalculationFixtures.F10(), [("i-hp", 65.0)],
+            environmentOverrides: [new EnvironmentCountOverride("env-gas", 1)]);
+
+        EnvironmentRequirement blockedEnv = Assert.Single(blocked.EnvironmentRequirements);
+        Assert.Equal(65.0 * 4.0 / 60.0, blockedEnv.UsedMachineCount, Precision);
+        Assert.Equal(2, blockedEnv.RequiredDispenserCount);
+    }
 }

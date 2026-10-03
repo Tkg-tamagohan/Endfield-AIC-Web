@@ -49,12 +49,13 @@ Phase 仕様書の既存 prefix を継ぐ続番を §2-1、Phase 外で新設さ
 | TIN-05 | 有効行が 0 件（全行空）ならエラー | 同上 | 同上 |
 | PVD-01 | 全設備が整数台数なら未調整表示が既定（両ビューの見え方が同じため） | tests/EndfieldAicWeb.Application.Tests/PlanViewDefaultsTests.cs | PR #11。仕様決定 O・I の既定ビュー規則 |
 | PVD-02 | 切上げ過剰が出る計画では調整済が既定（仕様決定 O） | 同上 | 同上 |
-| PVD-03 | 散布機台数の上限はその環境を使う稼働中レシピ数（仕様決定 I） | 同上 | 同上 |
-| PVD-04 | 同一環境を使うレシピが複数あればその数が上限になる | 同上 | 同上 |
-| PVD-05 | 計画に登場しない環境の上限は 0 | 同上 | 同上 |
-| ERC-01 | 0〜上限の整数文字列はそのまま保持する（境界の 0 と上限ちょうどを含む） | tests/EndfieldAicWeb.Application.Tests/CalculationInputBuilderTests.cs（EnvCountReconcileTests） | PR #36（仕様決定 AH の散布機台数整合） |
+| PVD-03 | 散布機台数の入力範囲は（必要台数, 利用機械数の切上げ）。仕様決定 BS で範囲化に改訂 | 同上 | 同上 |
+| PVD-04 | 同一環境を使うレシピが複数あれば機械数の合算が上限になる | 同上 | 同上 |
+| PVD-05 | 計画に登場しない環境の範囲は (0, 0) | 同上 | 同上 |
+| ERC-01 | 下限〜上限の整数文字列はそのまま保持する（下限ちょうど・上限ちょうどを含む）。仕様決定 BS で下限を必要台数へ改訂 | tests/EndfieldAicWeb.Application.Tests/CalculationInputBuilderTests.cs（EnvCountReconcileTests） | PR #36（仕様決定 AH の散布機台数整合） |
 | ERC-02 | 新しい上限を超えた保持値は空欄へ戻す（クランプしない） | 同上 | 同上 |
 | ERC-03 | 非整数・負数・空欄・空白のみ・null は空欄（自動値）のまま、または空欄へ戻す | 同上 | 同上 |
+| ERC-04 | 下限未満の保持値（0 台を含む）は空欄へ戻す（仕様決定 BS。AH の範囲読み替え） | 同上 | Phase 27（仕様決定 BS） |
 | CPH-01 | 日・時・分の各欄を合算して PeriodAmount にする（1 日 2 時 30 分 = 1590 分） | tests/EndfieldAicWeb.Application.Tests/CalculatorPanelHelperTests.cs（PeriodParseTests） | PR #65（CalculatorPanel の純粋ヘルパーを Application 層へ抽出）。登録時点で PR #65 は未マージのため、コード側実体はマージ後に main へ反映される |
 | CPH-02 | 空欄・空白のみ・null の欄は 0 扱い | 同上 | 同上 |
 | CPH-03 | 非数値・負・非有限の欄があれば拒否し、既定値（全 0）を返す | 同上 | 同上 |

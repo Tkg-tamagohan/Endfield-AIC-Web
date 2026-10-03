@@ -231,7 +231,7 @@
             @if (_view.Environments.Count > 0)
             {
                 <h2 class="panel-title">環境</h2>
-                <p class="hint">散布機台数を下げるとカバーできる機械数が減り、超過分は未充足になります（自動値が上限）。変更すると再計算します。</p>
+                <p class="hint">散布機台数は自動値（必要台数）から利用機械数分まで増やせます。台数を増やしても生産結果は変わらず、ガス消費と消費電力が台数に比例して増えます。変更すると再計算します。</p>
                 @if (_envError is not null)
                 {
                     <p class="error">@_envError</p>
@@ -245,7 +245,7 @@
                         <input class="input tiny" value="@EnvCountText(e.EnvironmentId)"
                                @onchange="ev => OnEnvCountChanged(e.EnvironmentId, ev)"
                                inputmode="numeric" placeholder="自動" /> 台
-                        <span class="muted">（自動 @EnvAutoCount(e.EnvironmentId) 台まで）</span>
+                        <span class="muted">（自動 @EnvMin(e.EnvironmentId) 台・@EnvMin(e.EnvironmentId)〜@EnvMax(e.EnvironmentId) 台）</span>
                         <span> ・ @ItemName(e.ConsumeItemId) @e.ConsumeRatePerMinuteTotal.ToString("0.##", CultureInfo.InvariantCulture) 個/分@(PeriodConsumption(e.ConsumeRatePerMinuteTotal))</span>
                     </div>
                 }
@@ -419,7 +419,10 @@
     private string EnvCountText(string envId) =>
         _envInputs.FirstOrDefault(r => r.Env.Id == envId)?.CountText ?? "";
 
-    private int EnvAutoCount(string envId) =>
+    private int EnvMin(string envId) =>
+        _envInputs.FirstOrDefault(r => r.Env.Id == envId)?.Min ?? 0;
+
+    private int EnvMax(string envId) =>
         _envInputs.FirstOrDefault(r => r.Env.Id == envId)?.Max ?? 0;
 
     private void OnEnvCountChanged(string envId, ChangeEventArgs e)
@@ -478,7 +481,7 @@
 
         _envError = null;
         if (!CalculationInputBuilder.TryParseEnvironmentCounts(
-                _envInputs.Select(r => new EnvCountInput(r.Env.Id, r.Env.Name, r.CountText, r.Max)),
+                _envInputs.Select(r => new EnvCountInput(r.Env.Id, r.Env.Name, r.CountText, r.Min, r.Max)),
                 out List<EnvironmentCountOverride> environmentOverrides,
                 out string? envError))
         {
@@ -542,18 +545,18 @@
         }
 
         // 散布機台数の入力は計算結果に登場する環境だけに出す。
-        // ユーザー入力（下げた台数）は再計算をまたいで保持するが、
-        // 新しい自動上限を超えた保持値は自動値へ戻す（仕様決定 AH）。
+        // ユーザー入力は再計算をまたいで保持するが、
+        // 新しい入力範囲から外れた保持値は自動値へ戻す（仕様決定 AH・BS）。
         bool envCountReconciled = false;
         var prevCounts = _envInputs.ToDictionary(r => r.Env.Id, r => r.CountText, StringComparer.Ordinal);
         _envInputs = _outcome.Plan.EnvironmentRequirements
             .Select(r =>
             {
-                int max = PlanViewDefaults.DispenserLimit(_outcome.Plan, r.EnvironmentId);
+                (int min, int max) = PlanViewDefaults.DispenserRange(_outcome.Plan, r.EnvironmentId);
                 string kept = CalculationInputBuilder.ReconcileEnvCountText(
-                    prevCounts.GetValueOrDefault(r.EnvironmentId, ""), max);
+                    prevCounts.GetValueOrDefault(r.EnvironmentId, ""), min, max);
                 envCountReconciled |= kept != prevCounts.GetValueOrDefault(r.EnvironmentId, "");
-                return new EnvCountState(_snapshot.EnvironmentsById[r.EnvironmentId], max)
+                return new EnvCountState(_snapshot.EnvironmentsById[r.EnvironmentId], min, max)
                 {
                     CountText = kept,
                 };

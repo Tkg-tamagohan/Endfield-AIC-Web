@@ -78,7 +78,8 @@ internal static class ProductionPlanAggregator
                 dispenserCount,
                 env.ConsumeItemId,
                 env.ConsumeRatePerMinute * dispenserCount,
-                counts.RequiredCountByEnv.GetValueOrDefault(envId)));
+                counts.RequiredCountByEnv.GetValueOrDefault(envId),
+                counts.UsedMachinesByEnv.GetValueOrDefault(envId)));
 
             // 散布機は設備要件・消費電力に計上する（実数=切上げの指定台数）。
             exactByFacility[env.ProviderFacilityId] =
@@ -281,8 +282,9 @@ internal static class ProductionPlanAggregator
     }
 }
 
-/// <summary>設備ごとの実数台数と環境ごとの散布機台数・必要台数（自動見積もり）。</summary>
+/// <summary>設備ごとの実数台数と環境ごとの散布機台数・必要台数（自動見積もり）・利用機械数。</summary>
 internal sealed record FacilityCounts(
     Dictionary<string, double> ExactByFacility,
     Dictionary<string, int> DispenserCountByEnv,
-    Dictionary<string, int> RequiredCountByEnv);
+    Dictionary<string, int> RequiredCountByEnv,
+    Dictionary<string, double> UsedMachinesByEnv);

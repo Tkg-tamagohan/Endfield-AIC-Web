@@ -150,18 +150,18 @@ public class EventCheckInitializationTests
     }
 }
 
-/// <summary>ECN: 散布機台数入力のパース（docs/phases/test-specification-phase4.md MN-04 の台数検証を純粋層で固定）。</summary>
+/// <summary>ECN: 散布機台数入力のパース（docs/phases/test-specification-phase27.md。下限〜上限の範囲検証は仕様決定 BS）。</summary>
 public class EnvironmentCountParseTests
 {
-    // ECN-01: 有効な台数は EnvironmentCountOverride になり、空欄行は自動値扱いで無視される。
+    // ECN-01: 範囲内の台数は EnvironmentCountOverride になり、空欄行は自動値扱いで無視される。
     [Fact]
     public void ValidCountsBecomeOverrides()
     {
         var inputs = new[]
         {
-            new EnvCountInput("env-a", "環境A", "3", 5),
-            new EnvCountInput("env-b", "環境B", "", 5),
-            new EnvCountInput("env-c", "環境C", "0", 5),
+            new EnvCountInput("env-a", "環境A", "3", 2, 5),
+            new EnvCountInput("env-b", "環境B", "", 2, 5),
+            new EnvCountInput("env-c", "環境C", "4", 2, 5),
         };
 
         bool ok = CalculationInputBuilder.TryParseEnvironmentCounts(
@@ -170,7 +170,7 @@ public class EnvironmentCountParseTests
         Assert.True(ok);
         Assert.Null(error);
         Assert.Equal(
-            [new EnvironmentCountOverride("env-a", 3), new EnvironmentCountOverride("env-c", 0)],
+            [new EnvironmentCountOverride("env-a", 3), new EnvironmentCountOverride("env-c", 4)],
             overrides);
     }
 
@@ -179,7 +179,7 @@ public class EnvironmentCountParseTests
     public void AcceptsUpperBound()
     {
         bool ok = CalculationInputBuilder.TryParseEnvironmentCounts(
-            [new EnvCountInput("env-a", "環境A", "5", 5)],
+            [new EnvCountInput("env-a", "環境A", "5", 2, 5)],
             out List<EnvironmentCountOverride> overrides,
             out _);
 
@@ -187,7 +187,7 @@ public class EnvironmentCountParseTests
         Assert.Equal([new EnvironmentCountOverride("env-a", 5)], overrides);
     }
 
-    // ECN-03: 非整数・負・上限超過はエラー（メッセージに環境名と上限を含む）。
+    // ECN-03: 非整数・負・上限超過はエラー（メッセージに環境名と下限〜上限の範囲を含む）。
     [Theory]
     [InlineData("abc")]
     [InlineData("-1")]
@@ -196,44 +196,80 @@ public class EnvironmentCountParseTests
     public void InvalidCountsReturnError(string text)
     {
         bool ok = CalculationInputBuilder.TryParseEnvironmentCounts(
-            [new EnvCountInput("env-a", "環境A", text, 5)],
+            [new EnvCountInput("env-a", "環境A", text, 2, 5)],
             out _,
             out string? error);
 
         Assert.False(ok);
         Assert.Contains("環境A", error);
-        Assert.Contains("5", error);
+        Assert.Contains("2〜5", error);
+    }
+
+    // ECN-04: 下限ちょうどは受理する。
+    [Fact]
+    public void AcceptsLowerBound()
+    {
+        bool ok = CalculationInputBuilder.TryParseEnvironmentCounts(
+            [new EnvCountInput("env-a", "環境A", "2", 2, 5)],
+            out List<EnvironmentCountOverride> overrides,
+            out _);
+
+        Assert.True(ok);
+        Assert.Equal([new EnvironmentCountOverride("env-a", 2)], overrides);
+    }
+
+    // ECN-05: 下限未満（0 台を含む）は上限超過と同じメッセージでエラー（仕様決定 BS）。
+    [Theory]
+    [InlineData("0")]
+    [InlineData("1")]
+    public void BelowMinCountsReturnError(string text)
+    {
+        bool ok = CalculationInputBuilder.TryParseEnvironmentCounts(
+            [new EnvCountInput("env-a", "環境A", text, 2, 5)],
+            out _,
+            out string? error);
+
+        Assert.False(ok);
+        Assert.Contains("環境A", error);
+        Assert.Contains("2〜5", error);
     }
 }
 
-/// <summary>ERC: 保持された散布機台数の自動上限との整合（仕様決定 AH・docs/remaining-issues.md）。</summary>
+/// <summary>ERC: 保持された散布機台数の入力範囲との整合（仕様決定 AH・BS・docs/remaining-issues.md）。</summary>
 public class EnvCountReconcileTests
 {
-    // ERC-01: 0〜上限の整数文字列はそのまま保持する（境界の 0 と上限ちょうどを含む）。
+    // ERC-01: 下限〜上限の整数文字列はそのまま保持する（下限ちょうど・上限ちょうどを含む）。
     [Theory]
-    [InlineData("3", 5, "3")]
-    [InlineData("0", 5, "0")]
-    [InlineData("5", 5, "5")]
-    public void KeepsTextWithinLimit(string text, int max, string expected) =>
-        Assert.Equal(expected, CalculationInputBuilder.ReconcileEnvCountText(text, max));
+    [InlineData("3", 2, 5, "3")]
+    [InlineData("2", 2, 5, "2")]
+    [InlineData("5", 2, 5, "5")]
+    public void KeepsTextWithinLimit(string text, int min, int max, string expected) =>
+        Assert.Equal(expected, CalculationInputBuilder.ReconcileEnvCountText(text, min, max));
 
     // ERC-02: 新しい上限を超えた保持値は空欄へ戻す（クランプしない）。
     [Theory]
-    [InlineData("6", 5)]
-    [InlineData("2", 1)]
-    public void RevertsTextAboveLimitToAuto(string text, int max) =>
-        Assert.Equal("", CalculationInputBuilder.ReconcileEnvCountText(text, max));
+    [InlineData("6", 2, 5)]
+    [InlineData("3", 1, 2)]
+    public void RevertsTextAboveLimitToAuto(string text, int min, int max) =>
+        Assert.Equal("", CalculationInputBuilder.ReconcileEnvCountText(text, min, max));
 
     // ERC-03: 非整数・負数・空欄・空白のみは空欄（自動値）のまま/へ戻す。
     [Theory]
-    [InlineData("abc", 5)]
-    [InlineData("1.5", 5)]
-    [InlineData("-1", 5)]
-    [InlineData("", 5)]
-    [InlineData("  ", 5)]
-    [InlineData(null, 5)]
-    public void RevertsInvalidTextToAuto(string? text, int max) =>
-        Assert.Equal("", CalculationInputBuilder.ReconcileEnvCountText(text, max));
+    [InlineData("abc", 2, 5)]
+    [InlineData("1.5", 2, 5)]
+    [InlineData("-1", 2, 5)]
+    [InlineData("", 2, 5)]
+    [InlineData("  ", 2, 5)]
+    [InlineData(null, 2, 5)]
+    public void RevertsInvalidTextToAuto(string? text, int min, int max) =>
+        Assert.Equal("", CalculationInputBuilder.ReconcileEnvCountText(text, min, max));
+
+    // ERC-04: 下限未満の保持値は空欄へ戻す（AH の範囲読み替え。0 台も範囲外）。
+    [Theory]
+    [InlineData("1", 2, 5)]
+    [InlineData("0", 2, 5)]
+    public void RevertsTextBelowMinToAuto(string text, int min, int max) =>
+        Assert.Equal("", CalculationInputBuilder.ReconcileEnvCountText(text, min, max));
 }
 
 /// <summary>GRI: 採取レート入力行のパース（docs/phases/test-specification-phase11.md §3）。</summary>
