@@ -323,8 +323,8 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 
 ### Phase 28: ペア既定選択の同率キー順（PR: 固定消費キーの先行化）
 
-- [ ] 既定ペアの同率キーを `EnvironmentId=null` → `FixedConsumption` なし/小 から、`FixedConsumption` なし/小 → `EnvironmentId=null` へ入れ替える（仕様決定 BT、U の改定）
-- [ ] `dotnet test` 全緑を確認する。同梱マスタに複数ペア行を持つレシピはなく、単体テストが検証の主経路
+- [x] 既定ペアの同率キーを `EnvironmentId=null` → `FixedConsumption` なし/小 から、`FixedConsumption` なし/小 → `EnvironmentId=null` へ入れ替える（仕様決定 BT、U の改定）
+- [x] `dotnet test` 全緑を確認する。同梱マスタに複数ペア行を持つレシピはなく、単体テストが検証の主経路
 - **受け入れ条件**: 同 `CycleTime` で「環境あり・固定消費なし」と「環境なし・固定消費あり」のペアが競合したとき、環境ありのペアが既定になる。詳細は `phases/implementation-plan-phase28.md` と `phases/test-specification-phase28.md`。
 
 

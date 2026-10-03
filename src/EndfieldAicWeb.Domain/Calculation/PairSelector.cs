@@ -8,7 +8,7 @@ namespace EndfieldAicWeb.Domain.Calculation;
 /// レシピはコンテキスト適格候補から VersionAdded 最新・実効出力レート降順（同率は Id 昇順）を先に選び、
 /// そのレシピの適格ペアから CycleTime 最小を既定とする（仕様決定 F・BA）。
 /// 実効出力レートは対象アイテムの 1 サイクル出力量 ÷ 適格ペアの最小 CycleTime × 60 個/分。
-/// 同 CycleTime は EnvironmentId=null → FixedConsumption なし/小 の順（仕様決定 U）。
+/// 同 CycleTime は FixedConsumption なし/小 → EnvironmentId=null の順（仕様決定 U・BT）。
 /// レシピの適格ペアが 0 件なら次点のレシピへ進む（docs/phases/implementation-plan-phase2.md §3）。
 /// </summary>
 public static class PairSelector
@@ -72,7 +72,7 @@ public static class PairSelector
 
     /// <summary>
     /// itemId を出力する適格レシピ × 適格ペアの全候補を列挙する。
-    /// レシピは Select と同じ順序（VersionAdded 降順・実効出力レート降順・Id 昇順）、ペアは既定選択規則の順序（U）。
+    /// レシピは Select と同じ順序（VersionAdded 降順・実効出力レート降順・Id 昇順）、ペアは既定選択規則の順序（U・BT）。
     /// 既定ペアには IsDefault を立てる。UI のペア代替選択の候補表示に使う。
     /// バージョン文字列の警告は破棄する（計算実行時に Warnings として報告済みのため）。
     /// </summary>
@@ -115,21 +115,21 @@ public static class PairSelector
     }
 
     /// <summary>
-    /// 既定ペア。CycleTime 最小、同率は EnvironmentId=null → FixedConsumption なし/小 → FacilityId 昇順。
+    /// 既定ペア。CycleTime 最小、同率は FixedConsumption なし/小 → EnvironmentId=null → FacilityId 昇順。
     /// </summary>
     internal static RecipeFacility ChooseDefaultPair(IEnumerable<RecipeFacility> eligiblePairs)
     {
         return OrderPairs(eligiblePairs).First();
     }
 
-    /// <summary>既定選択規則（U）の順序: CycleTime 昇順 → 環境なし優先 → 固定消費なし/小 → FacilityId 昇順。</summary>
+    /// <summary>既定選択規則（U・BT）の順序: CycleTime 昇順 → 固定消費なし/小 → 環境なし優先 → FacilityId 昇順。</summary>
     private static List<RecipeFacility> OrderPairs(IEnumerable<RecipeFacility> eligiblePairs)
     {
         return eligiblePairs
             .OrderBy(p => p.CycleTime)
-            .ThenBy(p => p.EnvironmentId is null ? 0 : 1)
             .ThenBy(p => p.FixedConsumption is null ? 0 : 1)
             .ThenBy(p => p.FixedConsumption?.RatePerMinute ?? 0)
+            .ThenBy(p => p.EnvironmentId is null ? 0 : 1)
             .ThenBy(p => p.FacilityId, StringComparer.Ordinal)
             .ToList();
     }
