@@ -427,8 +427,11 @@ public static class ResultViewBuilder
             double rawTotal = entries.Sum(e => e.PerMinute);
             double shownTotal = Math.Min(rawTotal, available);
             double factor = rawTotal > Epsilon ? shownTotal / rawTotal : 0.0;
+            // 表示量 0 のエントリは残さない（処理のないアイテムがグラフで紫化しないよう）。
+            // 素材行の処理量は shownTotalByItem 側の 0 のまま保持する。
             shownByItem[itemId] = entries
-                .Select(e => (e.RunIndex, e.PerMinute * factor))
+                .Select(e => (e.RunIndex, PerMinute: e.PerMinute * factor))
+                .Where(e => e.PerMinute > Epsilon)
                 .ToList();
             shownTotalByItem[itemId] = shownTotal;
         }

@@ -407,6 +407,12 @@ internal sealed class CalculationSession
             ProductionCalculator.GetOrZero(Produced, itemId)
             - (ProductionCalculator.GetOrZero(Demand, itemId) - DisposalApplied.GetValueOrDefault(itemId));
 
+        // 処理の対象・消費として数える入力か。計算目標のアイテム（CA）と
+        // イベントが非有効なアイテム（供給不能のため、仕様決定 X 準用）は
+        // 処理対象にも補助入力にもならない（需要も計上しない）。
+        bool IsDisposalInput(string itemId) =>
+            !targetItemIds.Contains(itemId) && !IsItemInactive(itemId);
+
         // 処理ランごとの消費予定の合算。処理対象入力の上限は残り余剰から
         // 他ランの消費分を除いた残量とする。
         var consumed = new Dictionary<string, double>(StringComparer.Ordinal);
@@ -414,6 +420,11 @@ internal sealed class CalculationSession
         {
             foreach (RecipeInput input in run.Recipe.Inputs)
             {
+                if (!IsDisposalInput(input.ItemId))
+                {
+                    continue;
+                }
+
                 consumed[input.ItemId] = consumed.GetValueOrDefault(input.ItemId)
                     + RunCycles[run] * input.Quantity;
             }
@@ -425,8 +436,10 @@ internal sealed class CalculationSession
                      .OrderBy(id => id, StringComparer.Ordinal)
                      .ToList())
         {
-            // 計算目標のアイテムは余剰があっても処理対象外（CA）。
-            if (targetItemIds.Contains(itemId))
+            // 計算目標のアイテムとイベントが非有効なアイテムは余剰があっても処理対象外
+            // （CA。非有効アイテムの生産量は供給として認められず、処理需要を立てると
+            // 余剰と未充足が同時に残るため、仕様決定 X 準用）。
+            if (!IsDisposalInput(itemId))
             {
                 continue;
             }
@@ -464,7 +477,7 @@ internal sealed class CalculationSession
                 continue;
             }
 
-            runsChanged |= RecomputeDisposalRun(run, Remaining, consumed);
+            runsChanged |= RecomputeDisposalRun(run, Remaining, consumed, IsDisposalInput);
         }
 
         // 処理需要を差分適用する（暫定解釈 6・7）。
@@ -498,7 +511,8 @@ internal sealed class CalculationSession
     private bool RecomputeDisposalRun(
         PairSelector.Selection run,
         Func<string, double> remaining,
-        Dictionary<string, double> consumed)
+        Dictionary<string, double> consumed,
+        Func<string, bool> isDisposalInput)
     {
         Recipe recipe = run.Recipe;
 
@@ -508,6 +522,11 @@ internal sealed class CalculationSession
         {
             foreach (RecipeInput input in recipe.Inputs)
             {
+                if (!isDisposalInput(input.ItemId))
+                {
+                    continue;
+                }
+
                 consumed[input.ItemId] =
                     consumed.GetValueOrDefault(input.ItemId) - oldCycles * input.Quantity;
             }
@@ -520,6 +539,13 @@ internal sealed class CalculationSession
         bool hasTargetInput = false;
         foreach (RecipeInput input in recipe.Inputs)
         {
+            // 計算目標・非有効イベント所属の入力は処理対象にも補助入力にもしない
+            // （処理需要も計上しない、CA・仕様決定 X 準用）。
+            if (!isDisposalInput(input.ItemId))
+            {
+                continue;
+            }
+
             // 残り余剰がある入力と処理対象として確定済みの入力が上限の対象（暫定解釈 9）。
             bool isTargetInput = remaining(input.ItemId) > ProductionCalculator.Epsilon
                 || _disposalRecipeByItem.ContainsKey(input.ItemId);
@@ -550,6 +576,11 @@ internal sealed class CalculationSession
             _disposalRuns[recipe.Id] = run;
             foreach (RecipeInput input in recipe.Inputs)
             {
+                if (!isDisposalInput(input.ItemId))
+                {
+                    continue;
+                }
+
                 consumed[input.ItemId] = consumed.GetValueOrDefault(input.ItemId) + cycles * input.Quantity;
 
                 // 残り余剰がある入力をこのランの処理対象として確定する

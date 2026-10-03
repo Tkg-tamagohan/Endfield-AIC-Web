@@ -429,6 +429,56 @@ public class DisposalTests
             Assert.Single(plan.FacilityRequirements, f => f.FacilityId == "f-x").ExactCount, 6);
     }
 
+    [Fact(DisplayName = "DSP-23: 非有効イベント所属の余剰は処理対象にならない")]
+    public void InactiveByproductIsNotDisposed()
+    {
+        // i-sew が非有効イベント所属。生産量は供給として認められない（仕様決定 X）ため、
+        // 処理対象にも需要計上にもならず、余剰のまま残る（Devin Review 対応の回帰）。
+        MasterDataSnapshot master = F.Snapshot(
+            [F.Item("i-ore", "採取素材", TransportKind.Belt, null, true), F.Item("i-p"),
+             F.Item("i-sew", "汚水", TransportKind.Belt, "ev-off")],
+            [F.Facility("f-asm"), F.Facility("f-trt")],
+            [
+                F.Recipe("r-m", "f-asm", 4.0, [("i-ore", 1.0)], [("i-p", 1.0), ("i-sew", 1.0)]),
+                F.Recipe("r-disp", "f-trt", 4.0, [("i-sew", 1.0)], []),
+            ],
+            gameEvents: [F.GameEvent("ev-off")]);
+
+        ProductionPlan plan = F.Run(master, [("i-p", 30.0)]);
+
+        Assert.DoesNotContain(plan.RecipeRuns, r => r.RecipeId == "r-disp");
+        Assert.DoesNotContain(plan.ItemRequirements, r => r.ItemId == "i-sew");
+        Assert.Equal(30.0,
+            Assert.Single(plan.Surpluses, s => s.ItemId == "i-sew").ExcessPerMinute, 6);
+    }
+
+    [Fact(DisplayName = "DSP-24: 計算目標のアイテムは処理入力にもならない")]
+    public void TargetInputIsNotConsumedByDisposal()
+    {
+        // 処理レシピの入力に計算目標のアイテムが混ざる構成。i-aux は r-m の副産物でも
+        // 供給されるため余剰 20 を持つが、目標アイテムは処理対象にも補助入力にもならない（CA）。
+        MasterDataSnapshot master = F.Snapshot(
+            [F.Item("i-ore", "採取素材", TransportKind.Belt, null, true),
+             F.Item("i-p"), F.Item("i-sew"), F.Item("i-aux")],
+            [F.Facility("f-m"), F.Facility("f-aux"), F.Facility("f-trt")],
+            [
+                F.Recipe("r-m", "f-m", 4.0, [("i-ore", 1.0)],
+                    [("i-p", 1.0), ("i-sew", 1.0), ("i-aux", 1.0)]),
+                F.Recipe("r-auxp", "f-aux", 4.0, [("i-ore", 1.0)], [("i-aux", 1.0)]),
+                F.Recipe("r-disp", "f-trt", 4.0, [("i-sew", 1.0), ("i-aux", 1.0)], []),
+            ]);
+
+        ProductionPlan plan = F.Run(master, [("i-p", 30.0), ("i-aux", 10.0)]);
+
+        // i-sew の残り余剰 30 だけが上限を決め、目標 i-aux は消費も確定もされない。
+        Assert.Equal(30.0, Assert.Single(plan.RecipeRuns, r => r.RecipeId == "r-disp").CyclesPerMinute, 6);
+        ItemRequirement aux = Assert.Single(plan.ItemRequirements, r => r.ItemId == "i-aux");
+        Assert.Equal(10.0, aux.RequiredPerMinute, 6);
+        Assert.Equal(20.0,
+            Assert.Single(plan.Surpluses, s => s.ItemId == "i-aux").ExcessPerMinute, 6);
+        Assert.DoesNotContain(plan.Surpluses, s => s.ItemId == "i-sew");
+    }
+
     [Fact(DisplayName = "DSP-22: 補助入力の不足で処理が止まらない")]
     public void AuxInputDoesNotBlockDisposal()
     {

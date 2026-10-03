@@ -1462,6 +1462,37 @@ public class FlowGraphModelBuilderTests
                 && n.Id != "facunit:f-asm#0" && n.Id != "facunit:f-asm#1");
     }
 
+    // FG-55: 未調整ビューで表示量が 0 の処理はアイテムを紫化しない（Devin Review 対応の回帰）。
+    [Fact]
+    public void ZeroRateDisposalDoesNotColorItem()
+    {
+        // 補助入力 i-aux は生産不能（レシピ不在・採取不可）のため未調整でも利用可能量 0。
+        // 表示量 0 の処理エントリはノードに残さない。
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [
+                ApplicationFixtures.Item("i-ore", "鉄鉱石", gatherable: true),
+                ApplicationFixtures.Item("i-p", "製品"), ApplicationFixtures.Item("i-sew", "汚水"),
+                ApplicationFixtures.Item("i-aux", "触媒"),
+            ],
+            [
+                ApplicationFixtures.Facility("f-asm", "加工機", 10),
+                ApplicationFixtures.Facility("f-trt", "水処理設備", 10),
+            ],
+            [], [],
+            [
+                ApplicationFixtures.Recipe("r-m", "製造", [("i-ore", 1)], [("i-p", 1), ("i-sew", 1)],
+                    [ApplicationFixtures.Pair("f-asm", 4)]),
+                ApplicationFixtures.Recipe("r-disp", "汚水処理", [("i-sew", 1), ("i-aux", 1)], [],
+                    [ApplicationFixtures.Pair("f-trt", 4)]),
+            ]);
+
+        (_, FlowGraphModel model) = Build(
+            snapshot, unadjusted: true, targets: new ProductionTarget("i-p", 30));
+
+        Assert.Empty(Node(model, "item:i-aux").Disposals);
+        Assert.Single(Node(model, "item:i-sew").Disposals);
+    }
+
     [Fact]
     public void EmptyPlanReturnsEmptyModel()
     {
