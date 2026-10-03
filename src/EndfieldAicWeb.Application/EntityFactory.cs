@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using EndfieldAicWeb.Domain.Models;
 using Environment = EndfieldAicWeb.Domain.Models.Environment;
 
@@ -14,6 +15,34 @@ public static class EntityFactory
     public const string DefaultVersionAdded = "1.0.0";
     /// <summary><see cref="NewRecipe"/> が置く仮の名前。未編集のプレースホルダ判定に使う。</summary>
     public const string PlaceholderRecipeName = "新規レシピ";
+
+    /// <summary>
+    /// <see cref="NewRecipe"/> が採番した Id をレシピインスタンスに紐付けて記録する。
+    /// 「未編集の仮採番」はこの記録との一致で判定し、同じ形式を手入力した Id や
+    /// インポート済みのレシピと区別する。
+    /// </summary>
+    private static readonly ConditionalWeakTable<Recipe, FactoryPlaceholder> _recipePlaceholders = new();
+
+    private sealed class FactoryPlaceholder
+    {
+        public required string Id { get; init; }
+    }
+
+    /// <summary>
+    /// <see cref="NewRecipe"/> で生成され、Id が生成時の採番値のままのレシピかを判定する。
+    /// 生成後に Id が編集された場合や、ファクトリを通らない既存レシピは false。
+    /// </summary>
+    public static bool IsUntouchedPlaceholderRecipeId(Recipe recipe) =>
+        _recipePlaceholders.TryGetValue(recipe, out FactoryPlaceholder? placeholder)
+        && recipe.Id == placeholder.Id;
+
+    /// <summary>
+    /// <see cref="NewRecipe"/> で生成され、名前が生成時の仮値（<see cref="PlaceholderRecipeName"/>）のままかを判定する。
+    /// </summary>
+    public static bool IsUntouchedPlaceholderRecipeName(Recipe recipe) =>
+        _recipePlaceholders.TryGetValue(recipe, out _)
+        && recipe.Name == PlaceholderRecipeName;
+
     /// <summary>種別ごとの新規 Id 接頭辞。</summary>
     public static string SuggestId(IEnumerable<string> existingIds, string prefix)
     {
@@ -27,12 +56,6 @@ public static class EntityFactory
             }
         }
     }
-
-    /// <summary><see cref="SuggestId"/> が採番したレシピの仮 Id（<c>recipe-NNN</c>）かを判定する。</summary>
-    public static bool IsPlaceholderRecipeId(string id) =>
-        id.StartsWith("recipe-", StringComparison.Ordinal)
-        && id["recipe-".Length..] is { Length: >= 3 } suffix
-        && suffix.All(char.IsDigit);
 
     /// <summary>ItemId からスラッグ部を取る。先頭の <c>item-</c> を除き、始まらない ItemId は全体を使う。</summary>
     public static string ItemSlug(string itemId) =>
@@ -151,21 +174,26 @@ public static class EntityFactory
         string id,
         string versionAdded = DefaultVersionAdded,
         string? outputItemId = null,
-        string? facilityId = null) => new()
+        string? facilityId = null)
     {
-        Id = id,
-        Name = PlaceholderRecipeName,
-        Description = "",
-        IconKey = null,
-        VersionAdded = versionAdded,
-        VersionRemoved = null,
-        GameEventId = null,
-        Inputs = [],
-        Outputs = outputItemId is null
-            ? []
-            : [new RecipeOutput { ItemId = outputItemId, Quantity = 1, SortOrder = 0 }],
-        Facilities = facilityId is null
-            ? []
-            : [new RecipeFacility { RecipeId = id, FacilityId = facilityId, CycleTime = 2 }],
-    };
+        var recipe = new Recipe
+        {
+            Id = id,
+            Name = PlaceholderRecipeName,
+            Description = "",
+            IconKey = null,
+            VersionAdded = versionAdded,
+            VersionRemoved = null,
+            GameEventId = null,
+            Inputs = [],
+            Outputs = outputItemId is null
+                ? []
+                : [new RecipeOutput { ItemId = outputItemId, Quantity = 1, SortOrder = 0 }],
+            Facilities = facilityId is null
+                ? []
+                : [new RecipeFacility { RecipeId = id, FacilityId = facilityId, CycleTime = 2 }],
+        };
+        _recipePlaceholders.Add(recipe, new FactoryPlaceholder { Id = id });
+        return recipe;
+    }
 }

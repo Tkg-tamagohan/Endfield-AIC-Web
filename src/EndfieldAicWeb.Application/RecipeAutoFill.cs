@@ -45,8 +45,9 @@ public sealed class RecipeAutoFill
 
     /// <summary>
     /// 主産物の再解決後に呼ぶ追随処理。直近提案値と一致するフィールドを新しい提案値へ更新する。
-    /// 直近提案値がない（提案を一度も計算できていない）場合は、工場の仮値
-    /// （<c>recipe-NNN</c>・「新規レシピ」）のままのフィールドだけを未編集とみなして置き換える。
+    /// 直近提案値がない（提案を一度も計算できていない）場合は、工場生成時の仮値
+    /// （採番された <c>recipe-NNN</c>・「新規レシピ」）のままのフィールドだけを未編集とみなして置き換える。
+    /// 仮値と同じ形式でも手入力・インポートの値は置き換えない。
     /// Id を変更したとき true を返す（呼び出し側でペアの RecipeId 伝搬を行う）。
     /// </summary>
     public bool Follow(MasterDocument doc, Recipe recipe)
@@ -59,7 +60,7 @@ public sealed class RecipeAutoFill
 
         bool idChanged = false;
         bool idFollows = recipe.Id == _lastId
-            || (_lastId is null && EntityFactory.IsPlaceholderRecipeId(recipe.Id));
+            || (_lastId is null && EntityFactory.IsUntouchedPlaceholderRecipeId(recipe));
         if (idFollows && recipe.Id != suggestion.Value.Id)
         {
             recipe.Id = suggestion.Value.Id;
@@ -67,7 +68,7 @@ public sealed class RecipeAutoFill
         }
 
         bool nameFollows = recipe.Name == _lastName
-            || (_lastName is null && recipe.Name == EntityFactory.PlaceholderRecipeName);
+            || (_lastName is null && EntityFactory.IsUntouchedPlaceholderRecipeName(recipe));
         if (nameFollows)
         {
             recipe.Name = suggestion.Value.Name;

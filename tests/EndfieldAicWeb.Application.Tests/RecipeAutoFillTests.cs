@@ -233,27 +233,43 @@ public class RecipeAutoFillTests
     }
 
     // PR #86 Devin Review 対応の回帰テスト: 空の文書で作ったレシピの仮採番は
-    // 最初に提案を計算できた時点で提案値へ置き換わる（手入力の値は置き換えない）
+    // 最初に提案を計算できた時点で提案値へ置き換わる。ただし置き換えるのは
+    // 工場が生成時に採番した値そのものだけで、同形式を手入力した Id や
+    // ファクトリを通らない既存レシピは固定のままにする
 
     [Fact]
     public void RCP13_提案未計算の仮採番は最初の提案で置き換わる()
     {
-        Recipe placeholder = Rcp("recipe-001", EntityFactory.PlaceholderRecipeName);
-        Recipe manual = Rcp("recipe-custom", "手入力名");
-        MasterDocument doc = Doc(placeholder, manual);
-        var fill = new RecipeAutoFill();
-        fill.Reset(doc, placeholder);
-        fill.Reset(doc, manual);
+        MasterDocument doc = Doc();
+        Recipe placeholder = EntityFactory.NewRecipe("recipe-001");
+        Recipe edited = EntityFactory.NewRecipe("recipe-002");
+        Recipe manual = Rcp("recipe-123", "手入力名");
+        doc.Recipes.Add(placeholder);
+        doc.Recipes.Add(edited);
+        doc.Recipes.Add(manual);
 
+        var fill = new RecipeAutoFill();
+
+        // 選択時は outputs 未解決で提案なし（_last = null）。その後に出力を足すと追随する
+        fill.Reset(doc, placeholder);
         placeholder.Outputs.Add(Out("item-carbon"));
         Assert.True(fill.Follow(doc, placeholder));
         Assert.Equal("recipe-carbon", placeholder.Id);
         Assert.Equal("炭塊", placeholder.Name);
 
-        // 仮採番ではない手入力の Id・名前は固定のまま置き換えない
-        manual.Outputs.Add(Out("item-xiranite"));
+        // 生成時の採番値から編集された Id は置き換えない（名前は未編集なので追随する）
+        fill.Reset(doc, edited);
+        edited.Id = "recipe-123";
+        edited.Outputs.Add(Out("item-xiranite"));
+        Assert.False(fill.Follow(doc, edited));
+        Assert.Equal("recipe-123", edited.Id);
+        Assert.Equal("息壌", edited.Name);
+
+        // ファクトリを通らない既存レシピの同形式 Id・名前は固定のまま置き換えない
+        fill.Reset(doc, manual);
+        manual.Outputs.Add(Out("item-sewage"));
         Assert.False(fill.Follow(doc, manual));
-        Assert.Equal("recipe-custom", manual.Id);
+        Assert.Equal("recipe-123", manual.Id);
         Assert.Equal("手入力名", manual.Name);
     }
 }
