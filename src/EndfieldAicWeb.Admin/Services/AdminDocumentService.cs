@@ -288,7 +288,8 @@ public sealed class AdminDocumentService
             Document = result.Document;
             _iconResolver = null;
             SourceLabel = sourceLabel;
-            IsDirty = false;
+            // 正規化で修正のあった文書は未エクスポートの変更ありとする（仕様決定 CH）。
+            IsDirty = result.Normalizations.Count > 0;
             ValidationErrors = [];
             ValidationRan = false;
             ValidationStale = false;
