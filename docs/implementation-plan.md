@@ -67,7 +67,7 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 |---|---|---|
 | 共通属性 | Id, Name, Description, IconKey(null 可), VersionAdded, VersionRemoved(null 可) | 全マスタエンティティに付与（仕様決定 N）。 |
 | Item | 共通属性, Category, IsGatherable, TransportKind, GameEventId(null=常設) | Category は表示用タグ、`IsGatherable=true` が需要展開の終端（採取扱い。マップ選択時は採取上限が適用、仕様決定 AC/AD）。`TransportKind=None` は仮想アイテム（輸送容量対象外）。非有効イベント配下は生産・外部調達とも不可（仕様決定 X）。 |
-| Environment | 共通属性, ProviderFacilityId, ConsumeItemId, ConsumeRatePerMinute, GameEventId(null=常設) | 環境を供給する設備（散布機）・継続消費アイテム・消費速度（個/分）を持つ（仕様決定 H、単位は AF）。カバー範囲は持たない（W）。 |
+| Environment | 共通属性, ProviderFacilityId, ConsumeItemId, ConsumeRatePerMinute, CoverableMachines, GameEventId(null=常設) | 環境を供給する設備（散布機）・継続消費アイテム・消費速度（個/分）を持つ（仕様決定 H、単位は AF）。供給設備 1 台がカバーできる機械台数を `CoverableMachines`（正の整数）で持つ（仕様決定 BP）。カバー範囲（面積）は持たない（W）。 |
 | Recipe | 共通属性, Inputs, Outputs, Facilities(RecipeFacility[]), GameEventId(null=常設) | `CycleTime`・`FacilityId` はレシピ本体からペアへ移動。Outputs は `ItemId＋Quantity＋SortOrder`（SortOrder=0 が主産物）。 |
 | Facility | 共通属性, Width, Height, PowerConsumption | 縦横は「設備面積最小」最適化（F）のために保持。発電識別・保持枠・ポート・衝突クラスは持たない（G/W/Y）。 |
 | RecipeFacility | RecipeId, FacilityId, CycleTime, EnvironmentId(null=不要), FixedConsumption(null 可) | レシピ×設備の紐付け。一意性は全要素の組で判定（仕様決定 P）。`FixedConsumption` は `(ItemId, 個/分)`（単位は AF）。 |
@@ -77,14 +77,14 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 
 ## 3. 計算エンジン仕様（Domain.Calculation）
 
-**入力**: `ProductionTarget[] { ItemId, 個/分 }`（複数目標可）、`ContextFilter { ActiveGameEventIds, MapId }`、アイテム単位のペア上書き `PairOverride[] { ItemId → 選択ペア }`、環境ごとの散布機台数上書き `EnvironmentCountOverride[] { EnvironmentId → 台数 }`、採取素材ごとのレート上書き `GatherRateOverride[] { ItemId → 個/分 }`（仕様決定 AE）。
+**入力**: `ProductionTarget[] { ItemId, 個/分 }`（複数目標可）、`ContextFilter { ActiveGameEventIds, MapId }`、アイテム単位のペア上書き `PairOverride[] { ItemId → 選択ペア }`、環境ごとの散布機台数上書き `EnvironmentCountOverride[] { EnvironmentId → 台数 }`（指定台数 × `CoverableMachines` がその環境を要する機械数の上限。仕様決定 BR）、採取素材ごとのレート上書き `GatherRateOverride[] { ItemId → 個/分 }`（仕様決定 AE）。
 
 **出力**: `ProductionPlan`
 
 - `ItemRequirement[] { ItemId, 毎分要求量, 供給内訳(レシピ/副産物/採取素材), 未充足量 }`
 - `FacilityRequirement[] { FacilityId, 実数台数, 切上げ台数 }`： 散布機を含む
 - `RecipeRun[] { RecipeId, FacilityId, CyclesPerMinute }`： ペア単位で保持
-- `EnvironmentRequirement[] { EnvironmentId, 散布機台数, 消費アイテム流量 }`
+- `EnvironmentRequirement[] { EnvironmentId, 散布機台数, 必要台数（自動値）, 消費アイテム流量 }`
 - `TotalPowerConsumption`： Σ(PowerConsumption × 切上げ台数)、散布機分を含む。発電側は計算しない（Q/Y）
 - `Surplus[] { ItemId, 毎分余剰量 }`
 - `FlowAdjustment[] { RecipeId, InputItemId, 要求流量(個/分), 推奨制限(個/分) }`： 「調整済」表示に使う（O。単位は仕様決定 AM）
@@ -97,7 +97,7 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 3. 適格判定: レシピの `GameEventId` が非有効なら候補外。ペアの `EnvironmentId` が指す環境の `GameEventId` が非有効ならそのペアも候補外。アイテム自体の `GameEventId` が非有効なら生産・外部調達とも不可とし、需要は未充足＋警告とする（X）。選択したマップが非有効イベント所属の場合も同様に、全採取素材を採取不可（上限 0）として警告する（AD、X と同型）。この場合の採取レート上書きは適用しない。
 4. 循環依存は展開スタック上の再要求で検出し、検出パスとループゲイン（パス上のレシピ比率の積）を記録する。枝が生きている（枝アイテムがまだ供給を要する）循環がすべて正味増なら残差を解放して再展開し、外部投入なしの定常解へ収束させる。解けない循環（正味減を含む・非収束）は最終の未充足へ警告を出す（AQ）。副産物は他素材需要へ充当し、充当残は余剰として出力する。1 アイテムの需要を複数設備へ分割しない（R で旧 BE 継承）。
 5. 設備台数はレシピのペアごとに `需要レート ÷ (60/CycleTime × 出力数量)` の実数を求め、設備単位に合算して切上げ台数を併記する。
-6. 環境計上（I）: 稼働が確定したペアの `EnvironmentId` ごとに散布機台数を確定する。既定はその環境を必要とする稼働中レシピ数（レシピにつき 1 台）、ユーザー上書きを優先する。散布機は設備要件・消費電力に計上し、`ConsumeRatePerMinute × 台数` を環境の消費アイテム需要へ追加する（単位は AF）。
+6. 環境計上（I・BP〜BR）: 上書きされた散布機台数は `台数 × CoverableMachines` をその環境を要する機械数の上限として手順 1 の需要展開へ適用し、上限を超える機械分は稼働させず未充足とする（BR）。稼働が確定したペアの `EnvironmentId` ごとに機械数合計（実数）を集計し、散布機台数を確定する。既定は機械数合計 ÷ `CoverableMachines` の切上げ（BQ）、ユーザー上書きを優先する。カバー不足で稼働が停止した要求を持つ環境も環境要件の行に含め、その必要台数（自動値）は実績と停止分の機械数合計から見積もる。散布機は設備要件・消費電力に計上し、`ConsumeRatePerMinute × 台数` を環境の消費アイテム需要へ追加する（単位は AF）。
 7. 固定消費（J/V）: 確定した各ペアの `FixedConsumption` について `個/分 × 切上げ台数` を需要へ追加する（単位は AF）。調整済モードでも基準は切上台数のままとする（V）。
 8. 環境消費と固定消費の需要追加は台数確定後に行うため、これらの需要自体が新たなレシピ稼働（→台数変化）を生みうる。展開→台数確定→追加需要 の一巡を収束するまで反復する（上限は旧発電反復と同じく 10 回とし、収束しない場合は警告を返す）。技術的改善として旧電力収束ループの構造を流用する。
 9. 採取素材は「個/分」のまま残す（R で旧 C 継承、AB で改称）。採取上限（AC/AD）: 選択マップの有効採取レート（ユーザー上書きを優先、未定義の行は「無限」か「上限値」、行のない採取素材は 0、マップ未選択は無制限）までを採取とし、超過分は当該アイテムを産出するレシピへ展開する。代替レシピがなければ未充足＋警告とする。輸送容量は `Item.TransportKind` でベルト 30 個/分・パイプ 60 個/分 を判定し、超過は警告（超過自体は許容。単位は仕様決定 AM、判定は設備 1 ユニットへの入力流量に限る。仕様決定 AN）。
@@ -304,6 +304,14 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 - [ ] 共通採取ノードと Gathered エッジを廃止し、採取供給のあるアイテムノードを緑色化して採取量をメタ行に併記する（仕様決定 BO）
 - [ ] `dotnet test` 全緑を確認し、ブラウザ E2E（環境設備の層・同名レシピの識別・採取素材の緑化）を実施する
 - **受け入れ条件**: 散布機が利用設備の層に並びガス系エッジが上向きに流れる。炭塊の 2 経路が説明で見分けられる。採取素材が緑ノードとして個別に見える。詳細は `phases/implementation-plan-phase25.md` と `phases/test-specification-phase25.md`。
+
+### Phase 26: 散布機のカバー可能台数（PR: CoverableMachines と台数の機械数比例化）
+
+- [ ] `Environment` に `CoverableMachines`（正の整数）を追加する（仕様決定 BP）。モデル・スキーマ・JSON 入出力・`MasterValidator`・`EntityFactory`・管理ツールの環境編集に追従させ、同梱マスタの env-stable・env-acrid へ 4 を投入する
+- [ ] 散布機の既定台数を「環境を要する機械数合計 ÷ `CoverableMachines` の切上げ」へ改め、環境要件に必要台数（自動値）を保持する（仕様決定 BQ、I の改定）
+- [ ] 散布機台数の上書きを機械数のカバー上限として需要展開へ反映し、超過分を未充足＋カバー不足警告とする（仕様決定 BR）
+- [ ] `dotnet test` 全緑を確認し、ブラウザ E2E（台数の機械数比例・カバー不足時の未充足と警告）を実施する
+- **受け入れ条件**: 息壌 150/分 で散布機が自動 2 台になり、台数を下げるとカバー不足分が未充足として出る。詳細は `phases/implementation-plan-phase26.md` と `phases/test-specification-phase26.md`。
 
 ## 5. 実装メモ・規約
 
