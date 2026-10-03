@@ -186,7 +186,7 @@ erDiagram
 |------|-----|------|
 | （共通属性） | — | 5.2 参照 |
 | Inputs | RecipeInput[] | 素材（ItemId＋個数） |
-| Outputs | RecipeOutput[] | 成果物（ItemId＋個数＋SortOrder。SortOrder=0 が主産物） |
+| Outputs | RecipeOutput[] | 成果物（ItemId＋個数＋SortOrder。規約は 0 から連番を付け、SortOrder 最小の行が主産物） |
 | Facilities | RecipeFacility[] | 実行可能な設備とのペア |
 | GameEventId | 文字列・null | 所属イベント |
 
