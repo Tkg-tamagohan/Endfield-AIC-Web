@@ -45,6 +45,109 @@ internal static class MasterJsonReader
     }
 
     /// <summary>
+    /// ID 系値の前後空白を除去する正規化（仕様決定 BX）。構造検証の前に呼ぶ。
+    /// 必須値は空になっても null にせず後段の必須違反に委ね、null 許容の参照値は空なら null（未指定）にする。
+    /// 内部空白は残り、空白禁止（BW）の違反として後段の検証で捕捉される。
+    /// 除去が発生した値は "{ロケーション}: 「{正規化後の値}」" 形式で normalizations へ記録する。
+    /// </summary>
+    public static void NormalizeIdValues(MasterJsonDocument document, ICollection<string> normalizations)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentNullException.ThrowIfNull(normalizations);
+
+        NormalizeElements(document.Items, "Items", normalizations, (item, location) =>
+        {
+            item.Id = TrimIdValue(item.Id, $"{location}.Id", normalizations, nullable: false);
+            item.GameEventId = TrimIdValue(item.GameEventId, $"{location}.GameEventId", normalizations, nullable: true);
+        });
+
+        NormalizeElements(document.Facilities, "Facilities", normalizations, (facility, location) =>
+        {
+            facility.Id = TrimIdValue(facility.Id, $"{location}.Id", normalizations, nullable: false);
+        });
+
+        NormalizeElements(document.Environments, "Environments", normalizations, (environment, location) =>
+        {
+            environment.Id = TrimIdValue(environment.Id, $"{location}.Id", normalizations, nullable: false);
+            environment.ProviderFacilityId = TrimIdValue(
+                environment.ProviderFacilityId, $"{location}.ProviderFacilityId", normalizations, nullable: false);
+            environment.ConsumeItemId = TrimIdValue(
+                environment.ConsumeItemId, $"{location}.ConsumeItemId", normalizations, nullable: false);
+            environment.GameEventId = TrimIdValue(
+                environment.GameEventId, $"{location}.GameEventId", normalizations, nullable: true);
+        });
+
+        NormalizeElements(document.GameEvents, "GameEvents", normalizations, (gameEvent, location) =>
+        {
+            gameEvent.Id = TrimIdValue(gameEvent.Id, $"{location}.Id", normalizations, nullable: false);
+        });
+
+        if (document.Recipes is not null)
+        {
+            for (int i = 0; i < document.Recipes.Count; i++)
+            {
+                if (document.Recipes[i] is not { } recipe)
+                {
+                    continue;
+                }
+
+                string location = $"Recipes[{i}]";
+                recipe.Id = TrimIdValue(recipe.Id, $"{location}.Id", normalizations, nullable: false);
+                recipe.GameEventId = TrimIdValue(
+                    recipe.GameEventId, $"{location}.GameEventId", normalizations, nullable: true);
+                NormalizeItemIds(recipe.Inputs, $"{location}.Inputs", normalizations,
+                    io => io.ItemId, (io, value) => io.ItemId = value);
+                NormalizeItemIds(recipe.Outputs, $"{location}.Outputs", normalizations,
+                    output => output.ItemId, (output, value) => output.ItemId = value);
+
+                if (recipe.Facilities is null)
+                {
+                    continue;
+                }
+
+                for (int j = 0; j < recipe.Facilities.Count; j++)
+                {
+                    if (recipe.Facilities[j] is not { } pair)
+                    {
+                        continue;
+                    }
+
+                    string pairLocation = $"{location}.Facilities[{j}]";
+                    pair.FacilityId = TrimIdValue(
+                        pair.FacilityId, $"{pairLocation}.FacilityId", normalizations, nullable: false);
+                    pair.EnvironmentId = TrimIdValue(
+                        pair.EnvironmentId, $"{pairLocation}.EnvironmentId", normalizations, nullable: true);
+                    if (pair.FixedConsumption is { } fixedConsumption)
+                    {
+                        fixedConsumption.ItemId = TrimIdValue(
+                            fixedConsumption.ItemId, $"{pairLocation}.FixedConsumption.ItemId",
+                            normalizations, nullable: false);
+                    }
+                }
+            }
+        }
+
+        NormalizeElements(document.Maps, "Maps", normalizations, (map, location) =>
+        {
+            map.Id = TrimIdValue(map.Id, $"{location}.Id", normalizations, nullable: false);
+            map.GameEventId = TrimIdValue(map.GameEventId, $"{location}.GameEventId", normalizations, nullable: true);
+            if (map.GatherRates is null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < map.GatherRates.Count; i++)
+            {
+                if (map.GatherRates[i] is { } rate)
+                {
+                    rate.ItemId = TrimIdValue(
+                        rate.ItemId, $"{location}.GatherRates[{i}].ItemId", normalizations, nullable: false);
+                }
+            }
+        });
+    }
+
+    /// <summary>
     /// 構造検証（SchemaVersion、DataVersion、必須配列、null 要素、必須フィールド、enum 値、
     /// Icons 節の構造）。ここを通過したドキュメントは <see cref="ToEntities"/> で安全に実体化できる。
     /// </summary>
@@ -619,5 +722,82 @@ internal static class MasterJsonReader
             errors.Add(new MasterValidationError(
                 entityKind, entityId, field, $"{location} の値が不正です: {value}"));
         }
+    }
+
+    private static void NormalizeElements<T>(
+        List<T?>? entities,
+        string collectionName,
+        ICollection<string> normalizations,
+        Action<T, string> normalize)
+        where T : class
+    {
+        if (entities is null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < entities.Count; i++)
+        {
+            if (entities[i] is { } entity)
+            {
+                normalize(entity, $"{collectionName}[{i}]");
+            }
+        }
+    }
+
+    private static void NormalizeItemIds<T>(
+        List<T?>? items,
+        string location,
+        ICollection<string> normalizations,
+        Func<T, string?> get,
+        Action<T, string?> set)
+        where T : class
+    {
+        if (items is null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < items.Count; i++)
+        {
+            if (items[i] is { } item)
+            {
+                set(item, TrimIdValue(get(item), $"{location}[{i}].ItemId", normalizations, nullable: false));
+            }
+        }
+    }
+
+    // 前後空白を除去する。除去が起きたときだけ記録し、nullable 指定で空になった値は null（未指定）にする。
+    private static string? TrimIdValue(
+        string? value,
+        string location,
+        ICollection<string> normalizations,
+        bool nullable)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        string trimmed = value.Trim();
+        if (nullable && trimmed.Length == 0)
+        {
+            // 空文字列は Domain 検証を素通りする一方 idValue（minLength 1）に反するため、
+            // 「空白のみ→未指定」の拡張として null に揃える。空白除去がなかった空文字列は記録しない。
+            if (trimmed != value)
+            {
+                normalizations.Add($"{location}: 「null」");
+            }
+
+            return null;
+        }
+
+        if (trimmed == value)
+        {
+            return value;
+        }
+
+        normalizations.Add($"{location}: 「{trimmed}」");
+        return trimmed;
     }
 }

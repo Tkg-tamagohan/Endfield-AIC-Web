@@ -45,6 +45,10 @@ public sealed class AdminDocumentService
     /// <summary>読み込み時の違反一覧（構文・構造・意味）。</summary>
     public IReadOnlyList<MasterValidationError> LoadErrors { get; private set; } = [];
 
+    /// <summary>読み込み時正規化で前後空白を除去した ID 系値の箇所一覧（仕様決定 BX）。
+    /// 読み込み失敗時・再読み込み時は空に戻る。</summary>
+    public IReadOnlyList<string> LoadNotes { get; private set; } = [];
+
     /// <summary>「検証を実行」の結果一覧。以後の編集でクリアされる。</summary>
     public IReadOnlyList<MasterValidationError> ValidationErrors { get; private set; } = [];
 
@@ -155,6 +159,7 @@ public sealed class AdminDocumentService
 
             LoadFailure = $"取得に失敗しました: {ex.Message}";
             LoadErrors = [];
+            LoadNotes = [];
             return false;
         }
 
@@ -181,6 +186,7 @@ public sealed class AdminDocumentService
         {
             LoadFailure = "zip の読み取りに失敗しました（data/master.json が見つかりません）";
             LoadErrors = [];
+            LoadNotes = [];
             return false;
         }
 
@@ -274,9 +280,11 @@ public sealed class AdminDocumentService
             LoadErrors = result.Errors;
             if (!result.Success || result.Document is null)
             {
+                LoadNotes = [];
                 return false;
             }
 
+            LoadNotes = result.Normalizations;
             Document = result.Document;
             _iconResolver = null;
             SourceLabel = sourceLabel;
@@ -295,6 +303,7 @@ public sealed class AdminDocumentService
         {
             LoadFailure = $"読み込みに失敗しました: {ex.Message}";
             LoadErrors = [];
+            LoadNotes = [];
             return false;
         }
     }

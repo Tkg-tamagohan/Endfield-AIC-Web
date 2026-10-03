@@ -1,6 +1,6 @@
 <div class="form-grid">
     <label>Id</label>
-    <input class="input" value="@Entity.Id" @onchange="e => Apply(e, v => Entity.Id = v)" />
+    <input class="input" value="@Entity.Id" @onchange="e => Apply(e, v => Entity.Id = v.Trim())" />
 
     <label>名前</label>
     <input class="input" value="@Entity.Name" @onchange="e => Apply(e, v => Entity.Name = v)" />

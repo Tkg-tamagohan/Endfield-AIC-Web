@@ -18,11 +18,12 @@
     "Icons": { "type": "array", "items": { "$ref": "#/$defs/icon" } }
   },
   "$defs": {
+    "idValue": { "type": "string", "minLength": 1, "pattern": "^\\S+$(?![\\s\\S])" },
     "commonAttributes": {
       "type": "object",
       "required": ["Id", "Name", "Description", "IconKey", "VersionAdded", "VersionRemoved"],
       "properties": {
-        "Id": { "type": "string", "minLength": 1 },
+        "Id": { "$ref": "#/$defs/idValue" },
         "Name": { "type": "string", "minLength": 1 },
         "Description": { "type": "string" },
         "IconKey": { "type": ["string", "null"], "pattern": "^[A-Za-z0-9_-]{0,64}$(?![\\s\\S])" },
@@ -40,7 +41,7 @@
             "Category": { "type": "string", "minLength": 1, "description": "表示用の分類タグ（計算の判定には使わない）" },
             "IsGatherable": { "type": "boolean", "description": "需要展開の終端となる採取素材か（true なら外部調達扱い）" },
             "TransportKind": { "enum": ["None", "Belt", "Pipe"], "description": "None は仮想アイテム（輸送容量対象外）" },
-            "GameEventId": { "type": ["string", "null"], "description": "null=常設" }
+            "GameEventId": { "anyOf": [{ "$ref": "#/$defs/idValue" }, { "type": "null" }], "description": "null=常設" }
           }
         }
       ],
@@ -68,11 +69,11 @@
           "type": "object",
           "required": ["ProviderFacilityId", "ConsumeItemId", "ConsumeRatePerMinute", "CoverableMachines", "GameEventId"],
           "properties": {
-            "ProviderFacilityId": { "type": "string", "minLength": 1 },
-            "ConsumeItemId": { "type": "string", "minLength": 1 },
+            "ProviderFacilityId": { "$ref": "#/$defs/idValue" },
+            "ConsumeItemId": { "$ref": "#/$defs/idValue" },
             "ConsumeRatePerMinute": { "type": "number", "exclusiveMinimum": 0 },
             "CoverableMachines": { "type": "integer", "exclusiveMinimum": 0 },
-            "GameEventId": { "type": ["string", "null"] }
+            "GameEventId": { "anyOf": [{ "$ref": "#/$defs/idValue" }, { "type": "null" }] }
           }
         }
       ],
@@ -97,7 +98,7 @@
       "required": ["ItemId", "Quantity"],
       "additionalProperties": false,
       "properties": {
-        "ItemId": { "type": "string", "minLength": 1 },
+        "ItemId": { "$ref": "#/$defs/idValue" },
         "Quantity": { "type": "number", "exclusiveMinimum": 0 }
       }
     },
@@ -106,7 +107,7 @@
       "required": ["ItemId", "Quantity", "SortOrder"],
       "additionalProperties": false,
       "properties": {
-        "ItemId": { "type": "string", "minLength": 1 },
+        "ItemId": { "$ref": "#/$defs/idValue" },
         "Quantity": { "type": "number", "exclusiveMinimum": 0 },
         "SortOrder": { "type": "integer", "minimum": 0, "description": "0 から連番。最小の行が主産物" }
       }
@@ -116,7 +117,7 @@
       "required": ["ItemId", "RatePerMinute"],
       "additionalProperties": false,
       "properties": {
-        "ItemId": { "type": "string", "minLength": 1 },
+        "ItemId": { "$ref": "#/$defs/idValue" },
         "RatePerMinute": { "type": "number", "exclusiveMinimum": 0 }
       }
     },
@@ -126,9 +127,9 @@
       "required": ["FacilityId", "CycleTime", "EnvironmentId", "FixedConsumption"],
       "additionalProperties": false,
       "properties": {
-        "FacilityId": { "type": "string", "minLength": 1 },
+        "FacilityId": { "$ref": "#/$defs/idValue" },
         "CycleTime": { "type": "number", "exclusiveMinimum": 0 },
-        "EnvironmentId": { "type": ["string", "null"], "description": "null=環境不要" },
+        "EnvironmentId": { "anyOf": [{ "$ref": "#/$defs/idValue" }, { "type": "null" }], "description": "null=環境不要" },
         "FixedConsumption": { "oneOf": [{ "$ref": "#/$defs/fixedConsumption" }, { "type": "null" }] }
       }
     },
@@ -142,7 +143,7 @@
             "Inputs": { "type": "array", "items": { "$ref": "#/$defs/recipeIo" } },
             "Outputs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/recipeOutput" } },
             "Facilities": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/recipeFacility" } },
-            "GameEventId": { "type": ["string", "null"] }
+            "GameEventId": { "anyOf": [{ "$ref": "#/$defs/idValue" }, { "type": "null" }] }
           }
         }
       ],
@@ -153,7 +154,7 @@
       "required": ["ItemId", "IsUnlimited", "RatePerMinute"],
       "additionalProperties": false,
       "properties": {
-        "ItemId": { "type": "string", "minLength": 1 },
+        "ItemId": { "$ref": "#/$defs/idValue" },
         "IsUnlimited": { "type": "boolean" },
         "RatePerMinute": { "type": ["number", "null"], "exclusiveMinimum": 0 }
       },
@@ -175,7 +176,7 @@
           "type": "object",
           "required": ["GameEventId", "GatherRates"],
           "properties": {
-            "GameEventId": { "type": ["string", "null"], "description": "null=常設" },
+            "GameEventId": { "anyOf": [{ "$ref": "#/$defs/idValue" }, { "type": "null" }], "description": "null=常設" },
             "GatherRates": { "type": "array", "items": { "$ref": "#/$defs/gatherRate" } }
           }
         }

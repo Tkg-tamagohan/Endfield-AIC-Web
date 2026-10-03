@@ -48,6 +48,21 @@
             }
         </ul>
     }
+    @if (Store.LoadNotes.Count > 0)
+    {
+        <h3 class="panel-title">読み込み時の正規化</h3>
+        <p class="hint">前後の空白を除去した ID 系値が @Store.LoadNotes.Count 件あります。</p>
+        <ul class="hint">
+            @foreach (string note in Store.LoadNotes.Take(20))
+            {
+                <li>@note</li>
+            }
+            @if (Store.LoadNotes.Count > 20)
+            {
+                <li>…ほか @(Store.LoadNotes.Count - 20) 件</li>
+            }
+        </ul>
+    }
 </section>
 
 @if (Store.IsLoaded)

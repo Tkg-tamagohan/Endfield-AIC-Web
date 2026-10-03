@@ -76,10 +76,10 @@ Phase 22-1 で追加した `AdminCalculatorIcons` は、`ICalculatorIcons` を `
 
 同梱マスタ 0.2.8 のエクスポートには、成形機の設備 ID の末尾空白（`fac-moulding `）、赤銅圧力タンクの ID とレシピ ID の綴り誤り（`cupriumCanitster`）、汚水の ID の綴り誤り（`item-swage`）が含まれていた。
 リポジトリ側は取り込み時に `fac-moulding`・`cupriumCanister`・`item-sewage` へ修正済みだが、同梱マスタの原本は管理ツールの登録データである。
-管理ツール側の該当エンティティ（設備・アイテム・レシピ）も同じ ID へ修正しないと、次回エクスポートで旧値に戻る。
-管理ツールで ID を変更するときは、参照側（レシピの入出力・設備ペアの `FacilityId`・`FixedConsumption` の `ItemId`）の追随更新も必要になる。
 
-空白入り ID への対策は Phase 31 で計画済み。ID 系値の空白禁止・読み込み時正規化・Id 入力欄トリムを導入する（仕様決定 BW〜BY、`phases/implementation-plan-phase31.md` 参照）。綴り違いの手修正と rename 機能の検討は引き続き残る。
+空白入り ID は Phase 31（仕様決定 BW〜BY）で対策済み。空白入りの登録データは読み込み時の正規化で矯正され、管理ツールからの新規混入は Id 入力欄の確定時トリムで防がれる。
+残る課題は綴り違い（`cupriumCanitster`・`item-swage`）の手修正のみである。管理ツール側の該当エンティティ（設備・アイテム・レシピ）を正しい ID へ修正しないと、次回エクスポートで旧値に戻る。
+管理ツールで ID を変更するときは、参照側（レシピの入出力・設備ペアの `FacilityId`・`FixedConsumption` の `ItemId`）の追随更新も必要になる。rename 機能は引き続き未対応とする。
 
 ### SortOrder の主産物基準と副産物判定の基準差
 
