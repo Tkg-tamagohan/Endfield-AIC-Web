@@ -1,4 +1,4 @@
-/* 計算パネル専用のスタイル（仕様決定 BB）。汎用クラス（.input・.btn・.hint 等）は各アプリの app.css が担う。 */
+/* 計算パネル専用のスタイル（仕様決定 BB）。汎用クラス（.input・.btn・.hint 等）は共有の css/shared.css が担う（仕様決定 BI）。 */
 
 .layout {
     display: grid;
@@ -31,6 +31,12 @@
     max-width: 100%;
     font-size: 12px;
     padding: 4px 6px;
+}
+
+/* 公開 App の app.css が持っていた select.input の flex: 1 を引き継ぐ。
+   flex コンテナ内の select（ペア選択）を行の残り幅へ伸ばす（仕様決定 BI）。 */
+select.input {
+    flex: 1;
 }
 
 .target-row {
@@ -67,32 +73,16 @@
     color: var(--text);
 }
 
-.toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: center;
-    margin-bottom: 8px;
-}
-
+/* 共有 .check へのパネル固有の余白（仕様決定 BI）。 */
 .check {
-    display: flex;
-    gap: 8px;
-    align-items: center;
     padding: 4px 0;
-    cursor: pointer;
 }
 
-.check input {
-    accent-color: var(--accent);
-}
-
-.tag {
-    border: 1px solid var(--accent);
-    border-radius: 4px;
-    color: var(--accent);
-    font-size: 11px;
-    padding: 0 5px;
+/* 計算ボタンは共有のコンパクト形を全幅・大きめのパディングで上書きする（仕様決定 BI）。 */
+.btn.primary {
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px;
 }
 
 .segmented {

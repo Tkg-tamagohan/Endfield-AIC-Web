@@ -109,7 +109,7 @@
         </div>
         <p class="hint">data/master.json と data/icons/ の一式を master-export.zip で書き出します。違反があると書き出せません。出力後はリポジトリルートで展開し、data/ の差分を PR にしてください。</p>
         <div class="toolbar">
-            <button class="btn primary" style="width: auto" @onclick="ExportZip">master-export.zip をエクスポート</button>
+            <button class="btn primary" @onclick="ExportZip">master-export.zip をエクスポート</button>
             @if (Store.HasInvalidInput)
             {
                 <span class="error">確定されていない不正な入力値（赤枠）があります。修正してください。</span>
