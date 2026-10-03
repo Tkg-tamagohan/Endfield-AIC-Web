@@ -66,7 +66,7 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 | エンティティ | フィールド | 備考 |
 |---|---|---|
 | 共通属性 | Id, Name, Description, IconKey(null 可), VersionAdded, VersionRemoved(null 可) | 全マスタエンティティに付与（仕様決定 N）。 |
-| Item | 共通属性, Category, IsGatherable, TransportKind, GameEventId(null=常設) | Category は表示用タグ、`IsGatherable=true` が需要展開の終端（採取扱い。マップ選択時は採取上限が適用、仕様決定 AC/AD）。`TransportKind=None` は仮想アイテム（輸送容量対象外）。非有効イベント配下は生産・外部調達とも不可（仕様決定 X）。 |
+| Item | 共通属性, Category, IsGatherable, TransportKind, GameEventId(null=常設) | Category は表示用タグ、`IsGatherable=true` が需要展開の終端（採取扱い。マップ選択時は採取上限が適用、仕様決定 AC/AD）。`TransportKind=None` は仮想アイテム（レシピ入力不可・生産リスト候補外）。非有効イベント配下は生産・外部調達とも不可（仕様決定 X）。 |
 | Environment | 共通属性, ProviderFacilityId, ConsumeItemId, ConsumeRatePerMinute, CoverableMachines, GameEventId(null=常設) | 環境を供給する設備（散布機）・継続消費アイテム・消費速度（個/分）を持つ（仕様決定 H、単位は AF）。供給設備 1 台がカバーできる機械台数を `CoverableMachines`（正の整数）で持つ（仕様決定 BP）。カバー範囲（面積）は持たない（W）。 |
 | Recipe | 共通属性, Inputs, Outputs, Facilities(RecipeFacility[]), GameEventId(null=常設) | `CycleTime`・`FacilityId` はレシピ本体からペアへ移動。Outputs は `ItemId＋Quantity＋SortOrder`（規約は 0 から連番を付け、SortOrder 最小の行が主産物）。 |
 | Facility | 共通属性, Width, Height, PowerConsumption | 縦横は「設備面積最小」最適化（F）のために保持。発電識別・保持枠・ポート・衝突クラスは持たない（G/W/Y）。 |
@@ -88,7 +88,7 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 - `TotalPowerConsumption`： Σ(PowerConsumption × 切上げ台数)、散布機分を含む。発電側は計算しない（Q/Y）
 - `Surplus[] { ItemId, 毎分余剰量 }`
 - `FlowAdjustment[] { RecipeId, InputItemId, 要求流量(個/分), 推奨制限(個/分) }`： 「調整済」表示に使う（O。単位は仕様決定 AM）
-- `Warning[]`： 循環依存・レシピ未登録・輸送容量超過・イベント非有効による未充足・採取上限超過で代替不可・収束失敗 等
+- `Warning[]`： 循環依存・レシピ未登録・イベント非有効による未充足・採取上限超過で代替不可・収束失敗 等
 
 **アルゴリズム概要**。
 
@@ -100,7 +100,7 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 6. 環境計上（I・BP〜BR）: 上書きされた散布機台数は `台数 × CoverableMachines` をその環境を要する機械数の上限として手順 1 の需要展開へ適用し、上限を超える機械分は稼働させず未充足とする（BR）。稼働が確定したペアの `EnvironmentId` ごとに機械数合計（実数）を集計し、散布機台数を確定する。既定は機械数合計 ÷ `CoverableMachines` の切上げ（BQ）、ユーザー上書きを優先する。カバー不足で稼働が停止した要求を持つ環境も環境要件の行に含め、その必要台数（自動値）は実績と停止分の機械数合計から見積もる。散布機は設備要件・消費電力に計上し、`ConsumeRatePerMinute × 台数` を環境の消費アイテム需要へ追加する（単位は AF）。
 7. 固定消費（J/V）: 確定した各ペアの `FixedConsumption` について `個/分 × 切上げ台数` を需要へ追加する（単位は AF）。調整済モードでも基準は切上台数のままとする（V）。
 8. 環境消費と固定消費の需要追加は台数確定後に行うため、これらの需要自体が新たなレシピ稼働（→台数変化）を生みうる。展開→台数確定→追加需要 の一巡を収束するまで反復する（上限は旧発電反復と同じく 10 回とし、収束しない場合は警告を返す）。技術的改善として旧電力収束ループの構造を流用する。
-9. 採取素材は「個/分」のまま残す（R で旧 C 継承、AB で改称）。採取上限（AC/AD）: 選択マップの有効採取レート（ユーザー上書きを優先、未定義の行は「無限」か「上限値」、行のない採取素材は 0、マップ未選択は無制限）までを採取とし、超過分は当該アイテムを産出するレシピへ展開する。代替レシピがなければ未充足＋警告とする。輸送容量は `Item.TransportKind` でベルト 30 個/分・パイプ 60 個/分 を判定し、超過は警告（超過自体は許容。単位は仕様決定 AM、判定は設備 1 ユニットへの入力流量に限る。仕様決定 AN）。
+9. 採取素材は「個/分」のまま残す（R で旧 C 継承、AB で改称）。採取上限（AC/AD）: 選択マップの有効採取レート（ユーザー上書きを優先、未定義の行は「無限」か「上限値」、行のない採取素材は 0、マップ未選択は無制限）までを採取とし、超過分は当該アイテムを産出するレシピへ展開する。代替レシピがなければ未充足＋警告とする。
 10. 出力は未調整・調整済の両方を表示可能な形で返す。2 状態の切替は UI の表示切替であり、計算結果は共用する（O）。期間換算（M）は表示層で `個/分` に係数を掛けて行い、設備の消費電力合計は換算しない。
 
 ## 4. Phase 別タスク
@@ -332,6 +332,13 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 - [ ] レシピの新規 Id 採番を `recipe-NNN` から `recipe-<slug>`（衝突時のみ 2 桁連番）へ置き換える
 - [ ] `dotnet test` 全緑を確認し、ブラウザ E2E（追随・固定・提案ボタン・ペア RecipeId 伝搬）を実施する
 - **受け入れ条件**: 新規レシピで出力アイテムを選ぶと Id・名前が主産物へ追随し、手動編集で固定・ボタンで提案値へ戻せる。詳細は `phases/implementation-plan-phase29.md` と `phases/test-specification-phase29.md`。
+
+### Phase 30: 輸送容量超過の警告とグラフ赤化の撤去（PR: 判定機構の撤去）
+
+- [ ] 「設備 1 ユニットへの入力流量 > 輸送容量」の警告と、同一判定によるフローグラフの容量超過赤化（`OverCapacity` エッジと両端ノード）を撤去する（仕様決定 BV、AN の撤去）。容量評価専用の機構（`AddTransportWarnings`・`MaxMachineInputs`・`OverspillGroups`・容量定数・警告コード・赤色分岐）も併せて撤去し、台数分表示（AO）のユニット割当と `TransportKind` は据え置く
+- [ ] `dotnet test` 全緑を確認し、ブラウザ E2E（`recipe-cupriumCanister` 等の容量超過構成で警告・赤化が出ないこと）を実施する
+- **受け入れ条件**: ベルト 30 個/分・パイプ 60 個/分を超える入力を持つ計画で、警告欄にもグラフにも容量超過の表示が出ない。詳細は `phases/implementation-plan-phase30.md` と `phases/test-specification-phase30.md`。
+
 
 ## 5. 実装メモ・規約
 
