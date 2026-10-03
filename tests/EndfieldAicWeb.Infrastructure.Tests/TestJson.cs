@@ -96,6 +96,7 @@ internal static class TestJson
                     ProviderFacilityId = "f-disp",
                     ConsumeItemId = "i-gas",
                     ConsumeRatePerMinute = 360.0,
+                    CoverableMachines = 4,
                     GameEventId = (string?)null,
                 })),
             ["GameEvents"] = new JsonArray(

@@ -24,7 +24,7 @@ internal static class ApplicationFixtures
     public static Facility Facility(string id, string name, double power) =>
         new() { Id = id, Name = name, PowerConsumption = power, VersionAdded = "1.0.0" };
 
-    public static DomainEnvironment Env(string id, string name, string providerFacilityId, string consumeItemId, double ratePerMinute, string? eventId = null) =>
+    public static DomainEnvironment Env(string id, string name, string providerFacilityId, string consumeItemId, double ratePerMinute, string? eventId = null, int coverableMachines = 4) =>
         new()
         {
             Id = id,
@@ -32,6 +32,7 @@ internal static class ApplicationFixtures
             ProviderFacilityId = providerFacilityId,
             ConsumeItemId = consumeItemId,
             ConsumeRatePerMinute = ratePerMinute,
+            CoverableMachines = coverableMachines,
             VersionAdded = "1.0.0",
             GameEventId = eventId,
         };

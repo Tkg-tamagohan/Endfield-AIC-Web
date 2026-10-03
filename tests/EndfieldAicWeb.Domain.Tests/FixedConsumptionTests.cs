@@ -44,10 +44,12 @@ public class FixedConsumptionTests
     [Fact(DisplayName = "FIX-04: 提供設備とレシピ設備が兼用なら散布機込みの切上台数が乗数")]
     public void SharedProviderFacilityCountsDispensers()
     {
+        // i-fcx 10/分は 30 秒ペアで 5.0 機分。CoverableMachines 4 を超えるため散布機は 2 台になり、
+        // 兼用設備の切上台数は 5.0 + 2 = 7（仕様決定 BQ で 1 台 → 2 台へ変わった分）。
         ProductionPlan plan = CalculationFixtures.Run(
             CalculationFixtures.F11WithSharedProvider(), [("i-fcx", 10.0)]);
 
-        Assert.Equal(6, Fac(plan, "f-fc").CeilCount);
-        Assert.Equal(180.0, Req(plan, "i-fuel").RequiredPerMinute, Precision);
+        Assert.Equal(7, Fac(plan, "f-fc").CeilCount);
+        Assert.Equal(210.0, Req(plan, "i-fuel").RequiredPerMinute, Precision);
     }
 }

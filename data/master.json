@@ -1,6 +1,6 @@
 {
   "SchemaVersion": 1,
-  "DataVersion": "0.2.5",
+  "DataVersion": "0.2.6",
   "Items": [
     {
       "Category": "鉱物",
@@ -556,6 +556,7 @@
       "ProviderFacilityId": "fac-gasDispersing",
       "ConsumeItemId": "item-inergen",
       "ConsumeRatePerMinute": 6,
+      "CoverableMachines": 4,
       "GameEventId": null,
       "Id": "env-stable",
       "Name": "安定環境",
@@ -568,6 +569,7 @@
       "ProviderFacilityId": "fac-gasDispersing",
       "ConsumeItemId": "item-acridgen",
       "ConsumeRatePerMinute": 6,
+      "CoverableMachines": 4,
       "GameEventId": null,
       "Id": "env-acrid",
       "Name": "酸性環境",

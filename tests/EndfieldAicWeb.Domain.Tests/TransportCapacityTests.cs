@@ -76,4 +76,121 @@ public class TransportCapacityTests
 
         Assert.False(HasWarning(plan, WarningCode.TransportCapacityExceeded));
     }
+
+    [Fact(DisplayName = "TRN-07: ユニット実体化上限超過の計画で集約流量を 1 機の入力と誤判定しない")]
+    public void OversizedFacilityDoesNotFalselyWarn()
+    {
+        // 機械数 20,000（FacilityUnitLayout の防御的上限超過）・1 機あたり入力 1/分。
+        // 末尾へ集約されたスロットの流量を 1 機とみなすと誤警告になる（Phase 26 レビュー指摘）。
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.Snapshot(
+                [CalculationFixtures.Item("i-a"), CalculationFixtures.Item("i-x")],
+                [CalculationFixtures.Facility("f-a")],
+                [CalculationFixtures.Recipe("r-x", "f-a", 60.0, [("i-a", 1.0)], [("i-x", 1.0)])]),
+            [("i-x", 20_000.0)]);
+
+        Assert.False(HasWarning(plan, WarningCode.TransportCapacityExceeded));
+    }
+
+    [Fact(DisplayName = "TRN-08: ユニット実体化上限超過でも機械あたりの容量超過は警告")]
+    public void OversizedFacilityStillWarnsPerMachineBreach()
+    {
+        // 機械数 20,000（cycles 400,000 × 3秒/60）・1 機あたり入力 40/分（ベルト 30 超過）なら
+        // 集約しても警告が要る。
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.Snapshot(
+                [CalculationFixtures.Item("i-a"), CalculationFixtures.Item("i-x")],
+                [CalculationFixtures.Facility("f-a")],
+                [CalculationFixtures.Recipe("r-x", "f-a", 3.0, [("i-a", 2.0)], [("i-x", 1.0)])]),
+            [("i-x", 400_000.0)]);
+
+        Assert.Contains(plan.Warnings, w =>
+            w.Code == WarningCode.TransportCapacityExceeded
+            && w.Message.Contains("i-a"));
+    }
+
+    [Fact(DisplayName = "TRN-09: 末尾集約スロットに異なるランの機械が混在しても平均化しない")]
+    public void OversizedFacilityDoesNotAverageMachineGroups()
+    {
+        // i-lo 20,000/分（1 機あたり i-a 1/分）が 10,000 ユニットを埋めて残りを末尾へ集約し、
+        // i-hi 1/分（1 機あたり i-a 40/分）の 1 機がさらに末尾へ集約される。
+        // 合算流量を機械数で平均化すると 40/分の機械が隠れて警告が消える（Phase 26 レビュー指摘）。
+        var snapshot = CalculationFixtures.Snapshot(
+            [CalculationFixtures.Item("i-a"),
+             CalculationFixtures.Item("i-lo"),
+             CalculationFixtures.Item("i-hi")],
+            [CalculationFixtures.Facility("f-a")],
+            [CalculationFixtures.Recipe("r-lo", "f-a", 60.0, [("i-a", 1.0)], [("i-lo", 1.0)]),
+             CalculationFixtures.Recipe("r-hi", "f-a", 60.0, [("i-a", 40.0)], [("i-hi", 1.0)])]);
+        ProductionPlan plan = CalculationFixtures.Run(snapshot,
+            [("i-lo", 20_000.0), ("i-hi", 1.0)]);
+
+        // 前提: 末尾スロットに両ランの機械群が混在している（ラン順が変わると前提が崩れる）
+        var units = FacilityUnitLayout.Allocate(
+            plan.RecipeRuns, plan.FacilityRequirements, plan.EnvironmentRequirements,
+            snapshot, plan.PairSelections)["f-a"];
+        Assert.Equal(2, units[^1].OverspillGroups.Count);
+
+        Assert.Contains(plan.Warnings, w =>
+            w.Code == WarningCode.TransportCapacityExceeded
+            && w.Message.Contains("i-a"));
+    }
+
+    [Fact(DisplayName = "TRN-10: 末尾集約が 1 機未満のとき占有率ぶんに換算する")]
+    public void FractionalOverspillUsesOccupancyRate()
+    {
+        // i-lo 9,999.6 機（1 機あたり i-a 1/分）が末尾スロットへ 0.6 載り、
+        // i-hi 0.8 機（1 機あたり i-a 40/分）の残り 0.4 機が末尾へ溢れる。
+        // 溢れは 0.4 機＝16/分なので警告しない（端数機へ満機レートを充てると誤警告。
+        // Phase 26 レビュー指摘）。
+        var snapshot = CalculationFixtures.Snapshot(
+            [CalculationFixtures.Item("i-a"),
+             CalculationFixtures.Item("i-lo"),
+             CalculationFixtures.Item("i-hi")],
+            [CalculationFixtures.Facility("f-a")],
+            [CalculationFixtures.Recipe("r-lo", "f-a", 60.0, [("i-a", 1.0)], [("i-lo", 1.0)]),
+             CalculationFixtures.Recipe("r-hi", "f-a", 60.0, [("i-a", 40.0)], [("i-hi", 1.0)])]);
+        ProductionPlan plan = CalculationFixtures.Run(snapshot,
+            [("i-lo", 9_999.6), ("i-hi", 0.8)]);
+
+        // 前提: 高速ランの端数機が末尾スロットへ溢れている（ラン順が変わると
+        // 溢れ自体が起きず警告評価を素通りするため明示する）
+        var units = FacilityUnitLayout.Allocate(
+            plan.RecipeRuns, plan.FacilityRequirements, plan.EnvironmentRequirements,
+            snapshot, plan.PairSelections)["f-a"];
+        int hiRun = plan.RecipeRuns.ToList().FindIndex(r => r.RecipeId == "r-hi");
+        Assert.Contains(units[^1].OverspillGroups, g => g.RunIndex == hiRun);
+
+        Assert.False(HasWarning(plan, WarningCode.TransportCapacityExceeded));
+    }
+
+    [Fact(DisplayName = "TRN-11: 異なるランの端数機が同一機械を共用するとき合算入力で判定する")]
+    public void FractionalOverspillsShareOneMachine()
+    {
+        // i-lo 10,000 機（1 機あたり i-a 1/分）が 10,000 ユニットをちょうど埋め、
+        // i-mid の 0.4 機（1 機あたり i-a 25/分）と i-hi の 0.6 機（1 機あたり i-a 40/分）が
+        // 末尾へ溢れて同一の仮想機械を共用する。共用機械の入力は 10 + 24 = 34/分で
+        // ベルト 30 超過（群ごとの独立評価では 24/分で警告が消える。Phase 26 レビュー指摘）。
+        var snapshot = CalculationFixtures.Snapshot(
+            [CalculationFixtures.Item("i-a"),
+             CalculationFixtures.Item("i-lo"),
+             CalculationFixtures.Item("i-mid"),
+             CalculationFixtures.Item("i-hi")],
+            [CalculationFixtures.Facility("f-a")],
+            [CalculationFixtures.Recipe("r-lo", "f-a", 60.0, [("i-a", 1.0)], [("i-lo", 1.0)]),
+             CalculationFixtures.Recipe("r-mid", "f-a", 60.0, [("i-a", 25.0)], [("i-mid", 1.0)]),
+             CalculationFixtures.Recipe("r-hi", "f-a", 60.0, [("i-a", 40.0)], [("i-hi", 1.0)])]);
+        ProductionPlan plan = CalculationFixtures.Run(snapshot,
+            [("i-lo", 10_000.0), ("i-mid", 0.4), ("i-hi", 0.6)]);
+
+        // 前提: 末尾スロットへ両ランの端数機が溢れている（ラン順が変わると前提が崩れる）
+        var units = FacilityUnitLayout.Allocate(
+            plan.RecipeRuns, plan.FacilityRequirements, plan.EnvironmentRequirements,
+            snapshot, plan.PairSelections)["f-a"];
+        Assert.Equal(2, units[^1].OverspillGroups.Count);
+
+        Assert.Contains(plan.Warnings, w =>
+            w.Code == WarningCode.TransportCapacityExceeded
+            && w.Message.Contains("i-a"));
+    }
 }

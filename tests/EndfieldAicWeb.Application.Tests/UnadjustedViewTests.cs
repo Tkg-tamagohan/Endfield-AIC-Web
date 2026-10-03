@@ -148,4 +148,95 @@ public class UnadjustedViewTests
         SurplusProduction surplus = Assert.Single(view.Surpluses, s => s.ItemId == "i-ore");
         Assert.Equal(5, surplus.ExcessPerMinute, 6);
     }
+
+    // VWU-07: 環境ランと非環境ランが同一設備を共用するとき、環境ランの未調整供給は
+    // 設備倍率ではなく散布機カバー残量で頭打ちになる（上書きは未調整でも適用）。
+    [Fact]
+    public void EnvRunStallsOnDispenserCoverInUnadjusted()
+    {
+        // r-hp 60/分 = 4.0 機、r-nc 10/分 = 2/3 機 → f-asm 合計 14/3 ≈ 4.67 → 切上げ 5・倍率 ≈1.07。
+        // 散布機上書き 1 → カバー 4.0 機。設備倍率なら 64.3/分出るところ、カバー 4.0 機で 60/分に留まる。
+        (_, ResultView view) = BuildWithEnvOverride(
+            EnvSharedFacilitySnapshot(), 1, new ProductionTarget("i-hp", 60), new ProductionTarget("i-nc", 10));
+
+        Assert.Equal(60.0, Supply(view, "i-hp"), 6);
+        Assert.Equal(10.0 * (5.0 / (14.0 / 3.0)), Supply(view, "i-nc"), 6);
+    }
+
+    // VWU-08: カバー残量は計画のラン登録順（RunOrder）で配り、先のランから余りを受け取る。
+    [Fact]
+    public void CoverageRemainderIsDistributedInRunOrder()
+    {
+        // r-hp 30/分 = 2.0 機、r-std 22.8/分 = 1.9 機 → 環境予約 3.9 機、カバー 4.0 機で残 0.1 機。
+        // 残量は先着の r-hp へ 0.1 機譲渡（2.1 機分 → 31.5/分）、r-std は実機械 1.9 のまま 22.8/分。
+        (_, ResultView view) = BuildWithEnvOverride(
+            EnvSharedFacilitySnapshot(), 1,
+            new ProductionTarget("i-hp", 30), new ProductionTarget("i-std", 22.8), new ProductionTarget("i-nc", 7.5));
+
+        Assert.Equal(31.5, Supply(view, "i-hp"), 6);
+        Assert.Equal(22.8, Supply(view, "i-std"), 6);
+    }
+
+    // VWU-09: 調整済み計画で削減されたランの機械数も予約に含めるため、残量配分は発生しない。
+    [Fact]
+    public void AdjustedBlockedMachinesStayReserved()
+    {
+        // r-std は調整済みで 40/分需要が 2.0 機（24/分）へ削減済み。環境予約は実機械合計 4.0 機で残 0。
+        // 設備倍率で育てば r-hp は 33.3/分・r-std も実績を越えるところ、予約分で上限に達し現状維持。
+        // 非環境ランのみ設備倍率 ≈1.11 で 8.33/分。
+        (ProductionPlan plan, ResultView view) = BuildWithEnvOverride(
+            EnvSharedFacilitySnapshot(), 1,
+            new ProductionTarget("i-hp", 30), new ProductionTarget("i-std", 40), new ProductionTarget("i-nc", 7.5));
+
+        // 調整済み側の前提: i-std の 16/分は未充足。
+        Assert.Equal(16.0, plan.ItemRequirements.Single(r => r.ItemId == "i-std").UnmetPerMinute, 6);
+
+        Assert.Equal(30.0, Supply(view, "i-hp"), 6);
+        Assert.Equal(24.0, Supply(view, "i-std"), 6);
+        Assert.Equal(7.5 * (5.0 / 4.5), Supply(view, "i-nc"), 6);
+    }
+
+    private static double Supply(ResultView view, string itemId) =>
+        Assert.Single(view.Materials, m => m.ItemId == itemId).Supplies.Sum(s => s.AmountPerMinute);
+
+    /// <summary>散布機台数上書きを渡す Build（env-gas のみ）。</summary>
+    private static (ProductionPlan Plan, ResultView View) BuildWithEnvOverride(
+        MasterDataSnapshot snapshot, int dispenserCount, params ProductionTarget[] targets)
+    {
+        ProductionPlan plan = ProductionCalculator.Calculate(
+            snapshot,
+            targets,
+            new ContextFilter(),
+            [],
+            [new EnvironmentCountOverride("env-gas", dispenserCount)],
+            []);
+        return (plan, ResultViewBuilder.Build(plan, snapshot, new ContextFilter(), unadjusted: true));
+    }
+
+    /// <summary>
+    /// VWU-07〜09 用フィクスチャ。f-asm 上に環境ペア 2 種（4 秒・5 秒）と非環境ペアを持ち、
+    /// env-gas は散布機 1 台で 4 機をカバーする。
+    /// </summary>
+    private static MasterDataSnapshot EnvSharedFacilitySnapshot() => ApplicationFixtures.Snapshot(
+        [
+            ApplicationFixtures.Item("i-ore", "採取素材", gatherable: true),
+            ApplicationFixtures.Item("i-gas", "活性ガス", TransportKind.Pipe, gatherable: true),
+            ApplicationFixtures.Item("i-hp", "熱処理品"),
+            ApplicationFixtures.Item("i-std", "安定品"),
+            ApplicationFixtures.Item("i-nc", "非環境品"),
+        ],
+        [
+            ApplicationFixtures.Facility("f-asm", "加工機", 50),
+            ApplicationFixtures.Facility("f-disp", "ガス散布機", 20),
+        ],
+        [ApplicationFixtures.Env("env-gas", "ガス散布", "f-disp", "i-gas", 360)],
+        [],
+        [
+            ApplicationFixtures.Recipe("r-hp", "熱処理品", [("i-ore", 1)], [("i-hp", 1)],
+                [ApplicationFixtures.Pair("f-asm", 4, "env-gas")]),
+            ApplicationFixtures.Recipe("r-std", "安定品", [("i-ore", 1)], [("i-std", 1)],
+                [ApplicationFixtures.Pair("f-asm", 5, "env-gas")]),
+            ApplicationFixtures.Recipe("r-nc", "非環境品", [("i-ore", 1)], [("i-nc", 1)],
+                [ApplicationFixtures.Pair("f-asm", 4)]),
+        ]);
 }

@@ -80,4 +80,34 @@ public class PlanViewDefaultsTests
 
         Assert.Equal(0, PlanViewDefaults.DispenserLimit(plan, "env-none"));
     }
+
+    // PVD-06: 上限は環境要件の RequiredDispenserCount（機械数からの見積もり）を返し、
+    // カバー不足で稼働が止まった環境でも自動値が返る（distinct レシピ数ではない）。
+    [Fact]
+    public void DispenserLimitReturnsRequiredCountEvenWhenStopped()
+    {
+        // A-01 の i-part 60/分は 3 秒ペアで 3.0 機分。散布機 0 へ上書きすると稼働は全停するが、
+        // 必要台数は削減機械分込みの自動見積もり（1 台）を返す。
+        MasterDataSnapshot snapshot = ApplicationFixtures.A01();
+        ProductionPlan plan = ProductionCalculator.Calculate(
+            snapshot,
+            [new ProductionTarget("i-part", 60)],
+            new ContextFilter(),
+            [],
+            [new EnvironmentCountOverride("env-gas", 0)],
+            []);
+
+        Assert.Equal(1, PlanViewDefaults.DispenserLimit(plan, "env-gas"));
+
+        // 機械数がカバー可能台数を超える計画では、レシピ数（1）でなく必要台数（2）が上限になる。
+        ProductionPlan busy = ProductionCalculator.Calculate(
+            snapshot,
+            [new ProductionTarget("i-part", 160)],
+            new ContextFilter(),
+            [],
+            [],
+            []);
+
+        Assert.Equal(2, PlanViewDefaults.DispenserLimit(busy, "env-gas"));
+    }
 }

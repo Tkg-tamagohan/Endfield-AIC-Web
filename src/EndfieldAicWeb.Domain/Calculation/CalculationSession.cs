@@ -44,6 +44,22 @@ internal sealed class CalculationSession
     /// <summary>解放で残差が縮まなかった場合に、以後の解放を打ち切るフラグ（AQ の保険）。</summary>
     private bool _cycleReleaseStopped;
 
+    /// <summary>
+    /// 散布機台数の上書きが決める環境ごとの機械数上限（台数 × CoverableMachines、仕様決定 BR）。
+    /// 上書きのない環境は自動台数が需要を常に満たすため上限を持たない。
+    /// 負数・未知環境の上書きは ComputeCounts 側の警告と同じく既定台数扱いで上限を持たない。
+    /// </summary>
+    private readonly Dictionary<string, double> _envCaps = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// （環境 Id, アイテム Id）ごとのカバー不足削減記録。未充足寄与量と
+    /// 機械数換算係数（CycleTime / 60 / 出力量）を持つ（仕様決定 BR）。
+    /// </summary>
+    private readonly Dictionary<(string EnvId, string ItemId), EnvBlockedPortion> _envBlockedUnmet = new();
+
+    /// <summary>Unmet への全加算の合算（全原因の寄与）。削減記録の残存率計算に使う（BR）。</summary>
+    private readonly Dictionary<string, double> _unmetAdded = new(StringComparer.Ordinal);
+
     internal readonly Dictionary<string, double> Demand = new(StringComparer.Ordinal);
     internal readonly Dictionary<string, double> Produced = new(StringComparer.Ordinal);
     internal readonly Dictionary<string, double> Raw = new(StringComparer.Ordinal);
@@ -82,11 +98,73 @@ internal sealed class CalculationSession
         _environmentOverrides = environmentOverrides;
         _gatherOverrides = gatherOverrides;
         _gatherCaps = GatherCapResolver.Resolve(master, context, gatherOverrides, Warnings);
+
+        // 散布機台数の上書きを機械数上限へ展開する（仕様決定 BR）。
+        // 同一環境へ複数上書きされたときは先勝ち（ComputeCounts の FirstOrDefault と同じ評価）。
+        var resolvedEnvOverrides = new HashSet<string>(StringComparer.Ordinal);
+        foreach (EnvironmentCountOverride envOverride in environmentOverrides)
+        {
+            if (!resolvedEnvOverrides.Add(envOverride.EnvironmentId) || envOverride.Count < 0)
+            {
+                continue;
+            }
+            if (_master.EnvironmentsById.TryGetValue(envOverride.EnvironmentId, out Environment? env))
+            {
+                _envCaps[envOverride.EnvironmentId] = envOverride.Count * (double)env.CoverableMachines;
+            }
+        }
     }
 
     /// <summary>採取素材の残り採取可能量（個/分）。採取素材以外や上限の解決漏れは 0。</summary>
     private double GatherRemaining(string itemId) =>
         Math.Max(0.0, _gatherCaps.GetValueOrDefault(itemId) - ProductionCalculator.GetOrZero(Raw, itemId));
+
+    /// <summary>環境の使用済み機械数（同環境を要する稼働中ランの機械数合算）。占有順は展開順。</summary>
+    private double EnvUsedMachines(string envId)
+    {
+        double used = 0.0;
+        foreach (PairSelector.Selection run in RunOrder)
+        {
+            if (run.Pair.EnvironmentId == envId)
+            {
+                used += RunCycles[run] * run.Pair.CycleTime / 60.0;
+            }
+        }
+        return used;
+    }
+
+    /// <summary>未充足の計上。全原因の寄与を unmetAdded 帳簿へ併記する（BR の比例配分用）。</summary>
+    private void AddUnmet(string itemId, double amount)
+    {
+        Unmet[itemId] = ProductionCalculator.GetOrZero(Unmet, itemId) + amount;
+        _unmetAdded[itemId] = _unmetAdded.GetValueOrDefault(itemId) + amount;
+    }
+
+    /// <summary>
+    /// 環境ごとの有効削減機械数。カバー不足で記録した未充足寄与を残存 Unmet へ
+    /// 比例配分して機械数へ換算する（仕様決定 BR、implementation-plan-phase26 §3.3）。
+    /// </summary>
+    private Dictionary<string, double> EffectiveBlockedMachines()
+    {
+        var blocked = new Dictionary<string, double>(StringComparer.Ordinal);
+        foreach (((string envId, string itemId), EnvBlockedPortion portion) in _envBlockedUnmet)
+        {
+            double added = _unmetAdded.GetValueOrDefault(itemId);
+            double share = added <= ProductionCalculator.Epsilon
+                ? 0.0
+                : Math.Min(1.0, ProductionCalculator.GetOrZero(Unmet, itemId) / added);
+            blocked[envId] = blocked.GetValueOrDefault(envId)
+                + portion.UnmetAmount * share * portion.MachinesPerUnmet;
+        }
+        return blocked;
+    }
+
+    /// <summary>カバー不足で削った未充足寄与 1 件（アイテム量と機械数換算係数）。</summary>
+    private sealed record EnvBlockedPortion(double UnmetAmount, double MachinesPerUnmet)
+    {
+        public EnvBlockedPortion Add(double amount) =>
+            this with { UnmetAmount = UnmetAmount + amount };
+    }
 
     /// <summary>均衡化（展開→引き戻し）の反復上限。目標順によらず収束先が一意になることを保証するための仕組み。</summary>
     private const int MaxBalanceRounds = 100;
@@ -164,6 +242,19 @@ internal sealed class CalculationSession
                 Warnings.Add(new CalculationWarning(
                     WarningCode.CycleDetected,
                     $"循環依存を検出したため展開を打ち切りました: {path}"));
+            }
+        }
+
+        // カバー不足の警告も同じく有効削減機械数で発行する（仕様決定 BR）。
+        // 副産物の充当や引き戻しで解消された停止分には警告を残さない。
+        foreach ((string envId, double effectiveMachines) in EffectiveBlockedMachines())
+        {
+            if (effectiveMachines > ProductionCalculator.Epsilon)
+            {
+                double cap = _envCaps.GetValueOrDefault(envId);
+                Warnings.Add(new CalculationWarning(
+                    WarningCode.EnvironmentCoverageExceeded,
+                    $"環境 {envId} の散布機がカバーできる機械数（{cap:0.###} 機）を超える {effectiveMachines:0.###} 機分の生産が未充足です。"));
             }
         }
     }
@@ -320,7 +411,7 @@ internal sealed class CalculationSession
             double need = ProductionCalculator.GetOrZero(Demand, itemId) - ProductionCalculator.GetOrZero(Unmet, itemId);
             if (need > ProductionCalculator.Epsilon)
             {
-                Unmet[itemId] = ProductionCalculator.GetOrZero(Unmet, itemId) + need;
+                AddUnmet(itemId, need);
                 Warnings.Add(new CalculationWarning(
                     WarningCode.EventItemUnavailable,
                     $"アイテム {itemId} はイベント {_master.ItemsById[itemId].GameEventId} が有効でないため生産・調達できません。"));
@@ -360,7 +451,7 @@ internal sealed class CalculationSession
             // 正味増（ゲイン < 1）の残差は均衡化ラウンドの解放ステップで再展開し、
             // 残った未充足は Run 末尾で警告へ変える。
             RecordCycle(itemId);
-            Unmet[itemId] = ProductionCalculator.GetOrZero(Unmet, itemId) + remainder;
+            AddUnmet(itemId, remainder);
             return;
         }
 
@@ -398,7 +489,7 @@ internal sealed class CalculationSession
 
         if (selection is null)
         {
-            Unmet[itemId] = ProductionCalculator.GetOrZero(Unmet, itemId) + remainder;
+            AddUnmet(itemId, remainder);
             if (IsGatherable(itemId))
             {
                 // 警告の発行は Run 末尾で最終 Unmet を見て行う（途中の不足が後で解消されうる）。
@@ -421,11 +512,36 @@ internal sealed class CalculationSession
         double delta = remainder / outputQty;
         if (!double.IsFinite(delta) || delta <= 0)
         {
-            Unmet[itemId] = ProductionCalculator.GetOrZero(Unmet, itemId) + remainder;
+            AddUnmet(itemId, remainder);
             Warnings.Add(new CalculationWarning(
                 WarningCode.NoRecipeAvailable,
                 $"アイテム {itemId} のレシピ {recipe.Id} の出力数量が 0 以下のため生産できません。"));
             return;
+        }
+
+        // 散布機台数の上書きは 台数×CoverableMachines の機械数上限になる（仕様決定 BR）。
+        // 上限にかかる分はランの稼働を削って当該アイテムを未充足へ計上し、削減記録は
+        // Run 末尾の確定時に残存 Unmet へ比例配分する。環境の占有順は展開順。
+        if (selection.Pair.EnvironmentId is string capEnvId
+            && _envCaps.TryGetValue(capEnvId, out double envCap))
+        {
+            double allowedDelta =
+                Math.Max(0.0, envCap - EnvUsedMachines(capEnvId)) * 60.0 / selection.Pair.CycleTime;
+            if (allowedDelta < delta)
+            {
+                double cut = (delta - allowedDelta) * outputQty;
+                AddUnmet(itemId, cut);
+                _envBlockedUnmet[(capEnvId, itemId)] =
+                    _envBlockedUnmet.TryGetValue((capEnvId, itemId), out EnvBlockedPortion? portion)
+                        ? portion.Add(cut)
+                        : new EnvBlockedPortion(cut, selection.Pair.CycleTime / (60.0 * outputQty));
+                delta = allowedDelta;
+                // 全量停止のランは RunCycles・RunOrder に登録しない（切断の繰り返しを避ける）。
+                if (delta <= ProductionCalculator.Epsilon)
+                {
+                    return;
+                }
+            }
         }
 
         _stack.Add(itemId);
@@ -545,6 +661,14 @@ internal sealed class CalculationSession
             .ToList())
         {
             Unmet[itemId] = 0;
+            // 解放した残差の未充足帳簿もリセットする。再展開で削られれば記録し直され、
+            // 副産物充当で解消する場合は削減記録を残さないため（§3.3 の比例配分を正しく保つ）。
+            _unmetAdded[itemId] = 0;
+            foreach ((string _, string ItemId) key in
+                _envBlockedUnmet.Keys.Where(k => k.ItemId == itemId).ToList())
+            {
+                _envBlockedUnmet.Remove(key);
+            }
             Expand(itemId);
             released = true;
         }
@@ -565,7 +689,10 @@ internal sealed class CalculationSession
         return true;
     }
 
-    /// <summary>解放ステップの帳簿一式の控え（仕様決定 AQ のロールバック保険）。</summary>
+    /// <summary>
+    /// 解放ステップの帳簿一式の控え（仕様決定 AQ のロールバック保険）。
+    /// 環境上限の使用済み機械数は RunCycles から導出されるため、RunCycles の復元で追随する（BR）。
+    /// </summary>
     private sealed class ReleaseSnapshot
     {
         internal required Dictionary<string, double> Demand;
@@ -581,6 +708,8 @@ internal sealed class CalculationSession
         internal required HashSet<string> CycleDeposits;
         internal required Dictionary<string, List<CycleDetection>> CycleDetections;
         internal required List<CalculationWarning> Warnings;
+        internal required Dictionary<string, double> UnmetAdded;
+        internal required Dictionary<(string EnvId, string ItemId), EnvBlockedPortion> EnvBlockedUnmet;
     }
 
     private ReleaseSnapshot CaptureReleaseState() => new()
@@ -599,6 +728,8 @@ internal sealed class CalculationSession
         CycleDetections = _cycleDetections.ToDictionary(
             kv => kv.Key, kv => new List<CycleDetection>(kv.Value), StringComparer.Ordinal),
         Warnings = Warnings.AsList().ToList(),
+        UnmetAdded = new Dictionary<string, double>(_unmetAdded, StringComparer.Ordinal),
+        EnvBlockedUnmet = new Dictionary<(string, string), EnvBlockedPortion>(_envBlockedUnmet),
     };
 
     private void RestoreReleaseState(ReleaseSnapshot snapshot)
@@ -617,6 +748,12 @@ internal sealed class CalculationSession
         RestoreMap(Raw, snapshot.Raw);
         RestoreMap(Unmet, snapshot.Unmet);
         RestoreMap(ExtraApplied, snapshot.ExtraApplied);
+        RestoreMap(_unmetAdded, snapshot.UnmetAdded);
+        _envBlockedUnmet.Clear();
+        foreach (KeyValuePair<(string EnvId, string ItemId), EnvBlockedPortion> kv in snapshot.EnvBlockedUnmet)
+        {
+            _envBlockedUnmet[kv.Key] = kv.Value;
+        }
         RunCycles.Clear();
         foreach (KeyValuePair<PairSelector.Selection, double> kv in snapshot.RunCycles)
         {
@@ -666,7 +803,7 @@ internal sealed class CalculationSession
     internal FacilityCounts ComputeCounts()
     {
         var exactByFacility = new Dictionary<string, double>(StringComparer.Ordinal);
-        var envPairCount = new Dictionary<string, int>(StringComparer.Ordinal);
+        var envMachines = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (PairSelector.Selection run in RunOrder)
         {
             double facilityTime = RunCycles[run] * run.Pair.CycleTime / 60.0;
@@ -675,15 +812,35 @@ internal sealed class CalculationSession
 
             if (run.Pair.EnvironmentId is string envId)
             {
-                envPairCount[envId] = envPairCount.GetValueOrDefault(envId) + 1;
+                envMachines[envId] = envMachines.GetValueOrDefault(envId) + facilityTime;
             }
         }
 
-        // 散布機台数: 既定はその環境を必要とする稼働中レシピ数（レシピにつき 1 台）。
-        // ユーザー上書きを優先する（仕様決定 I）。計算に登場しない環境への上書きは無視する。
+        // カバー不足で削られた機械分。残存 Unmet への比例配分が有効削減機械数（BR、§3.3）。
+        Dictionary<string, double> blockedMachinesByEnv = EffectiveBlockedMachines();
+
+        // 散布機台数: 既定は同環境を要する稼働機械数と有効削減機械数の合計を
+        // CoverableMachines で割った切上げ（仕様決定 BQ。I の「レシピにつき 1 台」の改定）。
+        // ユーザー上書きを優先する。計算に登場しない環境への上書きは無視する。
+        // 環境行は稼働中ランの環境に加え、カバー不足で稼働が停止した要求を持つ環境も出す（§3.2）。
         var dispenserCountByEnv = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach ((string envId, int needed) in envPairCount)
+        var requiredCountByEnv = new Dictionary<string, int>(StringComparer.Ordinal);
+        IEnumerable<string> envIds = envMachines.Keys.Concat(
+            blockedMachinesByEnv
+                .Where(kv => kv.Value > ProductionCalculator.Epsilon)
+                .Select(kv => kv.Key));
+        foreach (string envId in envIds)
         {
+            if (!_master.EnvironmentsById.TryGetValue(envId, out Environment? env))
+            {
+                continue;
+            }
+
+            int required = ProductionCalculator.Ceil(
+                (envMachines.GetValueOrDefault(envId) + blockedMachinesByEnv.GetValueOrDefault(envId))
+                / env.CoverableMachines);
+            requiredCountByEnv[envId] = required;
+
             EnvironmentCountOverride? envOverride =
                 _environmentOverrides.FirstOrDefault(o => o.EnvironmentId == envId);
             if (envOverride is { Count: < 0 })
@@ -695,7 +852,7 @@ internal sealed class CalculationSession
 
             dispenserCountByEnv[envId] = envOverride is { Count: >= 0 }
                 ? envOverride.Count
-                : needed;
+                : required;
         }
 
         foreach (EnvironmentCountOverride envOverride in _environmentOverrides)
@@ -708,7 +865,7 @@ internal sealed class CalculationSession
             }
         }
 
-        return new FacilityCounts(exactByFacility, dispenserCountByEnv);
+        return new FacilityCounts(exactByFacility, dispenserCountByEnv, requiredCountByEnv);
     }
 
     /// <summary>

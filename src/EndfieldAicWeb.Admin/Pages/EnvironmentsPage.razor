@@ -24,6 +24,9 @@
             <label>消費速度（個/分）</label>
             <span><NumberInput Value="@env.ConsumeRatePerMinute" Owner="env" Field="ConsumeRatePerMinute" ValueChanged="v => Store.ApplyNum(x => env.ConsumeRatePerMinute = x, v)" /></span>
 
+            <label>カバー可能台数</label>
+            <span><IntInput Value="@env.CoverableMachines" Owner="env" Field="CoverableMachines" ValueChanged="v => SetCoverableMachines(env, v)" /></span>
+
             <label>所属イベント</label>
             <RefSelect Value="@env.GameEventId" Options="_eventOptions" EmptyLabel="（常設）"
                        ValueChanged="v => Store.ApplyRef(v => env.GameEventId = v, v)" />
@@ -73,6 +76,12 @@
     private void SetConsumeItem(string? value)
     {
         _selected!.ConsumeItemId = value ?? "";
+        Store.NotifyChanged();
+    }
+
+    private void SetCoverableMachines(EndfieldAicWeb.Domain.Models.Environment env, int value)
+    {
+        env.CoverableMachines = value;
         Store.NotifyChanged();
     }
 }

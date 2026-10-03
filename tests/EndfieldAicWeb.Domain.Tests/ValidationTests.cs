@@ -269,7 +269,7 @@ public class ValidationTests
             new Environment
             {
                 Id = "e-1", Name = "n", VersionAdded = "1.0.0",
-                ProviderFacilityId = "f-a", ConsumeItemId = "i-1", ConsumeRatePerMinute = 0,
+                ProviderFacilityId = "f-a", ConsumeItemId = "i-1", ConsumeRatePerMinute = 0, CoverableMachines = 4,
             }, errors);
         MasterValidator.ValidateRecipe(
             F.Recipe("r-1", [F.Pair("r-1", "f-a", 0.0)],
@@ -288,6 +288,18 @@ public class ValidationTests
         Assert.Contains(errors, e => e.Field == "Facilities[0].CycleTime");
         Assert.Contains(errors, e => e.Field == "Inputs[0].Quantity");
         Assert.Contains(errors, e => e.Field == "Facilities[0].FixedConsumption.RatePerMinute");
+    }
+
+    [Theory(DisplayName = "VAL-20: CoverableMachines が 0 以下の環境は検証エラー")]
+    [InlineData(0)]
+    [InlineData(-3)]
+    public void NonPositiveCoverableMachines_ReturnsError(int coverableMachines)
+    {
+        var errors = new List<MasterValidationError>();
+        MasterValidator.ValidateEnvironment(
+            F.Env("env-g", "f-disp", "i-ore", 60.0, coverableMachines: coverableMachines), errors);
+
+        Assert.Contains(errors, e => e.Field == "CoverableMachines");
     }
 
     [Fact(DisplayName = "VAL-13: ペア 0 件のレシピはエラー")]

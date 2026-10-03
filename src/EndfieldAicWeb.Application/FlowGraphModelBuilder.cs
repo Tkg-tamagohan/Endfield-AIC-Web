@@ -101,9 +101,10 @@ public static class FlowGraphModelBuilder
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(targets);
 
-        IReadOnlyDictionary<string, double> scales = unadjusted
-            ? ResultViewBuilder.ComputeUnadjustedFacilityScales(plan, snapshot)
-            : new Dictionary<string, double>(StringComparer.Ordinal);
+        // 未調整ビューの倍率はラン単位（環境ランはカバー配分で個別に絞られるため、BR）。
+        IReadOnlyList<double> runScales = unadjusted
+            ? ResultViewBuilder.ComputeUnadjustedRunScales(plan, snapshot)
+            : [];
 
         var ceilByFacility = plan.FacilityRequirements
             .ToDictionary(f => f.FacilityId, f => f.CeilCount, StringComparer.Ordinal);
@@ -125,7 +126,7 @@ public static class FlowGraphModelBuilder
         // 未調整ビューでは実機械の全速稼働を表すよう、設備倍率を掛けた機械数で再割当する。
         var unitsByFacility = FacilityUnitLayout.Allocate(
             plan.RecipeRuns, plan.FacilityRequirements, plan.EnvironmentRequirements,
-            snapshot, plan.PairSelections, unadjusted ? scales : null);
+            snapshot, plan.PairSelections, unadjusted ? runScales : null);
 
         // ユニットノード Id から FacilityId への引き戻し。Id を文字列分割で解釈せず明示的に持つ
         // （FacilityId に `#` が含まれても誤って別設備へ解決されない）。
@@ -211,7 +212,7 @@ public static class FlowGraphModelBuilder
                 continue;
             }
 
-            double scale = unadjusted ? scales.GetValueOrDefault(run.FacilityId, 1.0) : 1.0;
+            double scale = unadjusted && runIndex < runScales.Count ? runScales[runIndex] : 1.0;
             IReadOnlyList<(string NodeId, double Share)> runTargets =
                 RunEdgeTargets(unitsByFacility, run.FacilityId, runIndex);
             foreach (RecipeInput input in recipe.Inputs)
@@ -299,13 +300,31 @@ public static class FlowGraphModelBuilder
 
         // 容量判定はユニットごとの同一アイテム入力合計で行う（計算本体の警告と同じ集計、仕様決定 AN）。
         // ランをまたいだ入力や固定消費との合算で容量を超える場合も取りこぼさない。
+        // ユニット宛のレシピ入力エッジは集約スロットで流量≠機械あたりになるため、
+        // 警告側と同じ機械群評価（MaxMachineInputs）で別途積み上げる。
         var inputTotals = new Dictionary<(string FromId, string ToId), double>();
         foreach (FlowGraphEdge part in edgeParts)
         {
-            if (IsFacilityInput(part, unitFacility))
+            if (IsFacilityInput(part, unitFacility)
+                && !(part.Kind == FlowGraphEdgeKind.RecipeInput
+                    && unitFacility.ContainsKey(part.ToId)))
             {
                 (string, string) key = (part.FromId, part.ToId);
                 inputTotals[key] = inputTotals.GetValueOrDefault(key) + part.RatePerMinute;
+            }
+        }
+
+        foreach ((string facilityId, List<FacilityUnitSlot> units) in unitsByFacility)
+        {
+            foreach (FacilityUnitSlot unit in units)
+            {
+                Dictionary<string, double> machineInputs = FacilityUnitLayout.MaxMachineInputs(
+                    unit, plan.RecipeRuns, snapshot, unadjusted ? runScales : null);
+                foreach ((string itemId, double rate) in machineInputs)
+                {
+                    (string, string) key = (ItemNodeId(itemId), UnitNodeId(facilityId, unit.Index));
+                    inputTotals[key] = inputTotals.GetValueOrDefault(key) + rate;
+                }
             }
         }
 
@@ -332,7 +351,7 @@ public static class FlowGraphModelBuilder
             .ToList();
 
         IReadOnlyList<SurplusProduction> surpluses = unadjusted
-            ? ResultViewBuilder.ComputeUnadjustedSurpluses(plan, snapshot, context, scales)
+            ? ResultViewBuilder.ComputeUnadjustedSurpluses(plan, snapshot, context, runScales)
             : plan.Surpluses;
         var surplusByItem = surpluses
             .ToDictionary(s => s.ItemId, s => s.ExcessPerMinute, StringComparer.Ordinal);

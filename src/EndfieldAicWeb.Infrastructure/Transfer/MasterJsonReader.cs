@@ -140,6 +140,7 @@ internal static class MasterJsonReader
                 ProviderFacilityId = e.ProviderFacilityId!,
                 ConsumeItemId = e.ConsumeItemId!,
                 ConsumeRatePerMinute = e.ConsumeRatePerMinute!.Value,
+                CoverableMachines = e.CoverableMachines!.Value,
                 GameEventId = e.GameEventId,
             }).ToList(),
             GameEvents = document.GameEvents!.Select(e => new GameEvent
@@ -327,6 +328,7 @@ internal static class MasterJsonReader
         RequireField(environment.ProviderFacilityId, $"{location}.ProviderFacilityId", "Environment", environment.Id ?? "", errors);
         RequireField(environment.ConsumeItemId, $"{location}.ConsumeItemId", "Environment", environment.Id ?? "", errors);
         RequireNumber(environment.ConsumeRatePerMinute, $"{location}.ConsumeRatePerMinute", "Environment", environment.Id ?? "", errors);
+        RequireNumber(environment.CoverableMachines, $"{location}.CoverableMachines", "Environment", environment.Id ?? "", errors);
         RequirePresent(environment.Description, $"{location}.Description", "Environment", environment.Id ?? "", errors);
         RejectUnknownProperties(environment.ExtensionData, location, "Environment", environment.Id ?? "", errors);
     }

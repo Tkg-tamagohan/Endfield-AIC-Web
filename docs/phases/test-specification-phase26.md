@@ -61,6 +61,17 @@
 | MJS-10 | `master.schema.json` の environment 定義が `CoverableMachines`（integer、exclusiveMinimum 0）を required に持ち、同梱 master.json が `tools/validate_master.py` を通る |
 | MJS-11 | 同梱マスタの env-stable・env-acrid が `CoverableMachines=4` で読み込める（BundledMasterDataTests 経由） |
 
+### ユニット割当（FUL）: FacilityUnitLayout
+
+| ID | 内容 |
+|---|---|
+| FUL-01 | 台数が防御的上限（`MaxUnitSlots`）を超えても割当はスキップしない。先頭 10,000 ユニットで占有を行い、収まらない分は末尾ユニットへ集約される（ランの share 合計は 1.0 を維持）。輸送警告とグラフの台数分表示が同じ割当を見るための一貫性を確認する |
+| TRN-07 | 防御的上限超過の計画（機械数 20,000・1 機あたり入力 1/分）で集約末尾スロットの流量を 1 機の入力と誤判定して警告しない（機械群の 1 機あたり入力で判定） |
+| TRN-08 | 防御的上限超過の計画でも 1 機あたりの容量超過（40/分 > ベルト 30）は警告する |
+| TRN-09 | 集約末尾スロットに異なるランの機械が混在しても平均化しない（1/分 × 20,000 機と 40/分 × 1 機の混在で警告） |
+| TRN-10 | 末尾への溢れが 1 機未満のとき占有率ぶんに換算する（0.4 機溢れは 0.4×満機レートで判定） |
+| TRN-11 | 異なるランの端数機が同一の仮想機械を共用するとき合算入力で判定する（0.4 機×25/分＋0.6 機×40/分＝34/分で警告） |
+
 ## 2. 手動確認項目
 
 E2E 検証は WebGPU 対応 Chrome で行う。台数の自動値・未充足・警告は実マスタ（息壌の安定環境）で検証し、管理ツールの環境編集は `admin-driven-fixture-blazor-testing`・`fixture-injection-blazor-testing` の手順に従う。

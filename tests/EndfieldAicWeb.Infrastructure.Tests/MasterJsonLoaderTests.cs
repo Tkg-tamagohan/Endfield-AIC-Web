@@ -513,4 +513,24 @@ public class MasterJsonLoaderTests
         Assert.False(result.Success);
         Assert.NotEmpty(result.Errors);
     }
+
+    // ---------- VAL: Phase 26 カバー可能台数の検査 ----------
+
+    [Fact(DisplayName = "VAL-21: CoverableMachines の欠落・非整数・非正は読み込みエラー")]
+    public void InvalidCoverableMachines_ReturnsError()
+    {
+        // required 未充足（欠落）は構造エラー、非整数・非正は値域の意味エラー。
+        string missing = TestJson.Mutate(root =>
+            root["Environments"]!.AsArray()[0]!.AsObject().Remove("CoverableMachines"));
+        string fraction = TestJson.Mutate(root =>
+            root["Environments"]!.AsArray()[0]!.AsObject()["CoverableMachines"] = 4.5);
+        string zero = TestJson.Mutate(root =>
+            root["Environments"]!.AsArray()[0]!.AsObject()["CoverableMachines"] = 0);
+
+        Assert.False(MasterJsonLoader.Load(missing).Success);
+        Assert.False(MasterJsonLoader.Load(fraction).Success);
+        MasterJsonLoadResult result = MasterJsonLoader.Load(zero);
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, e => e.Field == "CoverableMachines");
+    }
 }

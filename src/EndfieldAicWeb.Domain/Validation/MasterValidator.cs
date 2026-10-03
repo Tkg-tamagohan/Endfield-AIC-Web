@@ -66,6 +66,13 @@ public static class MasterValidator
                 "Environment", environment.Id, "ConsumeRatePerMinute",
                 $"ConsumeRatePerMinute は 0 より大きい有限値である必要があります: {environment.ConsumeRatePerMinute}"));
         }
+
+        if (environment.CoverableMachines <= 0)
+        {
+            errors.Add(new MasterValidationError(
+                "Environment", environment.Id, "CoverableMachines",
+                $"CoverableMachines は 0 より大きい整数である必要があります: {environment.CoverableMachines}"));
+        }
     }
 
     /// <summary>単一 GameEvent のフィールド内規則を検査する。</summary>
