@@ -188,11 +188,6 @@ internal static class ProductionPlanAggregator
         var maxRateByItem = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach ((string facilityId, List<FacilityUnitSlot> units) in unitsByFacility)
         {
-            // ラン由来の入力（占有比率で按分される流量）は、ユニットが複数機を背負う場合に
-            // 機械あたりへ換算して判定するため flat とは分けて保持する。
-            var runInputs = units
-                .Select(_ => new Dictionary<string, double>(StringComparer.Ordinal))
-                .ToList();
             // 固定消費・環境消費はユニット（機械）ごとの定数。
             var flatInputs = units
                 .Select(_ => new Dictionary<string, double>(StringComparer.Ordinal))
@@ -205,23 +200,6 @@ internal static class ProductionPlanAggregator
                     || !master.RecipesById.TryGetValue(run.RecipeId, out Recipe? recipe))
                 {
                     continue;
-                }
-
-                // レシピ入力はユニットの占有比率で分かれる。
-                foreach (FacilityUnitSlot unit in units)
-                {
-                    double share = unit.RunShares.GetValueOrDefault(runIndex);
-                    if (share <= ProductionCalculator.Epsilon)
-                    {
-                        continue;
-                    }
-
-                    Dictionary<string, double> unitRunInputs = runInputs[unit.Index];
-                    foreach (RecipeInput input in recipe.Inputs)
-                    {
-                        unitRunInputs[input.ItemId] = unitRunInputs.GetValueOrDefault(input.ItemId)
-                            + run.CyclesPerMinute * input.Quantity * share;
-                    }
                 }
 
                 // 固定消費はユニットごとに同量を消費する。
@@ -259,15 +237,16 @@ internal static class ProductionPlanAggregator
                 }
             }
 
+            // 容量は機械単位で判定する。ユニットのレシピ入力は「最も厳しい 1 台」の
+            // 入力（部分占有機械と集約機械群の最大）へ換算してから定数分を足す
+            // （集約スロットの合算流量を 1 機の入力としても、平均化しても誤判定になる）。
             for (int i = 0; i < units.Count; i++)
             {
-                // Used はそのユニットが背負う機械数（上限で実体化を打ち切った末尾スロットや
-                // 計画不整合時の溢れ分では 1 を超える）。ラン由来の入力は機械あたりへ換算し、
-                // グラフ側の容量判定と同じ 1 機相当の流量で比較する。
-                double machines = Math.Max(units[i].Used, 1.0);
-                foreach (string itemId in runInputs[i].Keys.Union(flatInputs[i].Keys))
+                Dictionary<string, double> machineInputs =
+                    FacilityUnitLayout.MaxMachineInputs(units[i], recipeRuns, master);
+                foreach (string itemId in machineInputs.Keys.Union(flatInputs[i].Keys))
                 {
-                    double rate = runInputs[i].GetValueOrDefault(itemId) / machines
+                    double rate = machineInputs.GetValueOrDefault(itemId)
                         + flatInputs[i].GetValueOrDefault(itemId);
                     if (rate > maxRateByItem.GetValueOrDefault(itemId))
                     {

@@ -108,4 +108,25 @@ public class TransportCapacityTests
             w.Code == WarningCode.TransportCapacityExceeded
             && w.Message.Contains("i-a"));
     }
+
+    [Fact(DisplayName = "TRN-09: 末尾集約スロットに異なるランの機械が混在しても平均化しない")]
+    public void OversizedFacilityDoesNotAverageMachineGroups()
+    {
+        // i-lo 20,000/分（1 機あたり i-a 1/分）が 10,000 ユニットを埋めて残りを末尾へ集約し、
+        // i-hi 1/分（1 機あたり i-a 40/分）の 1 機がさらに末尾へ集約される。
+        // 合算流量を機械数で平均化すると 40/分の機械が隠れて警告が消える（Phase 26 レビュー指摘）。
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.Snapshot(
+                [CalculationFixtures.Item("i-a"),
+                 CalculationFixtures.Item("i-lo"),
+                 CalculationFixtures.Item("i-hi")],
+                [CalculationFixtures.Facility("f-a")],
+                [CalculationFixtures.Recipe("r-lo", "f-a", 60.0, [("i-a", 1.0)], [("i-lo", 1.0)]),
+                 CalculationFixtures.Recipe("r-hi", "f-a", 60.0, [("i-a", 40.0)], [("i-hi", 1.0)])]),
+            [("i-lo", 20_000.0), ("i-hi", 1.0)]);
+
+        Assert.Contains(plan.Warnings, w =>
+            w.Code == WarningCode.TransportCapacityExceeded
+            && w.Message.Contains("i-a"));
+    }
 }

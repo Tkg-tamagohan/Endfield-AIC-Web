@@ -17,7 +17,24 @@ public sealed class FacilityUnitSlot
     public string? DispenserEnvironmentId { get; internal set; }
 
     public Dictionary<int, double> RunShares { get; } = new();
+
+    /// <summary>
+    /// ユニット実体化上限や計画不整合で末尾へ集約された専用機械群。各エントリは
+    /// 同一ランの機械群。容量判定は部分占有機械と各群の 1 機あたり入力の最大で行う
+    /// （合算流量を Used で平均化すると、別ランの高流量機械の超過が隠れる）。
+    /// </summary>
+    public List<FacilityUnitOverspill> OverspillGroups { get; } = new();
 }
+
+/// <summary>
+/// 末尾ユニットへ集約された同一ランの機械群。SharePortion は RunShares に含まれる
+/// 集約分の比率（部分占有分との切り分け用）。PerMachineInputs は機械群 1 台あたりの
+/// レシピ入力（アイテム Id → 個/分）。
+/// </summary>
+public sealed record FacilityUnitOverspill(
+    int RunIndex,
+    double SharePortion,
+    IReadOnlyDictionary<string, double> PerMachineInputs);
 
 /// <summary>
 /// 設備を切上台数ぶんのユニットへ展開し、ランの占有を割り当てる（仕様決定 AO）。
@@ -35,10 +52,10 @@ public static class FacilityUnitLayout
     /// 生成でメモリ・時間を使い果たすため、先頭 MaxUnitSlots 個だけを実体化する。
     /// 上限を超えた分は既存の「収まらない分は末尾ユニットへ載せる」規則で末尾スロットに
     /// 集約され、そのスロットは Used&gt;1 の「複数機を背負うユニット」となる。
-    /// 容量系の判定（輸送警告・グラフの容量超過フラグ）はラン由来の入力を Used で割って
-    /// 機械あたりへ換算するので、集約された流量を 1 機の入力と誤判定しない
-    /// （複数ランが混ざる末尾スロットでは平均化の近似となる）。台数分表示のノード数は
-    /// 実台数を下回る点だけ実台数とずれる（表示上の近似）。
+    /// 容量系の判定（輸送警告・グラフの容量超過フラグ）は集約流量を 1 機の入力とせず、
+    /// 部分占有機械の入力と集約機械群ごとの 1 機あたり入力（OverspillGroups）の最大を
+    /// 取る（MaxMachineInputs 参照）。台数分表示のノード数は実台数を下回る点だけ
+    /// 実台数とずれる（表示上の近似）。
     /// </summary>
     internal const int MaxUnitSlots = 10_000;
 
@@ -85,8 +102,10 @@ public static class FacilityUnitLayout
                 continue;
             }
 
-            double machines = RunMachines(run, snapshot, pairByRun)
-                * (runScales is not null && runIndex < runScales.Count ? runScales[runIndex] : 1.0);
+            double scale = runScales is not null && runIndex < runScales.Count
+                ? runScales[runIndex]
+                : 1.0;
+            double machines = RunMachines(run, snapshot, pairByRun) * scale;
             if (machines <= ProductionCalculator.Epsilon)
             {
                 continue;
@@ -112,13 +131,27 @@ public static class FacilityUnitLayout
                 remaining -= take;
             }
 
-            // 計画不整合でユニットに収まらない分は末尾ユニットに載せる。
+            // 計画不整合やユニット実体化上限で収まらない分は末尾ユニットに載せる。
+            // 容量判定が機械群ごとの最大を取れるよう、群の 1 機あたり入力を記録する
+            // （機械あたりの流量は scale を掛けても不変＝ cycles × scale / machines）。
             if (remaining > ProductionCalculator.Epsilon)
             {
                 FacilityUnitSlot last = units[^1];
+                double sharePortion = remaining / machines;
                 last.RunShares[runIndex] =
-                    last.RunShares.GetValueOrDefault(runIndex) + remaining / machines;
+                    last.RunShares.GetValueOrDefault(runIndex) + sharePortion;
                 last.Used += remaining;
+                if (snapshot.RecipesById.TryGetValue(run.RecipeId, out Recipe? recipe))
+                {
+                    double perMachineCycles = run.CyclesPerMinute * scale / machines;
+                    last.OverspillGroups.Add(new FacilityUnitOverspill(
+                        runIndex,
+                        sharePortion,
+                        recipe.Inputs.ToDictionary(
+                            i => i.ItemId,
+                            i => i.Quantity * perMachineCycles,
+                            StringComparer.Ordinal)));
+                }
             }
         }
 
@@ -142,6 +175,73 @@ public static class FacilityUnitLayout
         }
 
         return unitsByFacility;
+    }
+
+    /// <summary>
+    /// ユニットが背負う機械のうち最も厳しい 1 台のレシピ入力（アイテム Id → 個/分）。
+    /// 部分占有のみのユニットは占有比率に比例した入力合計をそのまま返す。
+    /// 末尾集約スロットは「部分占有機械の入力合計」と「各専用機械群の 1 機あたり入力」の
+    /// 最大を取る（異なるランの機械は同一機械へ合算しない。輸送容量は機械単位で判定する
+    /// ため、平均化すると別ランの高流量機械の超過が隠れる）。
+    /// 固定消費・環境消費のような機械ごとの定数は含まない。runScales は Allocate と
+    /// 同じものを渡す（未調整ビューではエッジ流量・機械数とも倍率を掛けた値になる）。
+    /// </summary>
+    public static Dictionary<string, double> MaxMachineInputs(
+        FacilityUnitSlot unit,
+        IReadOnlyList<RecipeRun> recipeRuns,
+        MasterDataSnapshot snapshot,
+        IReadOnlyList<double>? runScales = null)
+    {
+        ArgumentNullException.ThrowIfNull(unit);
+        ArgumentNullException.ThrowIfNull(recipeRuns);
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        var inputs = new Dictionary<string, double>(StringComparer.Ordinal);
+        var pileShares = new Dictionary<int, double>();
+        foreach (FacilityUnitOverspill group in unit.OverspillGroups)
+        {
+            pileShares[group.RunIndex] =
+                pileShares.GetValueOrDefault(group.RunIndex) + group.SharePortion;
+        }
+
+        // 部分占有機械: 各ランの占有比率（集約分を除く）に比例した入力の合計。
+        foreach ((int runIndex, double share) in unit.RunShares)
+        {
+            double partialShare = share - pileShares.GetValueOrDefault(runIndex);
+            if (partialShare <= ProductionCalculator.Epsilon)
+            {
+                continue;
+            }
+
+            RecipeRun run = recipeRuns[runIndex];
+            if (!snapshot.RecipesById.TryGetValue(run.RecipeId, out Recipe? recipe))
+            {
+                continue;
+            }
+
+            double scale = runScales is not null && runIndex < runScales.Count
+                ? runScales[runIndex]
+                : 1.0;
+            foreach (RecipeInput input in recipe.Inputs)
+            {
+                inputs[input.ItemId] = inputs.GetValueOrDefault(input.ItemId)
+                    + run.CyclesPerMinute * scale * input.Quantity * partialShare;
+            }
+        }
+
+        // 集約された専用機械群は 1 機あたりの入力を群単位で評価して最大を取る。
+        foreach (FacilityUnitOverspill group in unit.OverspillGroups)
+        {
+            foreach ((string itemId, double rate) in group.PerMachineInputs)
+            {
+                if (rate > inputs.GetValueOrDefault(itemId))
+                {
+                    inputs[itemId] = rate;
+                }
+            }
+        }
+
+        return inputs;
     }
 
     /// <summary>ランの占有機械数（CyclesPerMinute × CycleTime / 60）。確定ペア優先で CycleTime を引く。</summary>

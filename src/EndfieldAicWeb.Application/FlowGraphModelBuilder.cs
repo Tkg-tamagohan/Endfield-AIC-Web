@@ -130,16 +130,12 @@ public static class FlowGraphModelBuilder
 
         // ユニットノード Id から FacilityId への引き戻し。Id を文字列分割で解釈せず明示的に持つ
         // （FacilityId に `#` が含まれても誤って別設備へ解決されない）。
-        // unitUsed はそのユニットが背負う機械数（溢れ集約で 1 を超えうる）で、
-        // 容量判定を機械あたりへ換算する除数として警告側（AddTransportWarnings）と共通にする。
         var unitFacility = new Dictionary<string, string>(StringComparer.Ordinal);
-        var unitUsed = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach ((string facilityId, List<FacilityUnitSlot> units) in unitsByFacility)
         {
             foreach (FacilityUnitSlot unit in units)
             {
                 unitFacility[UnitNodeId(facilityId, unit.Index)] = facilityId;
-                unitUsed[UnitNodeId(facilityId, unit.Index)] = Math.Max(unit.Used, 1.0);
             }
         }
 
@@ -304,18 +300,31 @@ public static class FlowGraphModelBuilder
 
         // 容量判定はユニットごとの同一アイテム入力合計で行う（計算本体の警告と同じ集計、仕様決定 AN）。
         // ランをまたいだ入力や固定消費との合算で容量を超える場合も取りこぼさない。
-        // 複数機を背負うユニット（溢れ集約）ではレシピ入力を機械あたりへ換算する
-        // （警告側と同じ除数。固定消費・環境消費のエッジは機械ごとの定数なので据え置く）。
+        // ユニット宛のレシピ入力エッジは集約スロットで流量≠機械あたりになるため、
+        // 警告側と同じ機械群評価（MaxMachineInputs）で別途積み上げる。
         var inputTotals = new Dictionary<(string FromId, string ToId), double>();
         foreach (FlowGraphEdge part in edgeParts)
         {
-            if (IsFacilityInput(part, unitFacility))
+            if (IsFacilityInput(part, unitFacility)
+                && !(part.Kind == FlowGraphEdgeKind.RecipeInput
+                    && unitFacility.ContainsKey(part.ToId)))
             {
                 (string, string) key = (part.FromId, part.ToId);
-                double machines = part.Kind == FlowGraphEdgeKind.RecipeInput
-                    ? unitUsed.GetValueOrDefault(part.ToId, 1.0)
-                    : 1.0;
-                inputTotals[key] = inputTotals.GetValueOrDefault(key) + part.RatePerMinute / machines;
+                inputTotals[key] = inputTotals.GetValueOrDefault(key) + part.RatePerMinute;
+            }
+        }
+
+        foreach ((string facilityId, List<FacilityUnitSlot> units) in unitsByFacility)
+        {
+            foreach (FacilityUnitSlot unit in units)
+            {
+                Dictionary<string, double> machineInputs = FacilityUnitLayout.MaxMachineInputs(
+                    unit, plan.RecipeRuns, snapshot, unadjusted ? runScales : null);
+                foreach ((string itemId, double rate) in machineInputs)
+                {
+                    (string, string) key = (ItemNodeId(itemId), UnitNodeId(facilityId, unit.Index));
+                    inputTotals[key] = inputTotals.GetValueOrDefault(key) + rate;
+                }
             }
         }
 
