@@ -66,7 +66,7 @@ public class CalculationInputBuilderTests
         bool ok = CalculationInputBuilder.TryParseTargets(rows, Snapshot, out _, out string? error);
 
         Assert.False(ok);
-        Assert.Equal("汎用部品 の数量を 0 より大きい数値で入力してください。", error);
+        Assert.Equal("汎用部品（i-part） の数量を 0 より大きい数値で入力してください。", error);
     }
 
     // TIN-05: 有効行が 0 件（全行空）ならエラー。
@@ -313,7 +313,7 @@ public class GatherRateParseTests
             out string? error);
 
         Assert.False(ok);
-        Assert.Equal("鉄鉱石 の利用可能レートは 0 以上の数値で入力してください。", error);
+        Assert.Equal("鉄鉱石（i-ore） の利用可能レートは 0 以上の数値で入力してください。", error);
     }
 
     // GRI-03: マップ値を超える値も受理する（上限との比較は行わない）。
@@ -331,10 +331,11 @@ public class GatherRateParseTests
     }
 
     // GRI-04: 存在しない・採取素材でないアイテムはエラー。
+    // 実在アイテムはスナップショットの名前で 名前（Id）、存在しないものは Id のみ（CF フォールバック）。
     [Theory]
-    [InlineData("i-ghost")]
-    [InlineData("i-part")]
-    public void UnknownOrNonGatherableItemsReturnError(string itemId)
+    [InlineData("i-ghost", "i-ghost は採取素材ではありません。")]
+    [InlineData("i-part", "汎用部品（i-part） は採取素材ではありません。")]
+    public void UnknownOrNonGatherableItemsReturnError(string itemId, string expected)
     {
         bool ok = CalculationInputBuilder.TryParseGatherRates(
             [new GatherRateInput(itemId, "対象アイテム", "10")],
@@ -343,7 +344,7 @@ public class GatherRateParseTests
             out string? error);
 
         Assert.False(ok);
-        Assert.Equal("対象アイテム は採取素材ではありません。", error);
+        Assert.Equal(expected, error);
     }
 
     // GRI-05: 全行空欄は空の上書き列で成功。
@@ -372,4 +373,35 @@ public class ItemDeselectTests
     [InlineData(null, null, "鉄", false)]
     public void DeselectOnlyWhenNameDiverges(string? itemId, string? itemName, string filter, bool expected) =>
         Assert.Equal(expected, CalculationInputBuilder.ShouldDeselectItem(itemId, itemName, filter));
+}
+
+/// <summary>CIB: 入力エラー文面の 名前（Id） 表記（docs/phases/test-specification-phase33.md・仕様決定 CF）。</summary>
+public class InputErrorFormatTests
+{
+    private static readonly MasterDataSnapshot Snapshot = ApplicationFixtures.A01();
+
+    // CIB-01: 目標数量の入力エラーは 名前（Id） を含む。
+    [Fact]
+    public void TargetRateErrorUsesNameWithId()
+    {
+        bool ok = CalculationInputBuilder.TryParseTargets(
+            [new TargetRowInput("i-part", "abc")], Snapshot, out _, out string? error);
+
+        Assert.False(ok);
+        Assert.Equal("汎用部品（i-part） の数量を 0 より大きい数値で入力してください。", error);
+    }
+
+    // CIB-02: 採取素材でない入力のエラーは 名前（Id） を含む。
+    [Fact]
+    public void NonGatherableErrorUsesNameWithId()
+    {
+        bool ok = CalculationInputBuilder.TryParseGatherRates(
+            [new GatherRateInput("i-part", "汎用部品", "10")],
+            Snapshot,
+            out _,
+            out string? error);
+
+        Assert.False(ok);
+        Assert.Equal("汎用部品（i-part） は採取素材ではありません。", error);
+    }
 }

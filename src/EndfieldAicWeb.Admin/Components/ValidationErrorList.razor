@@ -7,12 +7,12 @@
             @if (EntityPage(err.EntityKind) is { } page && !string.IsNullOrEmpty(err.EntityId))
             {
                 <button class="link" @onclick="() => GoToEntity(err)">
-                    @err.EntityKind @err.EntityId
+                    @err.EntityKind @EntityText(err)
                 </button>
             }
             else
             {
-                <span>@err.EntityKind @err.EntityId</span>
+                <span>@err.EntityKind @EntityText(err)</span>
             }
             @if (!string.IsNullOrEmpty(err.Field))
             {
@@ -26,6 +26,20 @@
 @code {
     [Parameter, EditorRequired]
     public IReadOnlyList<MasterValidationError> Errors { get; set; } = [];
+
+    /// <summary>EntityId を `名前（Id）` へ解決する文書。未取得時は Id のみ表示する（仕様決定 CF）。</summary>
+    [Parameter]
+    public MasterDocument? Document { get; set; }
+
+    private EntityDisplay? _display;
+
+    protected override void OnParametersSet()
+    {
+        _display = Document is { } doc ? new EntityDisplay(doc) : null;
+    }
+
+    private string EntityText(MasterValidationError err) =>
+        _display?.For(err.EntityKind, err.EntityId) ?? err.EntityId;
 
     private void GoToEntity(MasterValidationError err)
     {

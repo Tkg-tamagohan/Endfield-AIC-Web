@@ -1,4 +1,5 @@
 using EndfieldAicWeb.Domain.Models;
+using EndfieldAicWeb.Domain.Validation;
 
 namespace EndfieldAicWeb.Domain.Calculation;
 
@@ -22,6 +23,7 @@ internal static class GatherCapResolver
         WarningBag warnings)
     {
         var gatherCaps = new Dictionary<string, double>(StringComparer.Ordinal);
+        var display = new EntityDisplay(master);
 
         List<string> gatherableIds = master.Items.Where(i => i.IsGatherable).Select(i => i.Id).ToList();
 
@@ -44,7 +46,7 @@ internal static class GatherCapResolver
         {
             warnings.Add(new CalculationWarning(
                 WarningCode.InvalidGatherMap,
-                $"選択されたマップ {context.MapId} はマスタに存在しないため、採取素材はすべて採取できません。"));
+                $"選択されたマップ {display.GameMap(context.MapId)} はマスタに存在しないため、採取素材はすべて採取できません。"));
             CapAll(0);
             return gatherCaps;
         }
@@ -53,7 +55,7 @@ internal static class GatherCapResolver
         {
             warnings.Add(new CalculationWarning(
                 WarningCode.GatherMapUnavailable,
-                $"選択されたマップ {map.Id} はイベント {map.GameEventId} が有効でないため、採取素材はすべて採取できません。"));
+                $"選択されたマップ {display.GameMap(map.Id)} はイベント {display.GameEvent(map.GameEventId)} が有効でないため、採取素材はすべて採取できません。"));
             CapAll(0);
             return gatherCaps;
         }
@@ -67,7 +69,7 @@ internal static class GatherCapResolver
             {
                 warnings.Add(new CalculationWarning(
                     WarningCode.InvalidGatherRateOverride,
-                    $"採取レートの上書きが採取素材でないアイテムを指しているため無視します: {gatherOverride.ItemId}"));
+                    $"採取レートの上書きが採取素材でないアイテムを指しているため無視します: {display.Item(gatherOverride.ItemId)}"));
                 continue;
             }
 
@@ -75,7 +77,7 @@ internal static class GatherCapResolver
             {
                 warnings.Add(new CalculationWarning(
                     WarningCode.InvalidGatherRateOverride,
-                    $"アイテム {gatherOverride.ItemId} の採取レート上書き {gatherOverride.RatePerMinute} は 0 以上の有限値ではないため無視します。"));
+                    $"アイテム {display.Item(gatherOverride.ItemId)} の採取レート上書き {gatherOverride.RatePerMinute} は 0 以上の有限値ではないため無視します。"));
                 continue;
             }
 

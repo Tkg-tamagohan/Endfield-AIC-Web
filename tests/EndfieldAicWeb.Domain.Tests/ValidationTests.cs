@@ -474,6 +474,50 @@ public class ValidationTests
             e => e.EntityId == "r-noin" && e.Field == "Inputs" && e.Message.Contains("1 件以上"));
     }
 
+    [Fact(DisplayName = "VAL-31: 参照先なしの違反文は Id のみ（CF フォールバック）")]
+    public void MissingReferenceFallsBackToId()
+    {
+        (List<Item> items, List<Facility> facilities, List<Environment> environments,
+            List<GameEvent> gameEvents, List<Recipe> recipes) = ValidBaseline();
+        recipes.Add(F.Recipe("r-bad", "f-a", 4.0, [("i-ghost", 1.0)], [("i-p", 1.0)]));
+
+        List<MasterValidationError> errors =
+            Errs(items, facilities, environments, gameEvents, recipes);
+
+        MasterValidationError err = Assert.Single(errors,
+            e => e.EntityId == "r-bad" && e.Field == "Inputs" && e.Message.Contains("i-ghost"));
+        Assert.DoesNotContain("（", err.Message);
+    }
+
+    [Fact(DisplayName = "VAL-32: 検証文の実在参照は名前（Id）表記（CF）")]
+    public void ExistingReferenceUsesNameWithId()
+    {
+        (List<Item> items, List<Facility> facilities, List<Environment> environments,
+            List<GameEvent> gameEvents, List<Recipe> recipes) = ValidBaseline();
+        items.Add(F.Item("i-virt", "仮想", TransportKind.None, name: "仮想部品"));
+        recipes.Add(F.Recipe("r-virt", "f-a", 4.0, [("i-virt", 1.0)], [("i-p", 1.0)]));
+
+        List<MasterValidationError> errors =
+            Errs(items, facilities, environments, gameEvents, recipes);
+
+        Assert.Contains(errors,
+            e => e.EntityId == "r-virt" && e.Field == "Inputs" && e.Message.Contains("仮想部品（i-virt）"));
+    }
+
+    [Fact(DisplayName = "VAL-33: EntityDisplay が種別と Id から名前（Id）を組み立てる")]
+    public void EntityDisplayResolvesNames()
+    {
+        var display = new EntityDisplay(
+            items: [F.Item("i-p", name: "加工部品")]);
+
+        Assert.Equal("加工部品（i-p）", display.For("Item", "i-p"));
+        Assert.Equal("i-none", display.For("Item", "i-none"));
+        Assert.Equal("i-p", display.For("不明な種別", "i-p"));
+        Assert.Equal("加工部品（i-p）", EntityDisplay.Format("加工部品", "i-p"));
+        Assert.Equal("i-p", EntityDisplay.Format(null, "i-p"));
+        Assert.Equal("i-p", EntityDisplay.Format(" ", "i-p"));
+    }
+
     private static List<MasterValidationError> Errs(
         IReadOnlyList<Item> items,
         IReadOnlyList<Facility> facilities,
