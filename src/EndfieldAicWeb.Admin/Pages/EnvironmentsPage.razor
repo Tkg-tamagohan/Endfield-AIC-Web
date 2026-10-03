@@ -1,62 +1,41 @@
 @page "/environments"
 @inject AdminDocumentService Store
-@inject IJSRuntime JS
 
 <PageTitle>環境 - Endfield AIC 管理ツール</PageTitle>
 
-@if (!Store.IsLoaded)
-{
-    <section class="panel"><p class="muted">ホームでマスタ JSON を読み込んでください。</p></section>
-}
-else
-{
-    <div class="admin-layout">
-        <section class="panel" @key="_selected" @ref="_panelRef">
-            <div class="panel-head">
-                <h2 class="panel-title">環境編集</h2>
-                <button class="btn" @onclick="New">＋ 新規</button>
-            </div>
-            @if (_selected is null)
-            {
-                <p class="muted">下の一覧から環境を選ぶか、新規追加してください。</p>
-            }
-            else
-            {
-                <CommonFieldsEditor Entity="_selected" OnChanged="Changed" />
-                <div class="form-grid">
-                    <label>供給設備（散布機）</label>
-                    <RefSelect Value="@_selected.ProviderFacilityId" Options="_facilityOptions" EmptyLabel="（未選択）"
-                               ValueChanged="SetProvider" />
+<EntityEditLayout TEntity="DomainEnv"
+                  EditorTitle="環境編集"
+                  EmptyHint="下の一覧から環境を選ぶか、新規追加してください。"
+                  @bind-Selected="_selected"
+                  Collection="doc => doc.Environments"
+                  IdPrefix="env"
+                  CreateEntity="CreateEnvironment"
+                  FindReferences="MasterReferenceFinder.FindEnvironmentReferences">
+    <EntityFields Context="env">
+        <div class="form-grid">
+            <label>供給設備（散布機）</label>
+            <RefSelect Value="@env.ProviderFacilityId" Options="_facilityOptions" EmptyLabel="（未選択）"
+                       ValueChanged="SetProvider" />
 
-                    <label>消費アイテム</label>
-                    <ItemPicker Value="@_selected.ConsumeItemId" Items="_fuelItems" LookupItems="_allItems"
-                                ValueChanged="SetConsumeItem" />
+            <label>消費アイテム</label>
+            <ItemPicker Value="@env.ConsumeItemId" Items="_fuelItems" LookupItems="_allItems"
+                        ValueChanged="SetConsumeItem" />
 
-                    <label>消費速度（個/分）</label>
-                    <span><NumberInput Value="@_selected.ConsumeRatePerMinute" Owner="_selected" Field="ConsumeRatePerMinute" ValueChanged="v => ApplyNum(v => _selected.ConsumeRatePerMinute = v, v)" /></span>
+            <label>消費速度（個/分）</label>
+            <span><NumberInput Value="@env.ConsumeRatePerMinute" Owner="env" Field="ConsumeRatePerMinute" ValueChanged="v => Store.ApplyNum(x => env.ConsumeRatePerMinute = x, v)" /></span>
 
-                    <label>所属イベント</label>
-                    <RefSelect Value="@_selected.GameEventId" Options="_eventOptions" EmptyLabel="（常設）"
-                               ValueChanged="v => ApplyRef(v => _selected.GameEventId = v, v)" />
-                </div>
-                <p class="hint">変更は即時反映されます。ホームの「検証を実行」で整合性を確認してください。</p>
-            }
-        </section>
-
-        <ListPane TItem="DomainEnv" Items="Store.Document!.Environments"
-                  KeyOf="e => e.Id" TextOf="e => e.Name" SubOf="e => e.Id"
-                  SelectedKey="@_selected?.Id"
-                  OnSelect="SelectEntity" OnNew="New" OnDelete="Delete" />
-    </div>
-}
+            <label>所属イベント</label>
+            <RefSelect Value="@env.GameEventId" Options="_eventOptions" EmptyLabel="（常設）"
+                       ValueChanged="v => Store.ApplyRef(v => env.GameEventId = v, v)" />
+        </div>
+    </EntityFields>
+</EntityEditLayout>
 
 @code {
     [SupplyParameterFromQuery]
     public string? Select { get; set; }
 
     private DomainEnv? _selected;
-    private ElementReference _panelRef;
-    private bool _scrollToPanel;
     private IReadOnlyList<SelectOption> _facilityOptions = [];
     private IReadOnlyList<Item> _allItems = [];
     private IReadOnlyList<Item> _fuelItems = [];
@@ -69,63 +48,21 @@ else
             return;
         }
 
-        _facilityOptions = Store.Document!.Facilities.Select(f => new SelectOption(f.Id, f.Name)).ToList();
+        _facilityOptions = SelectOption.Of(Store.Document!.Facilities);
         _allItems = Store.Document.Items;
         _fuelItems = ItemCatalog.FuelItems(Store.Document.Items);
-        _eventOptions = Store.Document.GameEvents.Select(e => new SelectOption(e.Id, e.Name)).ToList();
+        _eventOptions = SelectOption.Of(Store.Document.GameEvents);
         if (Select is { } id)
         {
             _selected = Store.Document.Environments.FirstOrDefault(e => e.Id == id);
         }
     }
 
-    private void SelectEntity(string id)
-    {
-        _selected = Store.Document!.Environments.FirstOrDefault(e => e.Id == id);
-        _scrollToPanel = true;
-    }
-
-    private void New()
-    {
-        string id = EntityFactory.SuggestId(Store.Document!.Environments.Select(e => e.Id), "env");
-        var env = EntityFactory.NewEnvironment(
+    private static DomainEnv CreateEnvironment(MasterDocument doc, string id) =>
+        EntityFactory.NewEnvironment(
             id,
-            providerFacilityId: Store.Document.Facilities.FirstOrDefault()?.Id,
-            consumeItemId: ItemCatalog.FuelItems(Store.Document.Items).FirstOrDefault()?.Id);
-        Store.Document.Environments.Add(env);
-        Store.NotifyChanged();
-        _selected = env;
-        _scrollToPanel = true;
-    }
-
-    private async Task Delete(DomainEnv env)
-    {
-        IReadOnlyList<MasterReference> refs = MasterReferenceFinder.FindEnvironmentReferences(Store.Document!, env.Id);
-        string message = refs.Count == 0
-            ? $"{env.Name}（{env.Id}）を削除しますか？"
-            : $"{env.Name}（{env.Id}）は {refs.Count} 箇所から参照されています:\n"
-                + string.Join("\n", refs.Select(r => $"・{r.EntityKind} {r.EntityId} の {r.Field}"))
-                + "\n\n参照が残るため検証違反になります。削除しますか？";
-        if (!await JS.InvokeAsync<bool>("confirm", message))
-        {
-            return;
-        }
-
-        Store.Document!.Environments.Remove(env);
-        Store.ClearInvalidOwner(env);
-        if (_selected == env)
-        {
-            _selected = null;
-        }
-
-        Store.NotifyChanged();
-    }
-
-    private void ApplyNum(Action<double> apply, double value)
-    {
-        apply(value);
-        Store.NotifyChanged();
-    }
+            providerFacilityId: doc.Facilities.FirstOrDefault()?.Id,
+            consumeItemId: ItemCatalog.FuelItems(doc.Items).FirstOrDefault()?.Id);
 
     private void SetProvider(string? value)
     {
@@ -137,22 +74,5 @@ else
     {
         _selected!.ConsumeItemId = value ?? "";
         Store.NotifyChanged();
-    }
-
-    private void ApplyRef(Action<string?> apply, string? value)
-    {
-        apply(value);
-        Store.NotifyChanged();
-    }
-
-    private void Changed(string? _) => Store.NotifyChanged();
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (_scrollToPanel)
-        {
-            _scrollToPanel = false;
-            await JS.InvokeVoidAsync("scrollElementIntoView", _panelRef);
-        }
     }
 }
