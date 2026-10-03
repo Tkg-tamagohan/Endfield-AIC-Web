@@ -170,11 +170,16 @@ public static class EntityFactory
     };
 
     /// <summary>Outputs と Facilities は各 1 件必要なため、候補があれば 1 行ずつ入れて返す。</summary>
+    /// <param name="idIsPlaceholder">
+    /// <paramref name="id"/> が <see cref="SuggestId"/> による一時採番（<c>recipe-NNN</c>）のとき true。
+    /// 自動提案の未編集判定にのみ使い、呼び出し側が選んだ Id には false のままにする。
+    /// </param>
     public static Recipe NewRecipe(
         string id,
         string versionAdded = DefaultVersionAdded,
         string? outputItemId = null,
-        string? facilityId = null)
+        string? facilityId = null,
+        bool idIsPlaceholder = false)
     {
         var recipe = new Recipe
         {
@@ -193,7 +198,11 @@ public static class EntityFactory
                 ? []
                 : [new RecipeFacility { RecipeId = id, FacilityId = facilityId, CycleTime = 2 }],
         };
-        _recipePlaceholders.Add(recipe, new FactoryPlaceholder { Id = id });
+        if (idIsPlaceholder)
+        {
+            _recipePlaceholders.Add(recipe, new FactoryPlaceholder { Id = id });
+        }
+
         return recipe;
     }
 }

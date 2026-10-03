@@ -166,7 +166,8 @@
         Recipe recipe = EntityFactory.NewRecipe(
             id,
             outputItemId: doc.Items.FirstOrDefault()?.Id,
-            facilityId: doc.Facilities.FirstOrDefault()?.Id);
+            facilityId: doc.Facilities.FirstOrDefault()?.Id,
+            idIsPlaceholder: true);
         if (_autoFill.ForceApply(doc, recipe))
         {
             PropagateRecipeId(recipe);

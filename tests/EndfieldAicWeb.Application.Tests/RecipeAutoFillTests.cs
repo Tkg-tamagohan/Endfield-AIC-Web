@@ -241,11 +241,13 @@ public class RecipeAutoFillTests
     public void RCP13_提案未計算の仮採番は最初の提案で置き換わる()
     {
         MasterDocument doc = Doc();
-        Recipe placeholder = EntityFactory.NewRecipe("recipe-001");
-        Recipe edited = EntityFactory.NewRecipe("recipe-002");
+        Recipe placeholder = EntityFactory.NewRecipe("recipe-001", idIsPlaceholder: true);
+        Recipe edited = EntityFactory.NewRecipe("recipe-002", idIsPlaceholder: true);
+        Recipe custom = EntityFactory.NewRecipe("recipe-custom");
         Recipe manual = Rcp("recipe-123", "手入力名");
         doc.Recipes.Add(placeholder);
         doc.Recipes.Add(edited);
+        doc.Recipes.Add(custom);
         doc.Recipes.Add(manual);
 
         var fill = new RecipeAutoFill();
@@ -264,6 +266,13 @@ public class RecipeAutoFillTests
         Assert.False(fill.Follow(doc, edited));
         Assert.Equal("recipe-123", edited.Id);
         Assert.Equal("息壌", edited.Name);
+
+        // 呼び出し側が選んだ Id（idIsPlaceholder 未指定）は仮採番扱いせず固定のまま
+        fill.Reset(doc, custom);
+        custom.Outputs.Add(Out("item-cuprium"));
+        Assert.False(fill.Follow(doc, custom));
+        Assert.Equal("recipe-custom", custom.Id);
+        Assert.Equal("新規レシピ", custom.Name);
 
         // ファクトリを通らない既存レシピの同形式 Id・名前は固定のまま置き換えない
         fill.Reset(doc, manual);
