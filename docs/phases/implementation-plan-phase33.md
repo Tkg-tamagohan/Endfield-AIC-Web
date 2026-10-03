@@ -6,7 +6,7 @@
 
 > 本書は Phase 33 の作業項目を、作業者が追加の判断なしに実行できる粒度へ分解したものである。
 > 文書・実装・テストは 1 つの PR にまとめて main へマージする。
-> Phase 番号は依頼どおり 33 とする。Phase 31（仕様決定 BW〜BY）は計画のみ main 入り済みで実装は未マージ、Phase 32（廃水処理）は別セッションで仕様協議中である。本書の仕様決定 CF・CG は両者と衝突しない位置の採番であり、先行 Phase が割り込んだ場合はマージ時に再採番する。
+> Phase 番号は依頼どおり 33 とする。Phase 31（仕様決定 BW〜BY）と Phase 32（処理レシピ、仕様決定 BZ〜CE）はいずれも計画のみ main 入り済みで実装は未マージである。本書の仕様決定 CF・CG は CE の次の採番であり、テスト ID も Phase 32 の使用済み分（VAL-29・30・MN-130〜134）を避けて採番した。
 
 ## 1. スコープ
 
@@ -66,7 +66,7 @@
 | ファイル | 変更 |
 |---|---|
 | `tests/EndfieldAicWeb.Domain.Tests/WarningTests.cs` | WRN-09〜: `名前（Id）` 表記・フォールバック・循環パス名前化の回帰ケース |
-| `tests/EndfieldAicWeb.Domain.Tests/ValidationTests.cs` | VAL-29〜: 検証エラー文面の `名前（Id）` 表記とフォールバック |
+| `tests/EndfieldAicWeb.Domain.Tests/ValidationTests.cs` | VAL-31〜: 検証エラー文面の `名前（Id）` 表記とフォールバック |
 | `tests/EndfieldAicWeb.Application.Tests/CalculationInputBuilderTests.cs` | CIB-01〜（新接頭辞）: 入力エラー文面が `名前（Id）` を含むこと |
 | `tests/EndfieldAicWeb.Domain.Tests/CalculationFixtures.cs` | 必要なら Item/Facility 等の `Name` を Id と別値にできる指定を追加（名前解決を検査できるようにする） |
 
