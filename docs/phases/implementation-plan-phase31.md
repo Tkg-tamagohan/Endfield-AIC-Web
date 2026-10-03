@@ -1,12 +1,12 @@
 # Phase 31 実装詳細計画
 
-**対象フェーズ**: Phase 31（ID 系値の空白禁止と読み込み時正規化）（仮採番）
+**対象フェーズ**: Phase 31（ID 系値の空白禁止と読み込み時正規化）
 **前提ドキュメント**: [implementation-plan.md](../implementation-plan.md)、[requirements.md](../requirements.md)、[decision-records.md](../decision-records.md)（仕様決定 BW〜BY）
 **関連ドキュメント**: [test-specification-phase31.md](test-specification-phase31.md)（本 Phase のテスト仕様）、[remaining-issues.md](../remaining-issues.md)（「管理ツール側の登録データの ID 修正」項目）
 
 > 本書は Phase 31 の作業項目を、作業者が追加の判断なしに実行できる粒度へ分解したものである。
 > 文書・実装・テストは 1 つの PR にまとめて main へマージする。
-> Phase 番号は仮採番であり、Phase 30 に別件が割り当たった場合は採番を振り直す。
+> Phase 番号は計画時の仮採番から、Phase 29・30 の確定により 31 が正式な採番となった。
 
 ## 1. スコープ
 

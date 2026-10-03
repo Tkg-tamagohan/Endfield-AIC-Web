@@ -1,6 +1,6 @@
 # Phase 31 テスト仕様
 
-**対象フェーズ**: Phase 31（ID 系値の空白禁止と読み込み時正規化）（仮採番）
+**対象フェーズ**: Phase 31（ID 系値の空白禁止と読み込み時正規化）
 **前提ドキュメント**: [implementation-plan-phase31.md](implementation-plan-phase31.md)、[decision-records.md](../decision-records.md)（仕様決定 BW〜BY）
 **関連ドキュメント**: [test-specification-phase26.md](test-specification-phase26.md)・[test-specification-phase28.md](test-specification-phase28.md)（VAL・MJS・MN 採番の先行群）
 
