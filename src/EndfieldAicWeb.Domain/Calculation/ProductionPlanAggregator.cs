@@ -1,0 +1,295 @@
+using EndfieldAicWeb.Domain.Models;
+using Environment = EndfieldAicWeb.Domain.Models.Environment;
+
+namespace EndfieldAicWeb.Domain.Calculation;
+
+/// <summary>
+/// <see cref="CalculationSession"/> の帳簿から <see cref="ProductionPlan"/> を組み立てる。
+/// <see cref="ProductionCalculator"/> 専用の内部実装。
+/// </summary>
+internal static class ProductionPlanAggregator
+{
+    internal static ProductionPlan Aggregate(MasterDataSnapshot master, CalculationSession session)
+    {
+        var itemRequirements = new List<ItemRequirement>();
+        foreach (string itemId in session.DemandOrder)
+        {
+            // 引き戻しで需要が帳簿上 0 になったアイテムは要求行として出さない。
+            if (session.Demand[itemId] <= ProductionCalculator.Epsilon)
+            {
+                continue;
+            }
+
+            var supplies = new List<SupplyPortion>();
+            PairSelector.Selection? selected = session.Selection.GetValueOrDefault(itemId);
+            // イベント不可アイテムは生産量を供給として表示しない（仕様決定 X）。
+            bool itemInactive = session.IsItemInactive(itemId);
+            foreach (PairSelector.Selection run in session.RunOrder)
+            {
+                if (itemInactive)
+                {
+                    break;
+                }
+
+                double outputQty = run.Recipe.Outputs
+                    .Where(o => o.ItemId == itemId)
+                    .Sum(o => o.Quantity);
+                if (outputQty <= 0)
+                {
+                    continue;
+                }
+
+                double portion = session.RunCycles[run] * outputQty;
+                if (portion <= ProductionCalculator.Epsilon)
+                {
+                    continue;
+                }
+
+                SupplyKind kind = ReferenceEquals(selected, run) ? SupplyKind.Recipe : SupplyKind.Byproduct;
+                supplies.Add(new SupplyPortion(kind, run.Recipe.Id, portion));
+            }
+
+            double raw = itemInactive ? 0 : ProductionCalculator.GetOrZero(session.Raw, itemId);
+            if (raw > ProductionCalculator.Epsilon)
+            {
+                supplies.Add(new SupplyPortion(SupplyKind.Gathered, null, raw));
+            }
+
+            itemRequirements.Add(new ItemRequirement(
+                itemId,
+                session.Demand[itemId],
+                supplies,
+                ProductionCalculator.GetOrZero(session.Unmet, itemId)));
+        }
+
+        FacilityCounts counts = session.ComputeCounts();
+        var exactByFacility = new Dictionary<string, double>(counts.ExactByFacility, StringComparer.Ordinal);
+        var environmentRequirements = new List<EnvironmentRequirement>();
+        foreach ((string envId, int dispenserCount) in counts.DispenserCountByEnv)
+        {
+            if (!master.EnvironmentsById.TryGetValue(envId, out Environment? env))
+            {
+                continue;
+            }
+
+            environmentRequirements.Add(new EnvironmentRequirement(
+                envId,
+                env.ProviderFacilityId,
+                dispenserCount,
+                env.ConsumeItemId,
+                env.ConsumeRatePerMinute * dispenserCount));
+
+            // 散布機は設備要件・消費電力に計上する（実数=切上げの指定台数）。
+            exactByFacility[env.ProviderFacilityId] =
+                exactByFacility.GetValueOrDefault(env.ProviderFacilityId) + dispenserCount;
+        }
+
+        var facilityRequirements = exactByFacility
+            .OrderBy(kv => kv.Key, StringComparer.Ordinal)
+            .Select(kv => new FacilityRequirement(kv.Key, kv.Value, ProductionCalculator.Ceil(kv.Value)))
+            .ToList();
+
+        var recipeRuns = session.RunOrder
+            .Select(r => new RecipeRun(r.Recipe.Id, r.Pair.FacilityId, session.RunCycles[r]))
+            .ToList();
+
+        // 確定ペアは実際に稼働中（RunOrder に残る）のものだけを出す。
+        // 引き戻しで休眠したペアは Selection に残るが出力しない。
+        var pairSelections = session.Selection
+            .Where(kv => kv.Value is not null && session.RunOrder.Contains(kv.Value))
+            .Select(kv => new PairSelection(kv.Key, kv.Value!.Recipe.Id, kv.Value.Pair))
+            .ToList();
+
+        double totalPower = facilityRequirements
+            .Sum(f => master.FacilitiesById.TryGetValue(f.FacilityId, out Facility? facility)
+                ? facility.PowerConsumption * f.CeilCount
+                : 0);
+
+        var surpluses = new List<SurplusProduction>();
+        foreach ((string itemId, double produced) in session.Produced)
+        {
+            // イベント不可アイテムの生産量は需要へ充当できないため、全量が余剰（仕様決定 X）。
+            double excess = session.IsItemInactive(itemId)
+                ? produced
+                : produced - ProductionCalculator.GetOrZero(session.Demand, itemId);
+            if (excess > ProductionCalculator.Epsilon)
+            {
+                surpluses.Add(new SurplusProduction(itemId, excess));
+            }
+        }
+
+        var flowAdjustments = BuildFlowAdjustments(session);
+
+        WarningBag warnings = session.Warnings;
+        AddTransportWarnings(master, recipeRuns, facilityRequirements, environmentRequirements, pairSelections, warnings);
+
+        return new ProductionPlan
+        {
+            ItemRequirements = itemRequirements,
+            FacilityRequirements = facilityRequirements,
+            RecipeRuns = recipeRuns,
+            PairSelections = pairSelections,
+            EnvironmentRequirements = environmentRequirements,
+            TotalPowerConsumption = totalPower,
+            Surpluses = surpluses,
+            FlowAdjustments = flowAdjustments,
+            Warnings = warnings.AsList(),
+        };
+    }
+
+    /// <summary>
+    /// 自身の使用台数に端数（設備の一部余力）があるレシピの入力について推奨流量制限を出力する。
+    /// 判定はランごとの使用台数で行う。設備を共用する場合、0.5 台ずつの使用でも各レシピに
+    /// 制限を出し、整数台の全速稼働（余力なし）には出さない。
+    /// </summary>
+    internal static List<FlowAdjustment> BuildFlowAdjustments(CalculationSession session)
+    {
+        var adjustments = new Dictionary<(string RecipeId, string InputItemId), double>();
+
+        foreach (PairSelector.Selection run in session.RunOrder)
+        {
+            double machines = session.RunCycles[run] * run.Pair.CycleTime / 60.0;
+            if (ProductionCalculator.Ceil(machines) <= machines + ProductionCalculator.Epsilon)
+            {
+                continue;
+            }
+
+            foreach (RecipeInput input in run.Recipe.Inputs)
+            {
+                var key = (run.Recipe.Id, input.ItemId);
+                adjustments[key] = adjustments.GetValueOrDefault(key)
+                    + session.RunCycles[run] * input.Quantity;
+            }
+        }
+
+        return adjustments
+            .Where(kv => kv.Value > ProductionCalculator.Epsilon)
+            .Select(kv => new FlowAdjustment(kv.Key.RecipeId, kv.Key.InputItemId, kv.Value, kv.Value))
+            .ToList();
+    }
+
+    /// <summary>
+    /// 設備 1 ユニットへの入力流量が輸送媒体（ベルト 30 個/分・パイプ 60 個/分）の上限を
+    /// 超える場合に警告を追加する（仕様決定 AN）。
+    /// 台数・レーンを増やせば解消できる集計超過（需要・生産・採取の流量）は対象外。
+    /// </summary>
+    internal static void AddTransportWarnings(
+        MasterDataSnapshot master,
+        IReadOnlyList<RecipeRun> recipeRuns,
+        IReadOnlyList<FacilityRequirement> facilityRequirements,
+        IReadOnlyList<EnvironmentRequirement> environmentRequirements,
+        IReadOnlyList<PairSelection> pairSelections,
+        WarningBag warnings)
+    {
+        Dictionary<string, List<FacilityUnitSlot>> unitsByFacility = FacilityUnitLayout.Allocate(
+            recipeRuns, facilityRequirements, environmentRequirements, master, pairSelections);
+
+        var maxRateByItem = new Dictionary<string, double>(StringComparer.Ordinal);
+        foreach ((string facilityId, List<FacilityUnitSlot> units) in unitsByFacility)
+        {
+            var inputs = units
+                .Select(_ => new Dictionary<string, double>(StringComparer.Ordinal))
+                .ToList();
+
+            for (int runIndex = 0; runIndex < recipeRuns.Count; runIndex++)
+            {
+                RecipeRun run = recipeRuns[runIndex];
+                if (run.FacilityId != facilityId
+                    || !master.RecipesById.TryGetValue(run.RecipeId, out Recipe? recipe))
+                {
+                    continue;
+                }
+
+                // レシピ入力はユニットの占有比率で分かれる。
+                foreach (FacilityUnitSlot unit in units)
+                {
+                    double share = unit.RunShares.GetValueOrDefault(runIndex);
+                    if (share <= ProductionCalculator.Epsilon)
+                    {
+                        continue;
+                    }
+
+                    Dictionary<string, double> unitInputs = inputs[unit.Index];
+                    foreach (RecipeInput input in recipe.Inputs)
+                    {
+                        unitInputs[input.ItemId] = unitInputs.GetValueOrDefault(input.ItemId)
+                            + run.CyclesPerMinute * input.Quantity * share;
+                    }
+                }
+
+                // 固定消費はユニットごとに同量を消費する。
+                RecipeFacility? pair = pairSelections
+                    .Where(s => s.RecipeId == run.RecipeId && s.Pair.FacilityId == run.FacilityId)
+                    .Select(s => s.Pair)
+                    .FirstOrDefault()
+                    ?? recipe.Facilities.FirstOrDefault(p => p.FacilityId == run.FacilityId);
+                if (pair?.FixedConsumption is { } fixedConsumption)
+                {
+                    foreach (Dictionary<string, double> unitInputs in inputs)
+                    {
+                        unitInputs[fixedConsumption.ItemId] =
+                            unitInputs.GetValueOrDefault(fixedConsumption.ItemId)
+                            + fixedConsumption.RatePerMinute;
+                    }
+                }
+            }
+
+            // 環境消費はその環境の散布機ユニットへ台数ぶん等量に分かれる。
+            foreach (EnvironmentRequirement env in environmentRequirements)
+            {
+                if (env.ProviderFacilityId != facilityId || env.DispenserCount <= 0)
+                {
+                    continue;
+                }
+
+                double perUnit = env.ConsumeRatePerMinuteTotal / env.DispenserCount;
+                foreach (FacilityUnitSlot unit in units
+                    .Where(u => u.DispenserEnvironmentId == env.EnvironmentId))
+                {
+                    Dictionary<string, double> unitInputs = inputs[unit.Index];
+                    unitInputs[env.ConsumeItemId] =
+                        unitInputs.GetValueOrDefault(env.ConsumeItemId) + perUnit;
+                }
+            }
+
+            foreach (Dictionary<string, double> unitInputs in inputs)
+            {
+                foreach ((string itemId, double rate) in unitInputs)
+                {
+                    if (rate > maxRateByItem.GetValueOrDefault(itemId))
+                    {
+                        maxRateByItem[itemId] = rate;
+                    }
+                }
+            }
+        }
+
+        foreach ((string itemId, double rate) in maxRateByItem.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+        {
+            if (!master.ItemsById.TryGetValue(itemId, out Item? item))
+            {
+                continue;
+            }
+
+            double limit = item.TransportKind switch
+            {
+                TransportKind.Belt => ProductionCalculator.BeltCapacityPerMinute,
+                TransportKind.Pipe => ProductionCalculator.PipeCapacityPerMinute,
+                _ => 0,
+            };
+            if (limit <= 0 || rate <= limit + ProductionCalculator.Epsilon)
+            {
+                continue;
+            }
+
+            warnings.Add(new CalculationWarning(
+                WarningCode.TransportCapacityExceeded,
+                $"アイテム {itemId} の設備 1 台への入力流量 {rate:F2} 個/分 が輸送容量（{item.TransportKind} {limit:F0} 個/分）を超えています"));
+        }
+    }
+}
+
+/// <summary>設備ごとの実数台数と環境ごとの散布機台数。</summary>
+internal sealed record FacilityCounts(
+    Dictionary<string, double> ExactByFacility,
+    Dictionary<string, int> DispenserCountByEnv);
