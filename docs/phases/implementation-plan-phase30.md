@@ -60,7 +60,7 @@
 | `tests/EndfieldAicWeb.Domain.Tests/PlanAssert.cs` | `NoWarningsExcept` は本件の 4 呼出が唯一の利用であり、撤去で未使用になるため削除する |
 | `tests/EndfieldAicWeb.Domain.Tests/GatherCapTests.cs` | `NoWarningsExcept(plan, WarningCode.TransportCapacityExceeded)` の 3 呼出を `Assert.Empty(plan.Warnings)` へ置き換える |
 | `tests/EndfieldAicWeb.Domain.Tests/ExpansionTests.cs` | 同上の 1 呼出を置き換える |
-| `tests/EndfieldAicWeb.Application.Tests/FlowGraphModelBuilderTests.cs` | FG-13・FG-15・FG-16・FG-24・FG-26 を削除する。FG-17・FG-20・FG-23・FG-25 は `OverCapacity` アサーションのみ除去して残す |
+| `tests/EndfieldAicWeb.Application.Tests/FlowGraphModelBuilderTests.cs` | FG-13・FG-15・FG-16・FG-26 を削除する。FG-17・FG-20・FG-23・FG-24・FG-25 は `OverCapacity` アサーションのみ除去して残す |
 
 ### 文書・スキル
 
@@ -92,13 +92,14 @@
 ### 3-3. テストの整理
 
 - TRN-01〜11 は警告の発火・非発火・警告文・末尾集約の機械群判定を検査する系列であり、判定の撤去で全件が成立しなくなるため系列ごと廃止する（ファイル削除）。TRN-09〜11 が前提として利用していた末尾集約は表示用に残るが、集約機械群を仮想機械へ充填する評価は本 Phase で消えるため、系列内の前提検査ごと不要になる
-- FG の容量専用ケース（FG-13・FG-15・FG-16・FG-24・FG-26）は削除する
+- FG の容量専用ケース（FG-13・FG-15・FG-16・FG-26）は削除する
 - FG-17・FG-20・FG-23・FG-25 は容量フラグのアサーションのみ除去し、ユニット展開と流量分割の検査は残す
+- FG-24 もフラグの除去で改訂に留め、同一設備への同一アイテムの複数ラン入力が集約表示で 1 本のエッジに合算される検査は残す
 - WRN-07・WRN-08 を撤去の回帰として `WarningTests.cs` へ追加する
 
 ## 4. 影響の確認
 
-- 同梱マスタ 0.2.8 では `recipe-cupriumCanister`（成形機へ赤銅塊 60 個/分、ベルト超過）と `recipe-heavyXiragen01`（精錬炉へ分離コア 60 個/分、ベルト超過）の 2 件で警告が発火しうる構成であった。撤去後は両レシピを含む計画で警告欄にもグラフにも容量超過の表示が出ない
+- 同梱マスタ 0.2.8 では `recipe-cupriumCanister`（成形機へ赤銅塊 60 個/分、ベルト超過）と `recipe-heavyXiragen01`（精錬炉へ分離コア 60 個/分、ベルト超過）の 2 件で警告が発火しうる構成が含まれている。撤去後は両レシピを含む計画で警告欄にもグラフにも容量超過の表示が出ない
 - `OverCapacity` のフィールド削除はレコードの位置引数の変更である。レコードを構築するのは `FlowGraphModelBuilder` 内部のみで、JS 側はプロパティの不在で種別色へ戻る
 - `WarningBag` と他の `WarningCode` は影響を受けない
 - 管理ツールの「輸送種別」欄・`TransportKind` の編集・スキーマ項目は従来どおり使える
