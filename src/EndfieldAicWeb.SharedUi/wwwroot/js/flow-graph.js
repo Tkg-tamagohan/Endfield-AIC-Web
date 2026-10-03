@@ -234,6 +234,7 @@ function makeHandle(canvas, layer, device, context, format) {
 
     const view = { s: 1, tx: 0, ty: 0 };
     let worldBounds = { x: 0, y: 0, w: 0, h: 0 };
+    let nodeBounds = { x: 0, y: 0, w: 0, h: 0 }; // ノードのみの世界矩形（後退エッジの張り出しを含まない）
     let running = false;
     let visible = true;
     let inView = true;
@@ -318,10 +319,15 @@ function makeHandle(canvas, layer, device, context, format) {
             view.s = 1; view.tx = 0; view.ty = 0;
             return;
         }
-        view.s = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.min(cw / worldBounds.w, ch / worldBounds.h)));
+        // 後退エッジの張り出し込みの境界が ZOOM_MIN で収まらない場合、
+        // ループの端が欠けるよりノードが画面外へ出るほうが悪いため、ノード境界へ切り替える。
+        const b = (Math.min(cw / worldBounds.w, ch / worldBounds.h) >= ZOOM_MIN)
+            ? worldBounds
+            : nodeBounds;
+        view.s = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.min(cw / b.w, ch / b.h)));
         view.s = Math.min(view.s, 1);
-        view.tx = (cw - worldBounds.w * view.s) / 2 - worldBounds.x * view.s;
-        view.ty = (ch - worldBounds.h * view.s) / 2 - worldBounds.y * view.s;
+        view.tx = (cw - b.w * view.s) / 2 - b.x * view.s;
+        view.ty = (ch - b.h * view.s) / 2 - b.y * view.s;
     }
 
     // ---- パン・ピンチ・ズーム ----
@@ -448,6 +454,61 @@ function makeHandle(canvas, layer, device, context, format) {
         ];
     }
 
+    // 三次ベジェの実際の到達範囲（制御点ではなく曲線の極値）。導関数の根を両端と合わせて評価する。
+    function cubicBounds(p0, p1, p2, p3) {
+        const roots = (v0, v1, v2, v3) => {
+            const a = v3 - 3 * v2 + 3 * v1 - v0;
+            const b = 2 * (v2 - 2 * v1 + v0);
+            const c = v1 - v0;
+            const ts = [0, 1];
+            if (Math.abs(a) < 1e-9) {
+                if (Math.abs(b) > 1e-9) ts.push(-c / b);
+            } else {
+                const disc = b * b - 4 * a * c;
+                if (disc >= 0) {
+                    const r = Math.sqrt(disc);
+                    ts.push((-b + r) / (2 * a), (-b - r) / (2 * a));
+                }
+            }
+            return ts.filter(t => t > 0 && t < 1 || t === 0 || t === 1);
+        };
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const t of roots(p0[0], p1[0], p2[0], p3[0])) {
+            const x = cubic(p0, p1, p2, p3, t)[0];
+            minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+        }
+        for (const t of roots(p0[1], p1[1], p2[1], p3[1])) {
+            const y = cubic(p0, p1, p2, p3, t)[1];
+            minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+        }
+        return { minX, minY, maxX, maxY };
+    }
+
+    // 線分と余白付き矩形の交差（slab 法）。点サンプリングでは検査点の隙間を抜ける
+    // カードを見落とすため、連続区間として判定する。
+    function segHitsRect(x0, y0, x1, y1, r, pad) {
+        const rx0 = r.x - pad, ry0 = r.y - pad, rx1 = r.x + r.w + pad, ry1 = r.y + r.h + pad;
+        if (x0 < rx0 && x1 < rx0) return false;
+        if (x0 > rx1 && x1 > rx1) return false;
+        if (y0 < ry0 && y1 < ry0) return false;
+        if (y0 > ry1 && y1 > ry1) return false;
+        if ((x0 >= rx0 && x0 <= rx1 && y0 >= ry0 && y0 <= ry1) ||
+            (x1 >= rx0 && x1 <= rx1 && y1 >= ry0 && y1 <= ry1)) return true;
+        const dx = x1 - x0, dy = y1 - y0;
+        let t0 = 0, t1 = 1;
+        if (dx !== 0) {
+            let ta = (rx0 - x0) / dx, tb = (rx1 - x0) / dx;
+            if (ta > tb) [ta, tb] = [tb, ta];
+            t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
+        } else if (x0 < rx0 || x0 > rx1) return false;
+        if (dy !== 0) {
+            let ta = (ry0 - y0) / dy, tb = (ry1 - y0) / dy;
+            if (ta > tb) [ta, tb] = [tb, ta];
+            t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
+        } else if (y0 < ry0 || y0 > ry1) return false;
+        return t0 <= t1;
+    }
+
     function edgeGeometry(e, rects, vertical) {
         const a = rects.get(e.fromId);
         const b = rects.get(e.toId);
@@ -476,15 +537,16 @@ function makeHandle(canvas, layer, device, context, format) {
                         const c1 = [p0[0] + side * off, p0[1] - d];
                         const c2 = [p3[0] + side * off, p3[1] + d];
                         let clear = true;
-                        for (let i = 0; i <= 48 && clear; i++) {
-                            const pt = cubic(p0, c1, c2, p3, i / 48);
+                        let prev = p0;
+                        for (let i = 1; i <= 48 && clear; i++) {
+                            const cur = cubic(p0, c1, c2, p3, i / 48);
                             for (const r of mids) {
-                                if (pt[1] > r.y - PAD && pt[1] < r.y + r.h + PAD &&
-                                    pt[0] > r.x - PAD && pt[0] < r.x + r.w + PAD) {
+                                if (segHitsRect(prev[0], prev[1], cur[0], cur[1], r, PAD)) {
                                     clear = false;
                                     break;
                                 }
                             }
+                            prev = cur;
                         }
                         if (clear) return off;
                         off = off * 1.6 + 24;
@@ -622,12 +684,16 @@ function makeHandle(canvas, layer, device, context, format) {
             geoms.push([e, g]);
             // 側面ループ化する縦の後退エッジのみ範囲へ含める。前進エッジの制御点の
             // 微小なオーバーシュートは従来どおりマージン側へ描画する。
+            // 範囲は制御点ボックスではなく曲線の真の極値から取る（制御点は曲線より
+            // 遠くへ張り出すため、箱で取るとフィットが必要以上に小さくなる）。
             if (!(vertical && g.p3[1] > g.p0[1])) continue;
-            edgeMinX = Math.min(edgeMinX, g.p0[0], g.p1[0], g.p2[0], g.p3[0]);
-            edgeMinY = Math.min(edgeMinY, g.p0[1], g.p1[1], g.p2[1], g.p3[1]);
-            edgeMaxX = Math.max(edgeMaxX, g.p0[0], g.p1[0], g.p2[0], g.p3[0]);
-            edgeMaxY = Math.max(edgeMaxY, g.p0[1], g.p1[1], g.p2[1], g.p3[1]);
+            const gb = cubicBounds(g.p0, g.p1, g.p2, g.p3);
+            edgeMinX = Math.min(edgeMinX, gb.minX);
+            edgeMinY = Math.min(edgeMinY, gb.minY);
+            edgeMaxX = Math.max(edgeMaxX, gb.maxX);
+            edgeMaxY = Math.max(edgeMaxY, gb.maxY);
         }
+        nodeBounds = worldBounds;
         if (edgeMinX !== Infinity) {
             const bx = Math.min(worldBounds.x, edgeMinX);
             const by = Math.min(worldBounds.y, edgeMinY);
