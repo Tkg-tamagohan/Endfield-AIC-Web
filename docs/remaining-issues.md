@@ -79,6 +79,8 @@ Phase 22-1 で追加した `AdminCalculatorIcons` は、`ICalculatorIcons` を `
 管理ツール側の該当エンティティ（設備・アイテム・レシピ）も同じ ID へ修正しないと、次回エクスポートで旧値に戻る。
 管理ツールで ID を変更するときは、参照側（レシピの入出力・設備ペアの `FacilityId`・`FixedConsumption` の `ItemId`）の追随更新も必要になる。
 
+空白入り ID への対策は Phase 31（仮採番）で計画済み。ID 系値の空白禁止・読み込み時正規化・Id 入力欄トリムを導入する（仕様決定 BU〜BW、`phases/implementation-plan-phase31.md` 参照）。綴り違いの手修正と rename 機能の検討は引き続き残る。
+
 ## 改善方針の検討
 
 2026-09-30 に各項目の改善方針を検討し、推奨案どおり実施した記録である。
