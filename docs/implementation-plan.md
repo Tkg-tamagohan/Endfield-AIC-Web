@@ -326,6 +326,7 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 - [ ] `dotnet test` 全緑を確認する。同梱マスタに複数ペア行を持つレシピはなく、単体テストが検証の主経路
 - **受け入れ条件**: 同 `CycleTime` で「環境あり・固定消費なし」と「環境なし・固定消費あり」のペアが競合したとき、環境ありのペアが既定になる。詳細は `phases/implementation-plan-phase28.md` と `phases/test-specification-phase28.md`。
 
+
 ### Phase 29: レシピの Id・名前の自動入力（PR: 主産物からの自動提案）
 
 - [ ] 管理ツールのレシピ編集で Id・名前を主産物から自動提案し、直近の提案値と一致する間は主産物の変更に追随、手動編集で固定とする（仕様決定 BU）。提案値へ戻すボタンも設ける
@@ -333,12 +334,22 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 - [ ] `dotnet test` 全緑を確認し、ブラウザ E2E（追随・固定・提案ボタン・ペア RecipeId 伝搬）を実施する
 - **受け入れ条件**: 新規レシピで出力アイテムを選ぶと Id・名前が主産物へ追随し、手動編集で固定・ボタンで提案値へ戻せる。詳細は `phases/implementation-plan-phase29.md` と `phases/test-specification-phase29.md`。
 
+
 ### Phase 30: 輸送容量超過の警告とグラフ赤化の撤去（PR: 判定機構の撤去）
 
 - [ ] 「設備 1 ユニットへの入力流量 > 輸送容量」の警告と、同一判定によるフローグラフの容量超過赤化（`OverCapacity` エッジと両端ノード）を撤去する（仕様決定 BV、AN の撤去）。容量評価専用の機構（`AddTransportWarnings`・`MaxMachineInputs`・`OverspillGroups`・容量定数・警告コード・赤色分岐）も併せて撤去し、台数分表示（AO）のユニット割当と `TransportKind` は据え置く
 - [ ] `dotnet test` 全緑を確認し、ブラウザ E2E（`recipe-cupriumCanister` 等の容量超過構成で警告・赤化が出ないこと）を実施する
 - **受け入れ条件**: ベルト 30 個/分・パイプ 60 個/分を超える入力を持つ計画で、警告欄にもグラフにも容量超過の表示が出ない。詳細は `phases/implementation-plan-phase30.md` と `phases/test-specification-phase30.md`。
 
+
+
+### Phase 31: ID 系値の空白禁止と読み込み時正規化（PR: 検証規則・スキーマ・ローダー正規化・UI トリム）
+
+- [ ] エンティティの Id と参照 Id 値に「空白文字を含まない」の規則を追加し、`MasterValidator` の検証違反と `master.schema.json` の `pattern` に反映する（仕様決定 BW）
+- [ ] JSON 読み込みで ID 系値の前後空白を一貫して除去する正規化を読み込み経路に追加し、除去箇所を管理ツールの読み込み画面へ通知する（仕様決定 BX）
+- [ ] 管理ツールの共通属性編集で Id 欄を確定時トリムする（仕様決定 BY）
+- [ ] `dotnet test` 全緑を確認し、管理ツールで手動確認（Id 欄トリム・空白入り JSON の読み込み通知）を実施する
+- **受け入れ条件**: 空白入り ID が検証・スキーマ・エクスポートで拒否され、前後空白入りの既存データは読み込みで矯正される。詳細は `phases/implementation-plan-phase31.md` と `phases/test-specification-phase31.md`。Phase 番号は計画時の仮採番から、Phase 29・30 の確定により 31 が正式な採番となった。
 
 ## 5. 実装メモ・規約
 
