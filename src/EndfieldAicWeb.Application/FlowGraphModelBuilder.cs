@@ -783,6 +783,32 @@ public static class FlowGraphModelBuilder
             virtualPreds[id] = users.Where(u => layer.GetValueOrDefault(u, -1) == minLayer).ToList();
         }
 
+        // 環境利用設備がその環境の消費アイテムを産出する場合、その出力エッジは環境
+        // フィードバックの一部として第 2 段の伝播対象から外す。伝播させると消費
+        // アイテムの沈下に利用設備が追従して、固定した供給設備と層が離れる。外した
+        // エッジは層割りに使われないだけでモデルには残り、後退エッジとして描かれる。
+        var envLoopEdges = new HashSet<(string FromId, string ToId)>();
+        foreach (string provider in envFixed.Keys)
+        {
+            foreach (FlowGraphEdge consumeEdge in edges)
+            {
+                if (consumeEdge.Kind != FlowGraphEdgeKind.EnvironmentConsume
+                    || consumeEdge.ToId != provider)
+                {
+                    continue;
+                }
+
+                foreach (string user in envConsumers[provider])
+                {
+                    if (edges.Any(e => e.Kind == FlowGraphEdgeKind.RecipeOutput
+                        && e.FromId == user && e.ToId == consumeEdge.FromId))
+                    {
+                        envLoopEdges.Add((user, consumeEdge.FromId));
+                    }
+                }
+            }
+        }
+
         // 第 2 段: 固定した環境供給設備を消費者として層を再伝播する。消費アイテムは
         // 環境設備の層+1 以降へ沈み、消費アイテム→環境設備のエッジは順方向を保つ。
         // 第 1 段と同じく循環部分内のエッジは層割りに使わない。環境設備自体は層を
@@ -792,7 +818,8 @@ public static class FlowGraphModelBuilder
             var pass2Succs = nodes.Keys.ToDictionary(
                 id => id,
                 id => effSuccs[id]
-                    .Where(s => !deferredSet.Contains(id) || !deferredSet.Contains(s))
+                    .Where(s => (!deferredSet.Contains(id) || !deferredSet.Contains(s))
+                        && !envLoopEdges.Contains((id, s)))
                     .Concat(succs[id].Where(envFixed.ContainsKey))
                     .ToList(),
                 StringComparer.Ordinal);
@@ -877,6 +904,17 @@ public static class FlowGraphModelBuilder
                     ? barycenterPreds[id].Average(p => rank[p] * 1_000_000.0 + order[p])
                     : rank[id] * 1_000_000.0 + order[id],
                 StringComparer.Ordinal);
+            // 環境供給設備のソートキーは仮想先行の利用設備の位置へ吸着させる
+            // （+εでその直後に並べる）。異なる層の消費アイテム先行と混ぜる平均では
+            // 行内順が利用設備から離れうるため（仕様決定 BM の隣接規則）。
+            foreach (string provider in envFixed.Keys)
+            {
+                if (virtualPreds.TryGetValue(provider, out List<string>? users) && users.Count > 0)
+                {
+                    string user = users.MinBy(u => barycenter[u])!;
+                    barycenter[provider] = barycenter[user] + 0.5;
+                }
+            }
             foreach (List<string> ids in nodesByRank.Values)
             {
                 ids.Sort((a, b) =>
