@@ -68,7 +68,7 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 | 共通属性 | Id, Name, Description, IconKey(null 可), VersionAdded, VersionRemoved(null 可) | 全マスタエンティティに付与（仕様決定 N）。 |
 | Item | 共通属性, Category, IsGatherable, TransportKind, GameEventId(null=常設) | Category は表示用タグ、`IsGatherable=true` が需要展開の終端（採取扱い。マップ選択時は採取上限が適用、仕様決定 AC/AD）。`TransportKind=None` は仮想アイテム（レシピ入力不可・生産リスト候補外）。非有効イベント配下は生産・外部調達とも不可（仕様決定 X）。 |
 | Environment | 共通属性, ProviderFacilityId, ConsumeItemId, ConsumeRatePerMinute, CoverableMachines, GameEventId(null=常設) | 環境を供給する設備（散布機）・継続消費アイテム・消費速度（個/分）を持つ（仕様決定 H、単位は AF）。供給設備 1 台がカバーできる機械台数を `CoverableMachines`（正の整数）で持つ（仕様決定 BP）。カバー範囲（面積）は持たない（W）。 |
-| Recipe | 共通属性, Inputs, Outputs, Facilities(RecipeFacility[]), GameEventId(null=常設) | `CycleTime`・`FacilityId` はレシピ本体からペアへ移動。Outputs は `ItemId＋Quantity＋SortOrder`（規約は 0 から連番を付け、SortOrder 最小の行が主産物）。 |
+| Recipe | 共通属性, Inputs, Outputs, Facilities(RecipeFacility[]), GameEventId(null=常設) | `CycleTime`・`FacilityId` はレシピ本体からペアへ移動。Outputs は `ItemId＋Quantity＋SortOrder`（規約は 0 から連番を付け、SortOrder 最小の行が主産物）。0 件を許容し、出力なしレシピは処理レシピ（BZ）。 |
 | Facility | 共通属性, Width, Height, PowerConsumption | 縦横は「設備面積最小」最適化（F）のために保持。発電識別・保持枠・ポート・衝突クラスは持たない（G/W/Y）。 |
 | RecipeFacility | RecipeId, FacilityId, CycleTime, EnvironmentId(null=不要), FixedConsumption(null 可) | レシピ×設備の紐付け。一意性は全要素の組で判定（仕様決定 P）。`FixedConsumption` は `(ItemId, 個/分)`（単位は AF）。 |
 | GameEvent | Id, Name, ActiveFrom(null 可), ActiveTo(null 可) | 両 null は常設（仕様決定 T）。 |
@@ -101,7 +101,8 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 7. 固定消費（J/V）: 確定した各ペアの `FixedConsumption` について `個/分 × 切上げ台数` を需要へ追加する（単位は AF）。調整済モードでも基準は切上台数のままとする（V）。
 8. 環境消費と固定消費の需要追加は台数確定後に行うため、これらの需要自体が新たなレシピ稼働（→台数変化）を生みうる。展開→台数確定→追加需要 の一巡を収束するまで反復する（上限は旧発電反復と同じく 10 回とし、収束しない場合は警告を返す）。技術的改善として旧電力収束ループの構造を流用する。
 9. 採取素材は「個/分」のまま残す（R で旧 C 継承、AB で改称）。採取上限（AC/AD）: 選択マップの有効採取レート（ユーザー上書きを優先、未定義の行は「無限」か「上限値」、行のない採取素材は 0、マップ未選択は無制限）までを採取とし、超過分は当該アイテムを産出するレシピへ展開する。代替レシピがなければ未充足＋警告とする。
-10. 出力は未調整・調整済の両方を表示可能な形で返す。2 状態の切替は UI の表示切替であり、計算結果は共用する（O）。期間換算（M）は表示層で `個/分` に係数を掛けて行い、設備の消費電力合計は換算しない。
+10. 余剰の処理（BZ〜CC）: 収束反復の中で、最終的な余剰（生産−需要。処理で計上済みの需要を除いた帳簿で評価）のうち処理レシピ（`Outputs` が 0 件のレシピ）の入力に登場するアイテムへ処理ランを追加する。処理量は余剰全量、計算目標のアイテムは対象外、処理需要は反復ごとに現在余剰へ追随して更新する。処理レシピ・ペアの既定選択は F・BA・U・BT の準用（実効出力レートの代わりに対象アイテムの実効処理レート）。ランのサイクル数は処理対象の入力すべての残り余剰を上限とし（残り余剰のない他入力は補助入力として通常の需要）、同一処理レシピは 1 ランにまとめる。処理ランは選択ペアを保持して設備台数・消費電力・固定消費・環境要件へ通常ランと同じ規則で計上し、処理による消費を需要として計上する（最終余剰は余剰一覧から消える）。
+11. 出力は未調整・調整済の両方を表示可能な形で返す。2 状態の切替は UI の表示切替であり、計算結果は共用する（O）。期間換算（M）は表示層で `個/分` に係数を掛けて行い、設備の消費電力合計は換算しない。
 
 ## 4. Phase 別タスク
 
@@ -350,6 +351,15 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 - [ ] 管理ツールの共通属性編集で Id 欄を確定時トリムする（仕様決定 BY）
 - [ ] `dotnet test` 全緑を確認し、管理ツールで手動確認（Id 欄トリム・空白入り JSON の読み込み通知）を実施する
 - **受け入れ条件**: 空白入り ID が検証・スキーマ・エクスポートで拒否され、前後空白入りの既存データは読み込みで矯正される。詳細は `phases/implementation-plan-phase31.md` と `phases/test-specification-phase31.md`。Phase 番号は計画時の仮採番から、Phase 29・30 の確定により 31 が正式な採番となった。
+
+
+### Phase 32: 出力なしレシピ（処理レシピ）と余剰の廃棄処理（PR: 処理レシピの登録・計算・グラフ表現）
+
+- [ ] レシピの `Outputs` を 0 件許容とし、出力なしレシピ＝処理レシピを登録可能にする（仕様決定 BZ）。`master.schema.json` の `Outputs.minItems` を 0 へ緩和し、`MasterValidator` の「Outputs は 1 件以上」を撤去する。管理ツールは出力行を 0 行まで削除可能にし、BU の自動提案は出力なしレシピを対象外とする（仕様決定 CE）
+- [ ] 収束後の最終余剰に対し処理ランを投入する（仕様決定 CA・CB）。処理需要は反復ごとに現在余剰へ追随して再評価し、処理ランの設備台数・消費電力・固定消費・環境要件は通常ランと同じ規則で計上する（仕様決定 CC）
+- [ ] フローグラフで処理設備のノードを持たず、処理消費のあるアイテムノードを紫色で描きメタ行に処理設備名と台数・処理量を併記する（仕様決定 CD）。素材行で処理による消費を識別できる表示にする
+- [ ] `dotnet test` 全緑を確認し、ブラウザ E2E（処理レシピの登録・処理ランの反映・アイテムノードの紫化）を実施する
+- **受け入れ条件**: 汚水など余剰のある廃水系アイテムに処理ランが追加され、設備台数・消費電力に反映される。グラフに処理設備ノードが出ず、アイテムノードが紫で処理情報を持つ。詳細は `phases/implementation-plan-phase32.md` と `phases/test-specification-phase32.md`。Phase 番号は検討時の仮採番（仮Phase32）から、Phase 31 のマージにより 32 が正式な採番となった。
 
 ## 5. 実装メモ・規約
 
