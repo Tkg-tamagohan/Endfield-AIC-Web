@@ -63,7 +63,9 @@ public class SelectionTests
         Assert.Equal("f-b", run.FacilityId);
     }
 
-    [Fact(DisplayName = "SEL-06: 同 CycleTime は EnvironmentId=null → FixedConsumption なし/小")]
+    // 改訂（BT）: 旧規則「EnvironmentId=null → FixedConsumption なし/小」の順序検査から、
+    // 「固定消費の有無・量が同じ同率では EnvironmentId=null が残る」維持検査へ。検査値は変わらない。
+    [Fact(DisplayName = "SEL-06: 同 CycleTime で固定消費の有無・量が同じなら EnvironmentId=null を優先（BT 改定後も維持）")]
     public void TieBreakPrefersNoEnvironmentNoFixed()
     {
         ProductionPlan plan = CalculationFixtures.Run(
@@ -321,5 +323,50 @@ public class SelectionTests
             CalculationFixtures.F18(), [("i-q8", 60.0)]);
 
         Assert.Equal("r-q8-b-rich", Assert.Single(plan.RecipeRuns).RecipeId);
+    }
+
+    [Fact(DisplayName = "SEL-23: 同 CycleTime で「環境あり・FC なし」は「環境なし・FC あり」に勝つ（BT）")]
+    public void NoFixedBeatsNoEnvironment()
+    {
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F03(), [("i-w2", 60.0)]);
+
+        RecipeRun run = Assert.Single(plan.RecipeRuns);
+        Assert.Equal("r-w2", run.RecipeId);
+        Assert.Equal("f-a", run.FacilityId);
+        Assert.Equal("env-w", Assert.Single(plan.EnvironmentRequirements).EnvironmentId);
+        Assert.True(HasReq(plan, "i-gas-w"));
+        Assert.False(HasReq(plan, "i-fuel-w"));
+    }
+
+    [Fact(DisplayName = "SEL-24: 両方 FC ありでは RatePerMinute 小さい方が EnvironmentId に先立つ（BT）")]
+    public void SmallerFixedBeatsNoEnvironment()
+    {
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F03(), [("i-w3", 60.0)]);
+
+        RecipeRun run = Assert.Single(plan.RecipeRuns);
+        Assert.Equal("r-w3", run.RecipeId);
+        Assert.Equal("f-a", run.FacilityId);
+        Assert.False(HasFac(plan, "f-b"));
+        Assert.Equal("env-w", Assert.Single(plan.EnvironmentRequirements).EnvironmentId);
+        // f-a ペアは FC i-fuel-w 10/分を持つため燃料需要も出る。
+        Assert.True(HasReq(plan, "i-fuel-w"));
+    }
+
+    [Fact(DisplayName = "SEL-25: ListCandidates の候補順と IsDefault が新規則と一致（BT）")]
+    public void CandidateListFollowsNewTieBreak()
+    {
+        var candidates = PairSelector.ListCandidates(
+            "i-w2", CalculationFixtures.F03(), new ContextFilter());
+
+        Assert.Equal(3, candidates.Count);
+        Assert.Equal("f-a", candidates[0].Pair.FacilityId);
+        Assert.Equal("env-w", candidates[0].Pair.EnvironmentId);
+        Assert.True(candidates[0].IsDefault);
+        Assert.Equal("f-b", candidates[1].Pair.FacilityId);
+        Assert.False(candidates[1].IsDefault);
+        Assert.Equal("f-c", candidates[2].Pair.FacilityId);
+        Assert.False(candidates[2].IsDefault);
     }
 }

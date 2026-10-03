@@ -220,6 +220,7 @@ internal static class CalculationFixtures
     public static MasterDataSnapshot F03() => Snapshot(
         [
             Item("i-x"), Item("i-y"), Item("i-z"), Item("i-w"), Item("i-v"),
+            Item("i-w2"), Item("i-w3"),
             Item("i-ore-x", "採取素材", TransportKind.Belt, null, true),
             Item("i-gas-w", "採取素材", TransportKind.Pipe, null, true),
             Item("i-fuel-w", "採取素材", TransportKind.Belt, null, true),
@@ -242,6 +243,19 @@ internal static class CalculationFixtures
                     Pair("r-w", "f-c", 6.0),
                 ],
                 [("i-ore-x", 1.0)], [("i-w", 1.0)]),
+            // BT 改定で既定が変わる組合せ。同 CycleTime で「環境あり・FC なし」が「環境なし・FC あり」に勝つ。
+            Recipe("r-w2", [
+                    Pair("r-w2", "f-a", 6.0, "env-w"),
+                    Pair("r-w2", "f-b", 6.0, null, ("i-fuel-w", 30.0)),
+                    Pair("r-w2", "f-c", 6.0, null, ("i-fuel-w", 60.0)),
+                ],
+                [("i-ore-x", 1.0)], [("i-w2", 1.0)]),
+            // FC 同士の同率では RatePerMinute 小さい方が EnvironmentId より先に評価される。
+            Recipe("r-w3", [
+                    Pair("r-w3", "f-a", 6.0, "env-w", ("i-fuel-w", 10.0)),
+                    Pair("r-w3", "f-b", 6.0, null, ("i-fuel-w", 30.0)),
+                ],
+                [("i-ore-x", 1.0)], [("i-w3", 1.0)]),
             Recipe("r-v-new", [Pair("r-v-new", "f-a", 3.0, "env-ltd")],
                 [("i-ore-x", 1.0)], [("i-v", 1.0)], "1.5.0"),
             Recipe("r-v-old", "f-a", 6.0, [("i-ore-x", 1.0)], [("i-v", 1.0)], "1.0.0"),
