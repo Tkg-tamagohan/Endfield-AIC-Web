@@ -143,13 +143,15 @@ public static class FacilityUnitLayout
                 last.Used += remaining;
                 if (snapshot.RecipesById.TryGetValue(run.RecipeId, out Recipe? recipe))
                 {
+                    // 1 機以上の溢れは満機レート、1 機未満は端数機の占有率ぶん。
+                    double occupancy = Math.Min(remaining, 1.0);
                     double perMachineCycles = run.CyclesPerMinute * scale / machines;
                     last.OverspillGroups.Add(new FacilityUnitOverspill(
                         runIndex,
                         sharePortion,
                         recipe.Inputs.ToDictionary(
                             i => i.ItemId,
-                            i => i.Quantity * perMachineCycles,
+                            i => i.Quantity * perMachineCycles * occupancy,
                             StringComparer.Ordinal)));
                 }
             }
