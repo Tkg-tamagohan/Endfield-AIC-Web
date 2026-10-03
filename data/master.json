@@ -1,6 +1,6 @@
 {
   "SchemaVersion": 1,
-  "DataVersion": "0.2.6",
+  "DataVersion": "0.2.8",
   "Items": [
     {
       "Category": "鉱物",
@@ -467,7 +467,7 @@
       "Name": "重息壌",
       "Description": "",
       "IconKey": null,
-      "VersionAdded": "0.2.1",
+      "VersionAdded": "1.2.0",
       "VersionRemoved": null
     },
     {
@@ -477,6 +477,114 @@
       "GameEventId": null,
       "Id": "item-acridgen",
       "Name": "酸性ガス",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.4.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "タンク",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-cupriumCanitster",
+      "Name": "赤銅圧力タンク",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.4.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "その他",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-separatorCore",
+      "Name": "分離コア",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.4.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "液体",
+      "IsGatherable": false,
+      "TransportKind": "Pipe",
+      "GameEventId": null,
+      "Id": "item-swage",
+      "Name": "汚水",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.2.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "液体",
+      "IsGatherable": false,
+      "TransportKind": "Pipe",
+      "GameEventId": null,
+      "Id": "item-xirconEffluent",
+      "Name": "壌晶廃液",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.2.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "液体",
+      "IsGatherable": false,
+      "TransportKind": "Pipe",
+      "GameEventId": null,
+      "Id": "item-inertXirconEffluent",
+      "Name": "不活性壌晶廃液",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.2.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "液体",
+      "IsGatherable": false,
+      "TransportKind": "Pipe",
+      "GameEventId": null,
+      "Id": "item-liquidXiranite",
+      "Name": "液化息壌",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "液体",
+      "IsGatherable": false,
+      "TransportKind": "Pipe",
+      "GameEventId": null,
+      "Id": "item-liquidHeavyXiranite",
+      "Name": "液化重息壌",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.2.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "沈殿素材",
+      "IsGatherable": false,
+      "TransportKind": "Belt",
+      "GameEventId": null,
+      "Id": "item-xircon",
+      "Name": "壌晶",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.2.0",
+      "VersionRemoved": null
+    },
+    {
+      "Category": "気体",
+      "IsGatherable": false,
+      "TransportKind": "Pipe",
+      "GameEventId": null,
+      "Id": "item-heavyXiragen",
+      "Name": "重息壌ガス",
       "Description": "",
       "IconKey": null,
       "VersionAdded": "1.4.0",
@@ -548,6 +656,105 @@
       "Description": "",
       "IconKey": null,
       "VersionAdded": "0.2.2",
+      "VersionRemoved": null
+    },
+    {
+      "Width": 3,
+      "Height": 3,
+      "PowerConsumption": 10,
+      "Id": "fac-moulding ",
+      "Name": "成形機",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Width": 6,
+      "Height": 4,
+      "PowerConsumption": 20,
+      "Id": "fac-packaging",
+      "Name": "包装機",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Width": 5,
+      "Height": 5,
+      "PowerConsumption": 50,
+      "Id": "fac-solidGas",
+      "Name": "ガス固体転換機",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.4.0",
+      "VersionRemoved": null
+    },
+    {
+      "Width": 5,
+      "Height": 5,
+      "PowerConsumption": 50,
+      "Id": "fac-fluidGas",
+      "Name": "ガス液体転換機",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.4.0",
+      "VersionRemoved": null
+    },
+    {
+      "Width": 5,
+      "Height": 5,
+      "PowerConsumption": 50,
+      "Id": "fac-gasReactorGlobe",
+      "Name": "ガス反応装置",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.4.0",
+      "VersionRemoved": null
+    },
+    {
+      "Width": 6,
+      "Height": 4,
+      "PowerConsumption": 10,
+      "Id": "fac-gearing",
+      "Name": "装備部品加工機",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "Width": 3,
+      "Height": 3,
+      "PowerConsumption": 50,
+      "Id": "fac-waterTreatment",
+      "Name": "廃水処理機",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.2.0",
+      "VersionRemoved": null
+    },
+    {
+      "Width": 5,
+      "Height": 5,
+      "PowerConsumption": 50,
+      "Id": "fac-purification",
+      "Name": "精製機",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.2.0",
+      "VersionRemoved": null
+    },
+    {
+      "Width": 5,
+      "Height": 5,
+      "PowerConsumption": 50,
+      "Id": "fac-reactorCrucible",
+      "Name": "化学反応炉",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
       "VersionRemoved": null
     }
   ],
@@ -825,6 +1032,244 @@
       "Id": "recipe-carbon03",
       "Name": "炭塊",
       "Description": "サンドリーフ",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "GameEventId": null,
+      "Inputs": [
+        {
+          "ItemId": "item-cuprium",
+          "Quantity": 2
+        }
+      ],
+      "Outputs": [
+        {
+          "ItemId": "item-cupriumCanitster",
+          "Quantity": 1,
+          "SortOrder": 0
+        }
+      ],
+      "Facilities": [
+        {
+          "FacilityId": "fac-moulding ",
+          "CycleTime": 2,
+          "EnvironmentId": "env-stable",
+          "FixedConsumption": null
+        }
+      ],
+      "Id": "recipe-cupriumCanitster",
+      "Name": "赤銅圧力タンク",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.4.0",
+      "VersionRemoved": null
+    },
+    {
+      "GameEventId": null,
+      "Inputs": [
+        {
+          "ItemId": "item-cupriumCanitster",
+          "Quantity": 1
+        },
+        {
+          "ItemId": "item-xiranite",
+          "Quantity": 1
+        }
+      ],
+      "Outputs": [
+        {
+          "ItemId": "item-separatorCore",
+          "Quantity": 2,
+          "SortOrder": 0
+        }
+      ],
+      "Facilities": [
+        {
+          "FacilityId": "fac-packaging",
+          "CycleTime": 2,
+          "EnvironmentId": null,
+          "FixedConsumption": null
+        }
+      ],
+      "Id": "recipe-separatorCore",
+      "Name": "分離コア",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.4.0",
+      "VersionRemoved": null
+    },
+    {
+      "GameEventId": null,
+      "Inputs": [
+        {
+          "ItemId": "item-cupriumOre",
+          "Quantity": 1
+        },
+        {
+          "ItemId": "item-cleanWater",
+          "Quantity": 1
+        }
+      ],
+      "Outputs": [
+        {
+          "ItemId": "item-cuprium",
+          "Quantity": 1,
+          "SortOrder": 0
+        },
+        {
+          "ItemId": "item-swage",
+          "Quantity": 1,
+          "SortOrder": 1
+        }
+      ],
+      "Facilities": [
+        {
+          "FacilityId": "fac-refining",
+          "CycleTime": 2,
+          "EnvironmentId": null,
+          "FixedConsumption": null
+        }
+      ],
+      "Id": "recipe-cuprium",
+      "Name": "赤銅塊",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.0.0",
+      "VersionRemoved": null
+    },
+    {
+      "GameEventId": null,
+      "Inputs": [
+        {
+          "ItemId": "item-xiragen",
+          "Quantity": 2
+        },
+        {
+          "ItemId": "item-separatorCore",
+          "Quantity": 1
+        }
+      ],
+      "Outputs": [
+        {
+          "ItemId": "item-heavyXiragen",
+          "Quantity": 1,
+          "SortOrder": 0
+        }
+      ],
+      "Facilities": [
+        {
+          "FacilityId": "fac-purification",
+          "CycleTime": 2,
+          "EnvironmentId": "env-stable",
+          "FixedConsumption": null
+        }
+      ],
+      "Id": "recipe-heavyXiragen02",
+      "Name": "重息壌ガス",
+      "Description": "安定環境",
+      "IconKey": null,
+      "VersionAdded": "1.4.0",
+      "VersionRemoved": null
+    },
+    {
+      "GameEventId": null,
+      "Inputs": [
+        {
+          "ItemId": "item-xiragen",
+          "Quantity": 2
+        },
+        {
+          "ItemId": "item-separatorCore",
+          "Quantity": 2
+        }
+      ],
+      "Outputs": [
+        {
+          "ItemId": "item-heavyXiragen",
+          "Quantity": 1,
+          "SortOrder": 0
+        }
+      ],
+      "Facilities": [
+        {
+          "FacilityId": "fac-refining",
+          "CycleTime": 2,
+          "EnvironmentId": null,
+          "FixedConsumption": null
+        }
+      ],
+      "Id": "recipe-heavyXiragen01",
+      "Name": "重息壌ガス",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.4.0",
+      "VersionRemoved": null
+    },
+    {
+      "GameEventId": null,
+      "Inputs": [
+        {
+          "ItemId": "item-heavyXiragen",
+          "Quantity": 5
+        }
+      ],
+      "Outputs": [
+        {
+          "ItemId": "item-heavyXiranite",
+          "Quantity": 2,
+          "SortOrder": 0
+        }
+      ],
+      "Facilities": [
+        {
+          "FacilityId": "fac-solidGas",
+          "CycleTime": 10,
+          "EnvironmentId": null,
+          "FixedConsumption": {
+            "ItemId": "item-xiragen",
+            "RatePerMinute": 6
+          }
+        }
+      ],
+      "Id": "recipe-heavyXiranite02",
+      "Name": "重息壌",
+      "Description": "",
+      "IconKey": null,
+      "VersionAdded": "1.4.0",
+      "VersionRemoved": null
+    },
+    {
+      "GameEventId": null,
+      "Inputs": [
+        {
+          "ItemId": "item-xiranite",
+          "Quantity": 1
+        },
+        {
+          "ItemId": "item-cleanWater",
+          "Quantity": 1
+        }
+      ],
+      "Outputs": [
+        {
+          "ItemId": "item-liquidXiranite",
+          "Quantity": 1,
+          "SortOrder": 0
+        }
+      ],
+      "Facilities": [
+        {
+          "FacilityId": "fac-reactorCrucible",
+          "CycleTime": 2,
+          "EnvironmentId": null,
+          "FixedConsumption": null
+        }
+      ],
+      "Id": "recipe-liquidXiranite01",
+      "Name": "液化息壌",
+      "Description": "",
       "IconKey": null,
       "VersionAdded": "1.0.0",
       "VersionRemoved": null
