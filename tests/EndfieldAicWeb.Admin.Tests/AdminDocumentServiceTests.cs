@@ -6,7 +6,7 @@ namespace EndfieldAicWeb.Admin.Tests;
 
 /// <summary>
 /// 管理ツールの文書読み込み状態（LoadNotes・IsDirty）の検証テスト。
-/// ADM-09〜12 は Devin Review 対応で追加した回帰テスト（仕様決定 CH）。
+/// ADM-09〜13 は Devin Review 対応で追加した回帰テスト（仕様決定 CH）。
 /// </summary>
 public class AdminDocumentServiceTests
 {
@@ -82,5 +82,21 @@ public class AdminDocumentServiceTests
         // A の完了記録が B のダーティを消さない。
         service.MarkExported();
         Assert.True(service.IsDirty);
+    }
+
+    [Fact(DisplayName = "ADM-13: エクスポート開始後に失敗した読み込みを挟んでも完了記録はダーティを落とす（Devin Review 回帰）")]
+    public void MarkExported_AfterFailedReload_StillClearsDirty()
+    {
+        var service = new AdminDocumentService(new HttpClient());
+        string json = MinimalJson().Replace("\"f-1\"", "\" f-1 \"");
+        Assert.True(service.LoadJson(json, "a"), service.LoadFailure);
+        Assert.True(service.IsDirty);
+        Assert.NotNull(service.Export("1.0.0").Json);
+
+        // ダウンロード完了待ちの間に失敗する読み込みを挟む。文書は差し替わらないため完了記録は有効。
+        Assert.False(service.LoadJson("{ invalid", "bad"));
+        service.MarkExported();
+
+        Assert.False(service.IsDirty);
     }
 }
