@@ -12,6 +12,8 @@ public static class EntityFactory
 {
     /// <summary>新規エンティティの VersionAdded 既定値（仕様決定 AV）。実装されたゲームバージョンなのでデータ版とは別に固定する。</summary>
     public const string DefaultVersionAdded = "1.0.0";
+    /// <summary><see cref="NewRecipe"/> が置く仮の名前。未編集のプレースホルダ判定に使う。</summary>
+    public const string PlaceholderRecipeName = "新規レシピ";
     /// <summary>種別ごとの新規 Id 接頭辞。</summary>
     public static string SuggestId(IEnumerable<string> existingIds, string prefix)
     {
@@ -25,6 +27,12 @@ public static class EntityFactory
             }
         }
     }
+
+    /// <summary><see cref="SuggestId"/> が採番したレシピの仮 Id（<c>recipe-NNN</c>）かを判定する。</summary>
+    public static bool IsPlaceholderRecipeId(string id) =>
+        id.StartsWith("recipe-", StringComparison.Ordinal)
+        && id["recipe-".Length..] is { Length: >= 3 } suffix
+        && suffix.All(char.IsDigit);
 
     /// <summary>ItemId からスラッグ部を取る。先頭の <c>item-</c> を除き、始まらない ItemId は全体を使う。</summary>
     public static string ItemSlug(string itemId) =>
@@ -146,7 +154,7 @@ public static class EntityFactory
         string? facilityId = null) => new()
     {
         Id = id,
-        Name = "新規レシピ",
+        Name = PlaceholderRecipeName,
         Description = "",
         IconKey = null,
         VersionAdded = versionAdded,

@@ -231,4 +231,29 @@ public class RecipeAutoFillTests
         Assert.Equal("recipe-carbon01", editing.Id);
         Assert.Equal("炭塊", editing.Name);
     }
+
+    // PR #86 Devin Review 対応の回帰テスト: 空の文書で作ったレシピの仮採番は
+    // 最初に提案を計算できた時点で提案値へ置き換わる（手入力の値は置き換えない）
+
+    [Fact]
+    public void RCP13_提案未計算の仮採番は最初の提案で置き換わる()
+    {
+        Recipe placeholder = Rcp("recipe-001", EntityFactory.PlaceholderRecipeName);
+        Recipe manual = Rcp("recipe-custom", "手入力名");
+        MasterDocument doc = Doc(placeholder, manual);
+        var fill = new RecipeAutoFill();
+        fill.Reset(doc, placeholder);
+        fill.Reset(doc, manual);
+
+        placeholder.Outputs.Add(Out("item-carbon"));
+        Assert.True(fill.Follow(doc, placeholder));
+        Assert.Equal("recipe-carbon", placeholder.Id);
+        Assert.Equal("炭塊", placeholder.Name);
+
+        // 仮採番ではない手入力の Id・名前は固定のまま置き換えない
+        manual.Outputs.Add(Out("item-xiranite"));
+        Assert.False(fill.Follow(doc, manual));
+        Assert.Equal("recipe-custom", manual.Id);
+        Assert.Equal("手入力名", manual.Name);
+    }
 }
