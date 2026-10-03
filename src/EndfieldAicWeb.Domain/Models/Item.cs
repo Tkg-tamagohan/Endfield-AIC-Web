@@ -13,7 +13,7 @@ public class Item : MasterEntity
     /// <summary>需要展開の終端となる採取素材か。true なら採取（外部調達）扱い。</summary>
     public bool IsGatherable { get; set; }
 
-    /// <summary>輸送種別。None は輸送容量対象外の仮想アイテム。</summary>
+    /// <summary>輸送種別。None は電力等の仮想アイテム（レシピ入力不可・目標候補から除外）。</summary>
     public TransportKind TransportKind { get; set; }
 
     /// <summary>所属イベント。null は常設。非有効時は生産・外部調達とも不可（仕様決定 X）。</summary>

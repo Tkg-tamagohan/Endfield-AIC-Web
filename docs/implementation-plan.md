@@ -338,8 +338,8 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 
 ### Phase 30: 輸送容量超過の警告とグラフ赤化の撤去（PR: 判定機構の撤去）
 
-- [ ] 「設備 1 ユニットへの入力流量 > 輸送容量」の警告と、同一判定によるフローグラフの容量超過赤化（`OverCapacity` エッジと両端ノード）を撤去する（仕様決定 BV、AN の撤去）。容量評価専用の機構（`AddTransportWarnings`・`MaxMachineInputs`・`OverspillGroups`・容量定数・警告コード・赤色分岐）も併せて撤去し、台数分表示（AO）のユニット割当と `TransportKind` は据え置く
-- [ ] `dotnet test` 全緑を確認し、ブラウザ E2E（`recipe-cupriumCanister` 等の容量超過構成で警告・赤化が出ないこと）を実施する
+- [x] 「設備 1 ユニットへの入力流量 > 輸送容量」の警告と、同一判定によるフローグラフの容量超過赤化（`OverCapacity` エッジと両端ノード）を撤去する（仕様決定 BV、AN の撤去）。容量評価専用の機構（`AddTransportWarnings`・`MaxMachineInputs`・`OverspillGroups`・容量定数・警告コード・赤色分岐）も併せて撤去し、台数分表示（AO）のユニット割当と `TransportKind` は据え置く
+- [x] `dotnet test` 全緑を確認し、ブラウザ E2E（`recipe-cupriumCanister` 等の容量超過構成で警告・赤化が出ないこと）を実施する
 - **受け入れ条件**: ベルト 30 個/分・パイプ 60 個/分を超える入力を持つ計画で、警告欄にもグラフにも容量超過の表示が出ない。詳細は `phases/implementation-plan-phase30.md` と `phases/test-specification-phase30.md`。
 
 

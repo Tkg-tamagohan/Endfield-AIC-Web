@@ -96,4 +96,22 @@ public class WarningTests
         Assert.Equal(10.0, Req(plan, "i-tag-only").UnmetPerMinute, Precision);
         Assert.Equal(0.0, Supplied(plan, "i-tag-only", SupplyKind.Gathered), Precision);
     }
+
+    [Fact(DisplayName = "WRN-07: ユニット入力がベルト容量を超える構成でも警告が出ない（BV）")]
+    public void OverBeltUnitInputDoesNotWarn()
+    {
+        // r-t は i-u×4 / 2秒 → i-t 60/分でユニット入力 120/分（旧 TRN-01 の発火構成）。
+        ProductionPlan plan = F.Run(F.F06(), [("i-t", 60.0)]);
+
+        Assert.Empty(plan.Warnings);
+    }
+
+    [Fact(DisplayName = "WRN-08: 散布機の環境消費がパイプ容量を超える構成でも警告が出ない（BV）")]
+    public void OverPipeEnvironmentConsumeDoesNotWarn()
+    {
+        // r-std は env-gas ペアのみ → 散布機ユニットの i-gas 消費 360/分（旧 TRN-02 の発火構成）。
+        ProductionPlan plan = F.Run(F.F10(), [("i-std", 10.0)]);
+
+        Assert.Empty(plan.Warnings);
+    }
 }

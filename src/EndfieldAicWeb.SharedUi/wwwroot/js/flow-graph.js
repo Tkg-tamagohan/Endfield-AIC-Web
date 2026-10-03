@@ -25,7 +25,6 @@ const EDGE_COLORS = [
     [0.66, 0.58, 0.80, 0.50],  // FixedConsumption
     [0.45, 0.70, 0.80, 0.50],  // EnvironmentConsume
 ];
-const OVER_COLOR = [0.90, 0.28, 0.30, 0.95]; // --danger
 const CLEAR_COLOR = { r: 0.063, g: 0.078, b: 0.102, a: 1.0 }; // --panel-deep
 
 const WGSL = `
@@ -717,11 +716,11 @@ function makeHandle(canvas, layer, device, context, format) {
         const params = [];
         const instances = [];
         for (const [e, g] of geoms) {
-            const color = e.overCapacity ? OVER_COLOR : EDGE_COLORS[e.kind] ?? EDGE_COLORS[0];
+            const color = EDGE_COLORS[e.kind] ?? EDGE_COLORS[0];
             const edgeIndex = params.length;
             params.push({
                 ...g,
-                color: e.overCapacity ? OVER_COLOR : brighten(color),
+                color: brighten(color),
                 speed: 0.10 + 0.22 * (e.ratePerMinute / maxRate),
                 size: 2.6,
             });

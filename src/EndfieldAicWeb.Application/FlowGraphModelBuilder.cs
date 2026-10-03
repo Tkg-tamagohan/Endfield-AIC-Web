@@ -37,20 +37,17 @@ public sealed record FlowGraphNode(
     double UnmetPerMinute,
     double SurplusPerMinute,
     double GatheredPerMinute,
-    bool OverCapacity,
     string? Note);
 
 /// <summary>
 /// グラフのエッジ。同一ノード対・同種別は流量を合算して 1 本にまとめる。
-/// OverCapacity は設備への入力流量が輸送容量を超えたエッジに立つ（仕様決定 AN）。
 /// </summary>
 public sealed record FlowGraphEdge(
     string FromId,
     string ToId,
     FlowGraphEdgeKind Kind,
     double RatePerMinute,
-    bool IsByproduct,
-    bool OverCapacity);
+    bool IsByproduct);
 
 /// <summary>生産フローグラフ全体。MaxRatePerMinute は粒子速度の正規化に使う（密度は絶対流量で飽和、仕様決定 AP）。</summary>
 public sealed record FlowGraphModel(
@@ -64,7 +61,6 @@ public sealed record FlowGraphModel(
 /// 層割りは目標・未消費アイテムを Layer0 とする出口側起点の最長距離（仕様決定 BF）。
 /// 循環依存（CycleDetected で打ち切られた残存経路を含む）は
 /// 後退エッジとして層割りに使わずレイアウトだけを確定させる（仕様決定 BH）。
-/// 容量超過判定は設備への入力エッジ単位（仕様決定 AN）。
 /// expandFacilities=true のとき設備を切上台数ぶんのユニットノードへ展開する（仕様決定 AO）。
 /// 出力を持たない環境供給設備（散布機）は利用設備の最小層へ固定してから再層割りする
 /// （仕様決定 BM）。採取供給は共通ノードを持たずアイテムノードの属性として保持する
@@ -121,9 +117,9 @@ public static class FlowGraphModelBuilder
             .GroupBy(s => s.RecipeId, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.First().Pair, StringComparer.Ordinal);
 
-        // 設備ユニットへの割当。容量超過判定がユニット単位の入力で行われるため常に構築する
-        // （台数分表示で正常なら集約表示も正常、となるのが仕様決定 AO の基準）。
-        // 未調整ビューでは実機械の全速稼働を表すよう、設備倍率を掛けた機械数で再割当する。
+        // 設備ユニットへの割当。エッジのユニット宛分割と台数分表示のノード展開に使うため
+        // 常に構築する。未調整ビューでは実機械の全速稼働を表すよう、設備倍率を掛けた
+        // 機械数で再割当する。
         var unitsByFacility = FacilityUnitLayout.Allocate(
             plan.RecipeRuns, plan.FacilityRequirements, plan.EnvironmentRequirements,
             snapshot, plan.PairSelections, unadjusted ? runScales : null);
@@ -221,7 +217,7 @@ public static class FlowGraphModelBuilder
                 {
                     edgeParts.Add(new FlowGraphEdge(
                         ItemNodeId(input.ItemId), nodeId, FlowGraphEdgeKind.RecipeInput,
-                        run.CyclesPerMinute * scale * input.Quantity * share, false, false));
+                        run.CyclesPerMinute * scale * input.Quantity * share, false));
                 }
             }
 
@@ -231,7 +227,7 @@ public static class FlowGraphModelBuilder
                 {
                     edgeParts.Add(new FlowGraphEdge(
                         nodeId, ItemNodeId(output.ItemId), FlowGraphEdgeKind.RecipeOutput,
-                        run.CyclesPerMinute * scale * output.Quantity * share, output.SortOrder > 0, false));
+                        run.CyclesPerMinute * scale * output.Quantity * share, output.SortOrder > 0));
                 }
             }
 
@@ -247,7 +243,7 @@ public static class FlowGraphModelBuilder
                 {
                     edgeParts.Add(new FlowGraphEdge(
                         ItemNodeId(fixedConsumption.ItemId), nodeId,
-                        FlowGraphEdgeKind.FixedConsumption, total * share, false, false));
+                        FlowGraphEdgeKind.FixedConsumption, total * share, false));
                 }
             }
         }
@@ -270,7 +266,7 @@ public static class FlowGraphModelBuilder
                         edgeParts.Add(new FlowGraphEdge(
                             ItemNodeId(env.ConsumeItemId),
                             UnitNodeId(env.ProviderFacilityId, unit.Index),
-                            FlowGraphEdgeKind.EnvironmentConsume, perUnit, false, false));
+                            FlowGraphEdgeKind.EnvironmentConsume, perUnit, false));
                     }
                 }
                 else
@@ -281,7 +277,7 @@ public static class FlowGraphModelBuilder
                         edgeParts.Add(new FlowGraphEdge(
                             ItemNodeId(env.ConsumeItemId),
                             UnitNodeId(env.ProviderFacilityId, unit.Index),
-                            FlowGraphEdgeKind.EnvironmentConsume, perUnit, false, false));
+                            FlowGraphEdgeKind.EnvironmentConsume, perUnit, false));
                     }
                 }
                 continue;
@@ -289,7 +285,7 @@ public static class FlowGraphModelBuilder
 
             edgeParts.Add(new FlowGraphEdge(
                 ItemNodeId(env.ConsumeItemId), FacilityNodeId(env.ProviderFacilityId),
-                FlowGraphEdgeKind.EnvironmentConsume, env.ConsumeRatePerMinuteTotal, false, false));
+                FlowGraphEdgeKind.EnvironmentConsume, env.ConsumeRatePerMinuteTotal, false));
         }
 
         string DisplayNodeId(string nodeId) => expandFacilities
@@ -298,56 +294,14 @@ public static class FlowGraphModelBuilder
                 ? FacilityNodeId(facilityId)
                 : nodeId;
 
-        // 容量判定はユニットごとの同一アイテム入力合計で行う（計算本体の警告と同じ集計、仕様決定 AN）。
-        // ランをまたいだ入力や固定消費との合算で容量を超える場合も取りこぼさない。
-        // ユニット宛のレシピ入力エッジは集約スロットで流量≠機械あたりになるため、
-        // 警告側と同じ機械群評価（MaxMachineInputs）で別途積み上げる。
-        var inputTotals = new Dictionary<(string FromId, string ToId), double>();
-        foreach (FlowGraphEdge part in edgeParts)
-        {
-            if (IsFacilityInput(part, unitFacility)
-                && !(part.Kind == FlowGraphEdgeKind.RecipeInput
-                    && unitFacility.ContainsKey(part.ToId)))
-            {
-                (string, string) key = (part.FromId, part.ToId);
-                inputTotals[key] = inputTotals.GetValueOrDefault(key) + part.RatePerMinute;
-            }
-        }
-
-        foreach ((string facilityId, List<FacilityUnitSlot> units) in unitsByFacility)
-        {
-            foreach (FacilityUnitSlot unit in units)
-            {
-                Dictionary<string, double> machineInputs = FacilityUnitLayout.MaxMachineInputs(
-                    unit, plan.RecipeRuns, snapshot, unadjusted ? runScales : null);
-                foreach ((string itemId, double rate) in machineInputs)
-                {
-                    (string, string) key = (ItemNodeId(itemId), UnitNodeId(facilityId, unit.Index));
-                    inputTotals[key] = inputTotals.GetValueOrDefault(key) + rate;
-                }
-            }
-        }
-
-        var overInputs = new HashSet<(string FromId, string ToId)>();
-        foreach (((string fromId, string toId), double total) in inputTotals)
-        {
-            double cap = TransportCapacityOf(fromId, snapshot);
-            if (cap > 0 && total > cap + Epsilon)
-            {
-                overInputs.Add((fromId, toId));
-            }
-        }
-
-        // 集約表示では構成エッジのいずれかが超過していれば引き継ぐ
-        // （台数分表示と集約表示で判定結果が一致する、仕様決定 AN・AO）。
+        // 同一ノード対・同種別のエッジは流量を合算して 1 本にまとめる。
         var edges = edgeParts
             .Where(e => e.RatePerMinute > Epsilon)
             .GroupBy(e => (DisplayNodeId(e.FromId), DisplayNodeId(e.ToId), e.Kind))
             .Select(g => new FlowGraphEdge(
                 g.Key.Item1, g.Key.Item2, g.Key.Item3,
                 g.Sum(e => e.RatePerMinute),
-                g.All(e => e.IsByproduct),
-                g.Any(e => overInputs.Contains((e.FromId, e.ToId)))))
+                g.All(e => e.IsByproduct)))
             .ToList();
 
         IReadOnlyList<SurplusProduction> surpluses = unadjusted
@@ -382,18 +336,6 @@ public static class FlowGraphModelBuilder
             CollectEndpoint(edge.ToId, itemIds, facilityIds, unitFacility);
         }
 
-        // 超過エッジの両端ノード（アイテム・設備）を赤化対象とする（仕様決定 AN）。
-        var overCapacityItems = new HashSet<string>(StringComparer.Ordinal);
-        var overCapacityFacilities = new HashSet<string>(StringComparer.Ordinal);
-        foreach (FlowGraphEdge edge in edges)
-        {
-            if (edge.OverCapacity)
-            {
-                overCapacityItems.Add(edge.FromId[ItemPrefix.Length..]);
-                overCapacityFacilities.Add(edge.ToId);
-            }
-        }
-
         // ノード確定（ランク付け前の素集合）。
         var targetItemIds = targets.Select(t => t.ItemId).ToHashSet(StringComparer.Ordinal);
         var nodes = new Dictionary<string, FlowGraphNode>(StringComparer.Ordinal);
@@ -416,7 +358,6 @@ public static class FlowGraphModelBuilder
                 req?.UnmetPerMinute ?? 0,
                 surplusByItem.GetValueOrDefault(itemId),
                 gatheredPerMinute,
-                overCapacityItems.Contains(itemId),
                 null);
         }
 
@@ -437,8 +378,7 @@ public static class FlowGraphModelBuilder
                     nodes[unitNodeId] = new FlowGraphNode(
                         unitNodeId, FlowGraphNodeKind.Facility,
                         facility?.Name ?? facilityId, facility?.IconKey, facilityId,
-                        0, 0, false, 0, 0, 0, 0,
-                        overCapacityFacilities.Contains(unitNodeId), unitNote);
+                        0, 0, false, 0, 0, 0, 0, unitNote);
                 }
                 continue;
             }
@@ -454,8 +394,7 @@ public static class FlowGraphModelBuilder
             nodes[facilityNodeId] = new FlowGraphNode(
                 facilityNodeId, FlowGraphNodeKind.Facility,
                 facility?.Name ?? facilityId, facility?.IconKey, facilityId,
-                0, 0, false, 0, 0, 0, 0,
-                overCapacityFacilities.Contains(facilityNodeId), note);
+                0, 0, false, 0, 0, 0, 0, note);
         }
 
         (Dictionary<string, int> rank, Dictionary<string, int> order) = AssignRanks(
@@ -496,31 +435,6 @@ public static class FlowGraphModelBuilder
         {
             facilityIds.Add(nodeId[FacilityPrefix.Length..]);
         }
-    }
-
-    /// <summary>設備ノードまたはユニットノードへの入力エッジかの判定。</summary>
-    private static bool IsFacilityInput(
-        FlowGraphEdge edge,
-        IReadOnlyDictionary<string, string> unitFacility) =>
-        edge.FromId.StartsWith(ItemPrefix, StringComparison.Ordinal)
-        && (unitFacility.ContainsKey(edge.ToId)
-            || edge.ToId.StartsWith(FacilityPrefix, StringComparison.Ordinal));
-
-    /// <summary>アイテムの輸送容量（ベルト 30 個/分・パイプ 60 個/分。対象外は 0）。</summary>
-    private static double TransportCapacityOf(string itemNodeId, MasterDataSnapshot snapshot)
-    {
-        string itemId = itemNodeId[ItemPrefix.Length..];
-        if (!snapshot.ItemsById.TryGetValue(itemId, out Item? item))
-        {
-            return 0;
-        }
-
-        return item.TransportKind switch
-        {
-            TransportKind.Belt => ProductionCalculator.BeltCapacityPerMinute,
-            TransportKind.Pipe => ProductionCalculator.PipeCapacityPerMinute,
-            _ => 0,
-        };
     }
 
     /// <summary>ランの入出力エッジの宛先ユニットと流量比率。展開対象外は単一ノードへ share 1.0。</summary>
