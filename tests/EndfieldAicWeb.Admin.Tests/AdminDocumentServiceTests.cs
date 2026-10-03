@@ -6,7 +6,7 @@ namespace EndfieldAicWeb.Admin.Tests;
 
 /// <summary>
 /// 管理ツールの文書読み込み状態（LoadNotes・IsDirty）の検証テスト。
-/// ADM-09〜10 は Devin Review 対応で追加した回帰テスト（仕様決定 CH）。
+/// ADM-09〜12 は Devin Review 対応で追加した回帰テスト（仕様決定 CH）。
 /// </summary>
 public class AdminDocumentServiceTests
 {
@@ -49,5 +49,38 @@ public class AdminDocumentServiceTests
         Assert.True(service.LoadJson(MinimalJson(), "test"), service.LoadFailure);
         Assert.Empty(service.LoadNotes);
         Assert.False(service.IsDirty);
+    }
+
+    [Fact(DisplayName = "ADM-11: 同一文書のエクスポート完了でダーティが落ちる（CH の解除経路）")]
+    public void MarkExported_SameDocument_ClearsDirty()
+    {
+        var service = new AdminDocumentService(new HttpClient());
+        string json = MinimalJson().Replace("\"f-1\"", "\" f-1 \"");
+        Assert.True(service.LoadJson(json, "test"), service.LoadFailure);
+        Assert.True(service.IsDirty);
+
+        ExportOutcome outcome = service.Export("1.0.0");
+        Assert.NotNull(outcome.Json);
+        service.MarkExported();
+
+        Assert.False(service.IsDirty);
+    }
+
+    [Fact(DisplayName = "ADM-12: エクスポート開始後に別文書を読み込むと MarkExported は新文書のダーティを上書きしない（Devin Review 回帰）")]
+    public void MarkExported_AfterReload_KeepsNewDocumentDirty()
+    {
+        var service = new AdminDocumentService(new HttpClient());
+        Assert.True(service.LoadJson(MinimalJson(), "a"), service.LoadFailure);
+        ExportOutcome outcome = service.Export("1.0.0");
+        Assert.NotNull(outcome.Json);
+
+        // A のダウンロード完了待ちの間に、正規化を伴う別文書 B を読み込む。
+        string json = MinimalJson().Replace("\"f-1\"", "\" f-1 \"");
+        Assert.True(service.LoadJson(json, "b"), service.LoadFailure);
+        Assert.True(service.IsDirty);
+
+        // A の完了記録が B のダーティを消さない。
+        service.MarkExported();
+        Assert.True(service.IsDirty);
     }
 }

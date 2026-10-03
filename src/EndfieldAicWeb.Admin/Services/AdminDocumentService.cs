@@ -140,6 +140,9 @@ public sealed class AdminDocumentService
     /// <summary>最後に書き出しを成功させた時点の編集回数。</summary>
     private int _counterAtExport = -1;
 
+    /// <summary>最後に書き出しを成功させた時点の読み込み世代。</summary>
+    private int _generationAtExport = -1;
+
     /// <summary>URL（相対パスまたは絶対 URL）からマスタ JSON を取得して読み込む。
     /// 待機中に別の読み込みが始まった場合は結果を捨てる（新しいほうが優先）。</summary>
     public async Task<bool> LoadFromUrlAsync(string url)
@@ -383,6 +386,7 @@ public sealed class AdminDocumentService
             string json = MasterExporter.Export(Document, dataVersion: version);
             Document.DataVersion = version;
             _counterAtExport = _editCounter;
+            _generationAtExport = _loadGeneration;
             ValidationErrors = [];
             ValidationRan = true;
             ValidationStale = false;
@@ -533,6 +537,7 @@ public sealed class AdminDocumentService
             Document.Icons = manifest;
             _iconResolver = null;
             _counterAtExport = _editCounter;
+            _generationAtExport = _loadGeneration;
             ValidationErrors = [];
             ValidationRan = true;
             ValidationStale = false;
@@ -548,10 +553,14 @@ public sealed class AdminDocumentService
     }
 
     /// <summary>JSON ファイルのダウンロードが完了したことを記録し、ダーティフラグを落とす。
-    /// 書き出し成功から完了までの間に編集が入っていた場合はダーティを維持する。</summary>
+    /// 書き出し成功から完了までの間に編集が入っていた場合はダーティを維持する。
+    /// 書き出し後に別文書へ読み込み直していた場合は、その文書のダーティ状態を上書きしない。</summary>
     public void MarkExported()
     {
-        IsDirty = _editCounter != _counterAtExport;
+        if (_loadGeneration == _generationAtExport)
+        {
+            IsDirty = _editCounter != _counterAtExport;
+        }
     }
 
     public event Action? Changed;
