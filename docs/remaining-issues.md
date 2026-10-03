@@ -79,7 +79,16 @@ Phase 22-1 で追加した `AdminCalculatorIcons` は、`ICalculatorIcons` を `
 管理ツール側の該当エンティティ（設備・アイテム・レシピ）も同じ ID へ修正しないと、次回エクスポートで旧値に戻る。
 管理ツールで ID を変更するときは、参照側（レシピの入出力・設備ペアの `FacilityId`・`FixedConsumption` の `ItemId`）の追随更新も必要になる。
 
-空白入り ID への対策は Phase 31（仮採番）で計画済み。ID 系値の空白禁止・読み込み時正規化・Id 入力欄トリムを導入する（仕様決定 BU〜BW、`phases/implementation-plan-phase31.md` 参照）。綴り違いの手修正と rename 機能の検討は引き続き残る。
+空白入り ID への対策は Phase 31（仮採番）で計画済み。ID 系値の空白禁止・読み込み時正規化・Id 入力欄トリムを導入する（仕様決定 BV〜BX、`phases/implementation-plan-phase31.md` 参照）。綴り違いの手修正と rename 機能の検討は引き続き残る。
+
+
+### SortOrder の主産物基準と副産物判定の基準差
+
+主産物の運用解決は `SortOrder` 最小の行（`IconKeyFallback` 系・仕様決定 BU）だが、フローグラフの副産物フラグは `SortOrder > 0` で判定している（`FlowGraphModelBuilder`）。
+`SortOrder` が 1 以上から始まる出力を持つレシピでは、最小行が主産物として扱われる一方で全出力が副産物フラグを持ち、判定がずれる。
+同梱マスタは全件 0 起点の連番で実害はなく、`MasterValidator` も 0 の存在を要求しない現行のままとする。
+再検討の条件は「0 以外から始まる SortOrder の出力を持つレシピを登録する運用が発生したとき」とする。
+
 
 ## 改善方針の検討
 
