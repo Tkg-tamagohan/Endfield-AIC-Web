@@ -1,12 +1,27 @@
-/* 生産フローグラフ（仕様決定 AI）。canvas はエッジ・粒子、ノードは DOM カード。 */
+/* 生産フローグラフ（仕様決定 AI・BJ〜BL）。canvas はエッジ・粒子、ノードは DOM カード。 */
+
+.flow-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 0 0;
+}
+
+.flow-maxbtn {
+    margin-left: auto;
+}
+
 .flow-graph-wrap {
     position: relative;
     height: 420px;
+    min-height: 420px;
     overflow: hidden;
     border: 1px solid var(--border);
     border-radius: 12px;
     background: var(--panel-deep);
     margin: 10px 0 4px;
+    /* 領域内のタッチ操作をグラフへ一元化し、ページズーム・スクロールへ流さない（仕様決定 BL）。 */
+    touch-action: none;
 }
 
 .flow-canvas {
@@ -43,6 +58,8 @@
     user-select: none;
     pointer-events: auto;
     box-shadow: 0 2px 10px rgba(0, 0, 0, .35);
+    /* ノード上から始まるタッチもページズームへ流さない（仕様決定 BL）。 */
+    touch-action: none;
 }
 
 /* アイコンは原寸（128px 以下）を超えない表示サイズ（仕様決定 AL）。
@@ -104,8 +121,75 @@
     outline-offset: -2px;
 }
 
+/* 領域内右上のズームボタン群（仕様決定 BL）。ホイールのない環境とピンチの代替。 */
+.flow-zoom {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    z-index: 2;
+}
+
+.flow-zoombtn {
+    padding: 4px 10px;
+    font-size: 13px;
+}
+
+/* 領域下端のリサイズハンドル（仕様決定 BK）。 */
+.flow-resize {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: ns-resize;
+    z-index: 2;
+}
+
+.flow-resize-grip {
+    width: 44px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+}
+
+.flow-resize:hover .flow-resize-grip {
+    background: var(--accent);
+}
+
+/* 最大化は position:fixed のオーバレイ（Fullscreen API を使わない、仕様決定 BK）。
+   ツールバーとヒントを含む外側コンテナを画面へ固定し、領域は残りを埋める。 */
+.flow-graph.flow-max {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    padding: 0 16px 8px;
+    overflow: hidden;
+}
+
+.flow-graph.flow-max .flow-graph-wrap {
+    flex: 1;
+    height: auto !important;
+    min-height: 0;
+    border-radius: 8px;
+}
+
+/* 最大化中は領域が画面を埋めるため高さハンドルは無効になる。効果の見えないドラッグで
+   復帰後の高さが変わるのを防ぐため非表示にする。 */
+.flow-graph.flow-max .flow-resize {
+    display: none;
+}
+
 @media (max-width: 780px) {
     .flow-graph-wrap {
         height: 300px;
+        min-height: 300px;
     }
 }
