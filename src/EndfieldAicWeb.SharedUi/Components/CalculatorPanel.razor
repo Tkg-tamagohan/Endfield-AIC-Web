@@ -223,7 +223,7 @@
                     <span class="muted"> @f.ExactCount.ToString("0.##", CultureInfo.InvariantCulture) 台 → </span><strong>@f.CeilCount 台</strong>
                     @foreach (FlowAdjustment l in f.FlowLimits)
                     {
-                        <div class="hint">@RecipeName(l.RecipeId) の @ItemName(l.InputItemId) を @l.RecommendedLimitPerMinute.ToString("0.###", CultureInfo.InvariantCulture)/分 に制限</div>
+                        <div class="hint">@RecipeLabel(l.RecipeId) の @ItemName(l.InputItemId) を @l.RecommendedLimitPerMinute.ToString("0.###", CultureInfo.InvariantCulture)/分 に制限</div>
                     }
                 </div>
             }
@@ -683,7 +683,7 @@
 
     private string FacilityName(string id) => _snapshot.FacilityName(id);
 
-    private string RecipeName(string id) => _snapshot.RecipeName(id);
+    private string RecipeLabel(string id) => _snapshot.RecipeLabel(id);
 
     private string EnvName(string id) => _snapshot.EnvName(id);
 }

@@ -23,6 +23,22 @@ public static class SnapshotLookup
     public static string RecipeName(this MasterDataSnapshot? snapshot, string id) =>
         snapshot is not null && snapshot.RecipesById.TryGetValue(id, out Recipe? recipe) ? recipe.Name : id;
 
+    /// <summary>
+    /// レシピの表示ラベル。Description が非空のレシピは「名前（説明）」に併記して
+    /// 同名レシピを見分けられるようにする（仕様決定 BN）。未登録は Id をそのまま返す。
+    /// </summary>
+    public static string RecipeLabel(this MasterDataSnapshot? snapshot, string id)
+    {
+        if (snapshot is null || !snapshot.RecipesById.TryGetValue(id, out Recipe? recipe))
+        {
+            return id;
+        }
+
+        return string.IsNullOrEmpty(recipe.Description)
+            ? recipe.Name
+            : $"{recipe.Name}（{recipe.Description}）";
+    }
+
     /// <summary>環境の表示名。未登録・スナップショットなしは Id をそのまま返す。</summary>
     public static string EnvName(this MasterDataSnapshot? snapshot, string id) =>
         snapshot is not null && snapshot.EnvironmentsById.TryGetValue(id, out DomainEnv? env) ? env.Name : id;

@@ -252,6 +252,56 @@ public class ResultTextTests
         Assert.Equal("汎用部品 ／ 加工機 4秒・環境なし・鉄鉱石 12/分", ResultViewText.OptionLabel(Snapshot, withFixed));
     }
 
+    // CPH-26: OptionLabel は Description 非空のレシピを「名前（説明）」に併記する（仕様決定 BN）。
+    [Fact]
+    public void OptionLabelAppendsRecipeDescription()
+    {
+        Recipe described = ApplicationFixtures.Recipe(
+            "r-d", "炭塊", [("i-u", 1)], [("i-x", 1)], [ApplicationFixtures.Pair("f-a", 6)]);
+        described.Description = "芽針";
+        Recipe plain = ApplicationFixtures.Recipe(
+            "r-p", "炭塊", [("i-u", 1)], [("i-x", 1)], [ApplicationFixtures.Pair("f-a", 6)]);
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-u", "上流素材", gatherable: true),
+             ApplicationFixtures.Item("i-x", "炭塊")],
+            [ApplicationFixtures.Facility("f-a", "機A", 10)],
+            [], [], [described, plain]);
+
+        var describedOption = new PairOption("k1", "r-d", "f-a", 6, null, null, false);
+        Assert.Equal(
+            "炭塊（芽針） ／ 機A 6秒・環境なし",
+            ResultViewText.OptionLabel(snapshot, describedOption));
+
+        // Description 空は従来どおり名前のみ（CPH-18 と同契約）。
+        var plainOption = new PairOption("k2", "r-p", "f-a", 6, null, null, false);
+        Assert.Equal(
+            "炭塊 ／ 機A 6秒・環境なし",
+            ResultViewText.OptionLabel(snapshot, plainOption));
+    }
+
+    // CPH-27: SupplyText の「レシピ」「副産物」行は Description 非空のレシピを併記する（BN）。
+    [Fact]
+    public void SupplyTextAppendsRecipeDescription()
+    {
+        Recipe described = ApplicationFixtures.Recipe(
+            "r-d", "炭塊", [("i-u", 1)], [("i-x", 1)], [ApplicationFixtures.Pair("f-a", 6)]);
+        described.Description = "サンドリーフ";
+        MasterDataSnapshot snapshot = ApplicationFixtures.Snapshot(
+            [ApplicationFixtures.Item("i-u", "上流素材", gatherable: true),
+             ApplicationFixtures.Item("i-x", "炭塊")],
+            [ApplicationFixtures.Facility("f-a", "機A", 10)],
+            [], [], [described]);
+
+        Assert.Equal(
+            "レシピ 炭塊（サンドリーフ） 60/分",
+            ResultViewText.SupplyText(
+                snapshot, new SupplyPortion(SupplyKind.Recipe, "r-d", 60), AmountUnit.PerMinute, default));
+        Assert.Equal(
+            "副産物 炭塊（サンドリーフ） 60/分",
+            ResultViewText.SupplyText(
+                snapshot, new SupplyPortion(SupplyKind.Byproduct, "r-d", 60), AmountUnit.PerMinute, default));
+    }
+
     // CPH-19: 期間イベントは開催期間を併記し、常設は空。未登録名は Id に倒れる。
     [Fact]
     public void EventPeriodText()
