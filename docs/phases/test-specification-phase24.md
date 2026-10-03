@@ -15,6 +15,7 @@
 
 E2E 検証は WebGPU 対応 Chrome で行う。
 ピンチは CDP の `Input.dispatchTouchEvent` で 2 点タッチを合成して検証し、スマホ幅の確認は同じく CDP の表示幅エミュレーションを使う。
+縦レイアウトのノード間隔と粒子定数（`PARTICLE_COUNT_MIN`・`PARTICLE_COUNT_MAX`・`PARTICLE_SATURATE_PER_MINUTE`）の調整値は本仕様では未定である。実装時の暫定値をユーザーへ確認してから、以下の確認項目を実施する。
 
 | ID | 対象 | 条件 | 期待 |
 |---|---|---|---|
