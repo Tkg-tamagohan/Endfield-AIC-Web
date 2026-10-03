@@ -374,4 +374,91 @@ public class ValidationTests
 
         Assert.Contains(errors, e => e.EntityId == "i-big" && e.Field == "VersionAdded");
     }
+
+    [Fact(DisplayName = "VAL-22: 空白を含むエンティティ Id は違反（BW）")]
+    public void WhitespaceInEntityId_IsViolation()
+    {
+        var errors = new List<MasterValidationError>();
+        MasterValidator.ValidateItem(
+            new Item { Id = " item-a ", Name = "n", Category = "c", VersionAdded = "1.0.0" }, errors);
+        MasterValidator.ValidateItem(
+            new Item { Id = "item a", Name = "n", Category = "c", VersionAdded = "1.0.0" }, errors);
+        MasterValidator.ValidateItem(
+            new Item { Id = "item-ok", Name = "n", Category = "c", VersionAdded = "1.0.0" }, errors);
+
+        Assert.Equal(2, errors.Count(e => e.Field == "Id" && e.Message.Contains("空白")));
+        Assert.DoesNotContain(errors, e => e.EntityId == "item-ok");
+    }
+
+    [Fact(DisplayName = "VAL-23: 参照 Id 値の空白は違反（BW）")]
+    public void WhitespaceInReferenceIds_IsViolation()
+    {
+        (List<Item> items, List<Facility> facilities, List<Environment> environments,
+            List<GameEvent> gameEvents, List<Recipe> recipes) = ValidBaseline();
+        var maps = new List<GameMap> { F.Map("m-1", [("i-ore", true, null)]) };
+
+        items[0].GameEventId = " ev-1 ";
+        environments.Add(F.Env("env-ws", " f-disp ", " i-ore ", 60.0));
+        recipes.Add(F.Recipe("r-ws", [
+                F.Pair("r-ws", " f-a ", 4.0, " env-g ", (" i-gas ", 1.0)),
+            ],
+            [(" i-ore ", 1.0)], [(" i-p ", 1.0)], gameEventId: " ev-1 "));
+        maps[0].GatherRates.Add(new GatherRate { ItemId = " i-ore ", IsUnlimited = true });
+
+        List<MasterValidationError> errors =
+            Errs(items, facilities, environments, gameEvents, recipes, maps);
+
+        // 各フィールドで空白違反になる（前後・内部を問わず空白 1 文字で発火）。
+        Assert.Contains(errors, e => e.EntityKind == "Item" && e.Field == "GameEventId"
+            && e.Message.Contains("空白"));
+        Assert.Contains(errors, e => e.EntityId == "env-ws" && e.Field == "ProviderFacilityId"
+            && e.Message.Contains("空白"));
+        Assert.Contains(errors, e => e.EntityId == "env-ws" && e.Field == "ConsumeItemId"
+            && e.Message.Contains("空白"));
+        Assert.Contains(errors, e => e.EntityId == "r-ws" && e.Field == "Inputs[0].ItemId"
+            && e.Message.Contains("空白"));
+        Assert.Contains(errors, e => e.EntityId == "r-ws" && e.Field == "Outputs[0].ItemId"
+            && e.Message.Contains("空白"));
+        Assert.Contains(errors, e => e.EntityId == "r-ws" && e.Field == "Facilities[0].FacilityId"
+            && e.Message.Contains("空白"));
+        Assert.Contains(errors, e => e.EntityId == "r-ws" && e.Field == "Facilities[0].EnvironmentId"
+            && e.Message.Contains("空白"));
+        Assert.Contains(errors, e => e.EntityId == "r-ws" && e.Field == "Facilities[0].FixedConsumption.ItemId"
+            && e.Message.Contains("空白"));
+        Assert.Contains(errors, e => e.EntityId == "r-ws" && e.Field == "GameEventId"
+            && e.Message.Contains("空白"));
+        Assert.Contains(errors, e => e.EntityKind == "GameMap" && e.Field == "GatherRates[1].ItemId"
+            && e.Message.Contains("空白"));
+    }
+
+    [Fact(DisplayName = "VAL-24: 空白のみの値は必須違反（BW との境界）")]
+    public void WhitespaceOnlyValue_IsRequiredViolation()
+    {
+        var errors = new List<MasterValidationError>();
+        MasterValidator.ValidateItem(
+            new Item { Id = " ", Name = "n", Category = "c", VersionAdded = "1.0.0" }, errors);
+
+        Recipe recipe = F.Recipe("r-ws", "f-a", 4.0, [("i-ore", 1.0)], [("i-p", 1.0)]);
+        recipe.Inputs.Add(new RecipeInput { ItemId = " ", Quantity = 1.0 });
+        MasterValidator.ValidateRecipe(recipe, errors);
+
+        // 空白違反との同時発火は許容するが、必須違反が必ず出る。
+        Assert.Contains(errors, e => e.EntityKind == "Item" && e.Field == "Id"
+            && e.Message.Contains("必須"));
+        Assert.Contains(errors, e => e.EntityId == "r-ws" && e.Field == "Inputs[1]"
+            && e.Message.Contains("必須"));
+    }
+
+    private static List<MasterValidationError> Errs(
+        IReadOnlyList<Item> items,
+        IReadOnlyList<Facility> facilities,
+        IReadOnlyList<Environment> environments,
+        IReadOnlyList<GameEvent> gameEvents,
+        IReadOnlyList<Recipe> recipes,
+        IReadOnlyList<GameMap> maps)
+    {
+        var errors = new List<MasterValidationError>();
+        MasterValidator.ValidateAll(items, facilities, environments, gameEvents, recipes, maps, errors);
+        return errors;
+    }
 }

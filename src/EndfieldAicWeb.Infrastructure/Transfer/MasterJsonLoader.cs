@@ -15,6 +15,11 @@ public sealed class MasterJsonLoadResult
     /// <summary>構文・構造・意味の三段で見つかった違反の一覧。</summary>
     public required IReadOnlyList<MasterValidationError> Errors { get; init; }
 
+    /// <summary>
+    /// 読み込み時正規化（仕様決定 BX）で前後空白を除去した ID 系値の箇所一覧。除去なしは空。
+    /// </summary>
+    public IReadOnlyList<string> Normalizations { get; init; } = [];
+
     /// <summary>違反がなく正として読めたか。</summary>
     public bool Success => Errors.Count == 0;
 }
@@ -59,6 +64,9 @@ public static class MasterJsonLoader
             };
         }
 
+        var normalizations = new List<string>();
+        MasterJsonReader.NormalizeIdValues(document, normalizations);
+
         var structureErrors = new List<MasterValidationError>();
         MasterJsonReader.ValidateStructure(document, structureErrors);
         if (structureErrors.Count > 0)
@@ -67,6 +75,7 @@ public static class MasterJsonLoader
             {
                 Document = null,
                 Errors = structureErrors,
+                Normalizations = normalizations,
             };
         }
 
@@ -76,6 +85,7 @@ public static class MasterJsonLoader
         {
             Document = entities,
             Errors = validationErrors,
+            Normalizations = normalizations,
         };
     }
 }

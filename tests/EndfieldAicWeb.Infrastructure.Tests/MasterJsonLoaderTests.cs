@@ -533,4 +533,73 @@ public class MasterJsonLoaderTests
         Assert.False(result.Success);
         Assert.Contains(result.Errors, e => e.Field == "CoverableMachines");
     }
+
+    // ---------- VAL: Phase 31 ID 系値の正規化・空白禁止（BW・BX） ----------
+
+    [Fact(DisplayName = "VAL-25: 前後空白入りの Id・参照値は読み込み時に正規化される（BX）")]
+    public void SurroundingWhitespace_IsNormalized()
+    {
+        string json = TestJson.Mutate(root =>
+        {
+            root["Facilities"]!.AsArray()[1]!.AsObject()["Id"] = " f-disp ";
+            root["Environments"]!.AsArray()[0]!.AsObject()["ProviderFacilityId"] = " f-disp ";
+        });
+
+        MasterJsonLoadResult result = MasterJsonLoader.Load(json);
+
+        Assert.True(result.Success, string.Join("\n", result.Errors.Select(e => e.Message)));
+        Assert.NotNull(result.Document);
+        // 実体化後の Id・参照値が揃って fac-x になり、参照整合は保たれる。
+        Assert.Equal("f-disp", result.Document.Facilities[1].Id);
+        Assert.Equal("f-disp", result.Document.Environments[0].ProviderFacilityId);
+        Assert.Contains(result.Normalizations, n => n.Contains("Facilities[1].Id"));
+        Assert.Contains(result.Normalizations, n => n.Contains("Environments[0].ProviderFacilityId"));
+    }
+
+    [Fact(DisplayName = "VAL-26: トリム後に重複した Id は一意性違反（BX）")]
+    public void TrimmedDuplicateId_ReturnsError()
+    {
+        string json = TestJson.Mutate(root =>
+        {
+            var duplicate = (JsonObject)root["Facilities"]!.AsArray()[0]!.DeepClone();
+            duplicate["Id"] = "f-asm ";
+            root["Facilities"]!.AsArray().Add(duplicate);
+        });
+
+        MasterJsonLoadResult result = MasterJsonLoader.Load(json);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, e => e.EntityKind == "Facilities" && e.Message.Contains("重複"));
+    }
+
+    [Fact(DisplayName = "VAL-27: null 許容参照値の空白のみ値は未指定へ正規化される（BX）")]
+    public void WhitespaceOnlyNullableReference_BecomesNull()
+    {
+        string json = TestJson.Mutate(root =>
+        {
+            root["Items"]!.AsArray()[0]!.AsObject()["GameEventId"] = " ";
+            root["Recipes"]!.AsArray()[0]!.AsObject()["Facilities"]!
+                .AsArray()[0]!.AsObject()["EnvironmentId"] = " ";
+        });
+
+        MasterJsonLoadResult result = MasterJsonLoader.Load(json);
+
+        Assert.True(result.Success, string.Join("\n", result.Errors.Select(e => e.Message)));
+        Assert.NotNull(result.Document);
+        Assert.Null(result.Document.Items[0].GameEventId);
+        Assert.Null(result.Document.Recipes[0].Facilities[0].EnvironmentId);
+    }
+
+    [Fact(DisplayName = "VAL-28: 内部空白は正規化されず空白違反として残る（BW・BX の境界）")]
+    public void InnerWhitespace_IsNotNormalized()
+    {
+        string json = TestJson.Mutate(root =>
+            root["Facilities"]!.AsArray()[0]!.AsObject()["Id"] = "fac 1");
+
+        MasterJsonLoadResult result = MasterJsonLoader.Load(json);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, e => e.Field == "Id" && e.Message.Contains("空白"));
+        Assert.Empty(result.Normalizations);
+    }
 }

@@ -59,6 +59,8 @@ public static class MasterValidator
         CheckCommonFields(environment, "Environment", errors);
         RequireNonEmpty(environment.ProviderFacilityId, "Environment", environment.Id, "ProviderFacilityId", errors);
         RequireNonEmpty(environment.ConsumeItemId, "Environment", environment.Id, "ConsumeItemId", errors);
+        RequireNoWhitespace(environment.ProviderFacilityId, "Environment", environment.Id, "ProviderFacilityId", errors);
+        RequireNoWhitespace(environment.ConsumeItemId, "Environment", environment.Id, "ConsumeItemId", errors);
 
         if (!double.IsFinite(environment.ConsumeRatePerMinute) || environment.ConsumeRatePerMinute <= 0)
         {
@@ -152,6 +154,11 @@ public static class MasterValidator
             string name = $"Facilities[{i}]";
 
             RequireNonEmpty(pair.FacilityId, "Recipe", recipe.Id, $"{name}.FacilityId", errors);
+            RequireNoWhitespace(pair.FacilityId, "Recipe", recipe.Id, $"{name}.FacilityId", errors);
+            if (pair.EnvironmentId is not null)
+            {
+                RequireNoWhitespace(pair.EnvironmentId, "Recipe", recipe.Id, $"{name}.EnvironmentId", errors);
+            }
 
             if (pair.RecipeId is not null && pair.RecipeId != recipe.Id)
             {
@@ -174,6 +181,12 @@ public static class MasterValidator
                     errors.Add(new MasterValidationError(
                         "Recipe", recipe.Id, $"{name}.FixedConsumption.ItemId",
                         $"{name}.FixedConsumption.ItemId は必須です。"));
+                }
+                else
+                {
+                    RequireNoWhitespace(
+                        fixedConsumption.ItemId, "Recipe", recipe.Id,
+                        $"{name}.FixedConsumption.ItemId", errors);
                 }
 
                 if (!double.IsFinite(fixedConsumption.RatePerMinute) || fixedConsumption.RatePerMinute <= 0)
@@ -232,11 +245,15 @@ public static class MasterValidator
                 errors.Add(new MasterValidationError(
                     "GameMap", map.Id, $"{field}.ItemId", $"{field}.ItemId は必須です。"));
             }
-            else if (!seen.Add(rate.ItemId))
+            else
             {
-                errors.Add(new MasterValidationError(
-                    "GameMap", map.Id, "GatherRates",
-                    $"GatherRates に同一アイテムが重複しています: {rate.ItemId}"));
+                RequireNoWhitespace(rate.ItemId, "GameMap", map.Id, $"{field}.ItemId", errors);
+                if (!seen.Add(rate.ItemId))
+                {
+                    errors.Add(new MasterValidationError(
+                        "GameMap", map.Id, "GatherRates",
+                        $"GatherRates に同一アイテムが重複しています: {rate.ItemId}"));
+                }
             }
 
             if (!rate.IsUnlimited && (rate.RatePerMinute is not { } boundedRate
@@ -280,11 +297,15 @@ public static class MasterValidator
                 errors.Add(new MasterValidationError(
                     "Recipe", recipeId, name, $"{name}.ItemId は必須です。"));
             }
-            else if (!seen.Add(itemId))
+            else
             {
-                errors.Add(new MasterValidationError(
-                    "Recipe", recipeId, memberName,
-                    $"{memberName} に同一アイテムが重複しています: {itemId}"));
+                RequireNoWhitespace(itemId, "Recipe", recipeId, $"{name}.ItemId", errors);
+                if (!seen.Add(itemId))
+                {
+                    errors.Add(new MasterValidationError(
+                        "Recipe", recipeId, memberName,
+                        $"{memberName} に同一アイテムが重複しています: {itemId}"));
+                }
             }
 
             if (!double.IsFinite(quantity) || quantity <= 0)
@@ -547,6 +568,7 @@ public static class MasterValidator
         ICollection<MasterValidationError> errors)
     {
         RequireNonEmpty(entity.Id, entityKind, entity.Id, "Id", errors);
+        RequireNoWhitespace(entity.Id, entityKind, entity.Id, "Id", errors);
         RequireNonEmpty(entity.Name, entityKind, entity.Id, "Name", errors);
         CheckIconKey(entityKind, entity.Id, entity.IconKey, errors);
 
@@ -591,11 +613,15 @@ public static class MasterValidator
         IReadOnlyCollection<string> gameEventIds,
         ICollection<MasterValidationError> errors)
     {
-        if (!string.IsNullOrEmpty(gameEventId) && !gameEventIds.Contains(gameEventId))
+        if (!string.IsNullOrEmpty(gameEventId))
         {
-            errors.Add(new MasterValidationError(
-                entityKind, entityId, "GameEventId",
-                $"GameEventId が参照するイベントが存在しません: {gameEventId}"));
+            RequireNoWhitespace(gameEventId, entityKind, entityId, "GameEventId", errors);
+            if (!gameEventIds.Contains(gameEventId))
+            {
+                errors.Add(new MasterValidationError(
+                    entityKind, entityId, "GameEventId",
+                    $"GameEventId が参照するイベントが存在しません: {gameEventId}"));
+            }
         }
     }
 
@@ -629,6 +655,21 @@ public static class MasterValidator
         {
             errors.Add(new MasterValidationError(
                 entityKind, entityId, field, $"{field} は必須です。"));
+        }
+    }
+
+    /// <summary>ID 系値は空白文字を含まない（仕様決定 BW）。null/空白のみは必須違反側に委ねる。</summary>
+    private static void RequireNoWhitespace(
+        string? value,
+        string entityKind,
+        string entityId,
+        string field,
+        ICollection<MasterValidationError> errors)
+    {
+        if (!string.IsNullOrEmpty(value) && value.Any(char.IsWhiteSpace))
+        {
+            errors.Add(new MasterValidationError(
+                entityKind, entityId, field, $"{field} には空白を含めないでください: {value}"));
         }
     }
 
