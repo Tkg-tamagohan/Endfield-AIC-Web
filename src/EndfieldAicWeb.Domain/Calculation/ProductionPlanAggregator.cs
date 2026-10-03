@@ -188,7 +188,13 @@ internal static class ProductionPlanAggregator
         var maxRateByItem = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach ((string facilityId, List<FacilityUnitSlot> units) in unitsByFacility)
         {
-            var inputs = units
+            // ラン由来の入力（占有比率で按分される流量）は、ユニットが複数機を背負う場合に
+            // 機械あたりへ換算して判定するため flat とは分けて保持する。
+            var runInputs = units
+                .Select(_ => new Dictionary<string, double>(StringComparer.Ordinal))
+                .ToList();
+            // 固定消費・環境消費はユニット（機械）ごとの定数。
+            var flatInputs = units
                 .Select(_ => new Dictionary<string, double>(StringComparer.Ordinal))
                 .ToList();
 
@@ -210,10 +216,10 @@ internal static class ProductionPlanAggregator
                         continue;
                     }
 
-                    Dictionary<string, double> unitInputs = inputs[unit.Index];
+                    Dictionary<string, double> unitRunInputs = runInputs[unit.Index];
                     foreach (RecipeInput input in recipe.Inputs)
                     {
-                        unitInputs[input.ItemId] = unitInputs.GetValueOrDefault(input.ItemId)
+                        unitRunInputs[input.ItemId] = unitRunInputs.GetValueOrDefault(input.ItemId)
                             + run.CyclesPerMinute * input.Quantity * share;
                     }
                 }
@@ -226,10 +232,10 @@ internal static class ProductionPlanAggregator
                     ?? recipe.Facilities.FirstOrDefault(p => p.FacilityId == run.FacilityId);
                 if (pair?.FixedConsumption is { } fixedConsumption)
                 {
-                    foreach (Dictionary<string, double> unitInputs in inputs)
+                    foreach (Dictionary<string, double> unitFlatInputs in flatInputs)
                     {
-                        unitInputs[fixedConsumption.ItemId] =
-                            unitInputs.GetValueOrDefault(fixedConsumption.ItemId)
+                        unitFlatInputs[fixedConsumption.ItemId] =
+                            unitFlatInputs.GetValueOrDefault(fixedConsumption.ItemId)
                             + fixedConsumption.RatePerMinute;
                     }
                 }
@@ -247,16 +253,22 @@ internal static class ProductionPlanAggregator
                 foreach (FacilityUnitSlot unit in units
                     .Where(u => u.DispenserEnvironmentId == env.EnvironmentId))
                 {
-                    Dictionary<string, double> unitInputs = inputs[unit.Index];
-                    unitInputs[env.ConsumeItemId] =
-                        unitInputs.GetValueOrDefault(env.ConsumeItemId) + perUnit;
+                    Dictionary<string, double> unitFlatInputs = flatInputs[unit.Index];
+                    unitFlatInputs[env.ConsumeItemId] =
+                        unitFlatInputs.GetValueOrDefault(env.ConsumeItemId) + perUnit;
                 }
             }
 
-            foreach (Dictionary<string, double> unitInputs in inputs)
+            for (int i = 0; i < units.Count; i++)
             {
-                foreach ((string itemId, double rate) in unitInputs)
+                // Used はそのユニットが背負う機械数（上限で実体化を打ち切った末尾スロットや
+                // 計画不整合時の溢れ分では 1 を超える）。ラン由来の入力は機械あたりへ換算し、
+                // グラフ側の容量判定と同じ 1 機相当の流量で比較する。
+                double machines = Math.Max(units[i].Used, 1.0);
+                foreach (string itemId in runInputs[i].Keys.Union(flatInputs[i].Keys))
                 {
+                    double rate = runInputs[i].GetValueOrDefault(itemId) / machines
+                        + flatInputs[i].GetValueOrDefault(itemId);
                     if (rate > maxRateByItem.GetValueOrDefault(itemId))
                     {
                         maxRateByItem[itemId] = rate;

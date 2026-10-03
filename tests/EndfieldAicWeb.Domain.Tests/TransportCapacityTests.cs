@@ -76,4 +76,36 @@ public class TransportCapacityTests
 
         Assert.False(HasWarning(plan, WarningCode.TransportCapacityExceeded));
     }
+
+    [Fact(DisplayName = "TRN-07: ユニット実体化上限超過の計画で集約流量を 1 機の入力と誤判定しない")]
+    public void OversizedFacilityDoesNotFalselyWarn()
+    {
+        // 機械数 20,000（FacilityUnitLayout の防御的上限超過）・1 機あたり入力 1/分。
+        // 末尾へ集約されたスロットの流量を 1 機とみなすと誤警告になる（Phase 26 レビュー指摘）。
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.Snapshot(
+                [CalculationFixtures.Item("i-a"), CalculationFixtures.Item("i-x")],
+                [CalculationFixtures.Facility("f-a")],
+                [CalculationFixtures.Recipe("r-x", "f-a", 60.0, [("i-a", 1.0)], [("i-x", 1.0)])]),
+            [("i-x", 20_000.0)]);
+
+        Assert.False(HasWarning(plan, WarningCode.TransportCapacityExceeded));
+    }
+
+    [Fact(DisplayName = "TRN-08: ユニット実体化上限超過でも機械あたりの容量超過は警告")]
+    public void OversizedFacilityStillWarnsPerMachineBreach()
+    {
+        // 機械数 20,000（cycles 400,000 × 3秒/60）・1 機あたり入力 40/分（ベルト 30 超過）なら
+        // 集約しても警告が要る。
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.Snapshot(
+                [CalculationFixtures.Item("i-a"), CalculationFixtures.Item("i-x")],
+                [CalculationFixtures.Facility("f-a")],
+                [CalculationFixtures.Recipe("r-x", "f-a", 3.0, [("i-a", 2.0)], [("i-x", 1.0)])]),
+            [("i-x", 400_000.0)]);
+
+        Assert.Contains(plan.Warnings, w =>
+            w.Code == WarningCode.TransportCapacityExceeded
+            && w.Message.Contains("i-a"));
+    }
 }
