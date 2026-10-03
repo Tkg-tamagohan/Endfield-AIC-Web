@@ -6,7 +6,8 @@
 <EntityEditLayout TEntity="Recipe"
                   EditorTitle="レシピ編集"
                   EmptyHint="下の一覧からレシピを選ぶか、新規追加してください。"
-                  @bind-Selected="_selected"
+                  Selected="_selected"
+                  SelectedChanged="OnSelectedChanged"
                   Collection="doc => doc.Recipes"
                   IdPrefix="recipe"
                   CreateEntity="CreateRecipe"
@@ -14,6 +15,12 @@
                   AfterFieldsChanged="PropagateRecipeId">
     <EntityFields Context="recipe">
         <div class="form-grid">
+            <label>提案</label>
+            <div>
+                <button class="btn small" @onclick="ApplySuggestion">Id・名前を提案値へ戻す</button>
+                <span class="muted">主産物のアイテムから採番・命名します。</span>
+            </div>
+
             <label>所属イベント</label>
             <RefSelect Value="@recipe.GameEventId" Options="_eventOptions" EmptyLabel="（常設）"
                        ValueChanged="SetGameEvent" />
@@ -59,7 +66,7 @@
                 </tbody>
             </table>
             <button class="btn small" @onclick="AddOutput">＋ 出力を追加</button>
-            <p class="hint">SortOrder=0 が主産物です。</p>
+            <p class="hint">SortOrder が最小の行が主産物です（同率は先頭行）。</p>
         </div>
 
         <h3 class="panel-title">設備ペア（Facilities）</h3>
@@ -113,6 +120,7 @@
     public string? Select { get; set; }
 
     private Recipe? _selected;
+    private readonly RecipeAutoFill _autoFill = new();
     private IReadOnlyList<Item> _allItems = [];
     private IReadOnlyList<Item> _fuelItems = [];
     private IReadOnlyList<SelectOption> _facilityOptions = [];
@@ -135,14 +143,37 @@
         if (Select is { } id)
         {
             _selected = doc.Recipes.FirstOrDefault(r => r.Id == id);
+            if (_selected is not null)
+            {
+                _autoFill.Reset(doc, _selected);
+            }
         }
     }
 
-    private static Recipe CreateRecipe(MasterDocument doc, string id) =>
-        EntityFactory.NewRecipe(
+    /// <summary>選択切替時に直近提案値を現在の提案値で初期化する（BU）。</summary>
+    private void OnSelectedChanged(Recipe? recipe)
+    {
+        _selected = recipe;
+        if (recipe is not null && Store.Document is { } doc)
+        {
+            _autoFill.Reset(doc, recipe);
+        }
+    }
+
+    /// <summary>生成直後に提案値を適用する（BU）。レイアウトの仮採番 recipe-NNN は捨てる。</summary>
+    private Recipe CreateRecipe(MasterDocument doc, string id)
+    {
+        Recipe recipe = EntityFactory.NewRecipe(
             id,
             outputItemId: doc.Items.FirstOrDefault()?.Id,
             facilityId: doc.Facilities.FirstOrDefault()?.Id);
+        if (_autoFill.ForceApply(doc, recipe))
+        {
+            PropagateRecipeId(recipe);
+        }
+
+        return recipe;
+    }
 
     /// <summary>削除時に ClearInvalidOwners へ渡す関連行（ペアの FixedConsumption を含む）。</summary>
     private static IEnumerable<object> RelatedOwners(Recipe recipe) =>
@@ -184,6 +215,7 @@
             Quantity = 1,
             SortOrder = nextSort,
         });
+        FollowSuggestion();
         Store.NotifyChanged();
     }
 
@@ -191,6 +223,7 @@
     {
         _selected!.Outputs.Remove(output);
         Store.ClearInvalidOwner(output);
+        FollowSuggestion();
         Store.NotifyChanged();
     }
 
@@ -233,11 +266,51 @@
 
     private void SetInputQuantity(RecipeInput input, double value) { input.Quantity = value; Store.NotifyChanged(); }
 
-    private void SetOutputItem(RecipeOutput output, string? value) { output.ItemId = value ?? ""; Store.NotifyChanged(); }
+    /// <summary>主産物を再解決し、追随中の Id・名前を提案値へ更新する（BU）。Id が変わればペアへ伝搬する。</summary>
+    private void FollowSuggestion()
+    {
+        if (_selected is null || Store.Document is not { } doc)
+        {
+            return;
+        }
+
+        if (_autoFill.Follow(doc, _selected))
+        {
+            PropagateRecipeId(_selected);
+        }
+    }
+
+    /// <summary>提案ボタン。Id・名前を現在の提案値へ戻し、追随状態へ復帰する（BU）。</summary>
+    private void ApplySuggestion()
+    {
+        if (_selected is null || Store.Document is not { } doc)
+        {
+            return;
+        }
+
+        if (_autoFill.ForceApply(doc, _selected))
+        {
+            PropagateRecipeId(_selected);
+        }
+
+        Store.NotifyChanged();
+    }
+
+    private void SetOutputItem(RecipeOutput output, string? value)
+    {
+        output.ItemId = value ?? "";
+        FollowSuggestion();
+        Store.NotifyChanged();
+    }
 
     private void SetOutputQuantity(RecipeOutput output, double value) { output.Quantity = value; Store.NotifyChanged(); }
 
-    private void SetOutputSortOrder(RecipeOutput output, int value) { output.SortOrder = value; Store.NotifyChanged(); }
+    private void SetOutputSortOrder(RecipeOutput output, int value)
+    {
+        output.SortOrder = value;
+        FollowSuggestion();
+        Store.NotifyChanged();
+    }
 
     private void SetPairFacility(RecipeFacility pair, string? value) { pair.FacilityId = value ?? ""; Store.NotifyChanged(); }
 

@@ -26,6 +26,47 @@ public static class EntityFactory
         }
     }
 
+    /// <summary>ItemId からスラッグ部を取る。先頭の <c>item-</c> を除き、始まらない ItemId は全体を使う。</summary>
+    public static string ItemSlug(string itemId) =>
+        itemId.StartsWith("item-", StringComparison.Ordinal) ? itemId["item-".Length..] : itemId;
+
+    /// <summary>
+    /// レシピの新規 Id 提案（仕様決定 BU）。<c>recipe-&lt;slug&gt;</c> を返し、
+    /// 既存レシピと衝突するときのみ &lt;slug&gt; に 2 桁連番（01 から）を付けて最初の空きを採番する。
+    /// </summary>
+    public static string SuggestRecipeId(IEnumerable<string> existingIds, string itemId)
+    {
+        var taken = new HashSet<string>(existingIds, StringComparer.Ordinal);
+        string baseId = $"recipe-{ItemSlug(itemId)}";
+        if (!taken.Contains(baseId))
+        {
+            return baseId;
+        }
+
+        for (int i = 1; ; i++)
+        {
+            string candidate = $"{baseId}{i:00}";
+            if (!taken.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
+
+    /// <summary>
+    /// レシピの主産物（<see cref="Recipe.Outputs"/> の SortOrder 最小行。同率は先頭行）のアイテム。
+    /// Outputs が空、または主産物の ItemId が文書のアイテムに存在しないときは null。
+    /// </summary>
+    public static Item? MainProductItem(MasterDocument doc, Recipe recipe)
+    {
+        RecipeOutput? main = recipe.Outputs.OrderBy(o => o.SortOrder).FirstOrDefault();
+        return main is null ? null : doc.Items.FirstOrDefault(i => i.Id == main.ItemId);
+    }
+
+    /// <summary>レシピ名の提案値（主産物アイテムの名前。仕様決定 BU）。主産物を解決できないとき null。</summary>
+    public static string? SuggestRecipeName(MasterDocument doc, Recipe recipe) =>
+        MainProductItem(doc, recipe)?.Name;
+
     public static Item NewItem(string id, string versionAdded = DefaultVersionAdded) => new()
     {
         Id = id,

@@ -11,7 +11,7 @@ public class Recipe : MasterEntity
     /// <summary>入力素材。</summary>
     public List<RecipeInput> Inputs { get; set; } = [];
 
-    /// <summary>成果物。SortOrder=0 が主産物。</summary>
+    /// <summary>成果物。SortOrder 最小の行が主産物（同率は先頭行）。</summary>
     public List<RecipeOutput> Outputs { get; set; } = [];
 
     /// <summary>実行可能な設備とのペア一覧。</summary>

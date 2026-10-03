@@ -90,6 +90,34 @@ public class AdminToolsTests
         Assert.Equal("item-010", EntityFactory.SuggestId(taken, "item"));
     }
 
+    // Phase 29 テスト仕様（仕様決定 BU）: レシピ Id のスラッグ採番
+
+    [Fact]
+    public void IDF06_レシピIdはItemId先頭のitem接頭辞を除いたslugで採番する()
+    {
+        Assert.Equal("recipe-xiranite", EntityFactory.SuggestRecipeId([], "item-xiranite"));
+    }
+
+    [Fact]
+    public void IDF07_レシピIdが衝突するとslugに2桁連番で最初の空きを返す()
+    {
+        Assert.Equal("recipe-carbon01", EntityFactory.SuggestRecipeId(["recipe-carbon"], "item-carbon"));
+    }
+
+    [Fact]
+    public void IDF08_連番の途中の欠番を埋める()
+    {
+        Assert.Equal(
+            "recipe-carbon02",
+            EntityFactory.SuggestRecipeId(["recipe-carbon", "recipe-carbon01", "recipe-carbon03"], "item-carbon"));
+    }
+
+    [Fact]
+    public void IDF09_item接頭辞のないItemIdは全体をslugに使う()
+    {
+        Assert.Equal("recipe-x-foo", EntityFactory.SuggestRecipeId([], "x-foo"));
+    }
+
     // ENT: 新規エンティティの既定値
 
     [Fact]
