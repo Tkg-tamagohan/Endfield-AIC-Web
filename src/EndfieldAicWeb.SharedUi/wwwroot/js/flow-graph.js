@@ -123,14 +123,17 @@ export function minGraphHeight() {
 }
 
 // ノード DOM クリックからリスト行へのスクロール＋強調。
+// 最大化オーバレイの復帰処理と競合しないよう、描画フレーム後にスクロールする。
 export function scrollToRef(refId) {
     const el = document.querySelector(`[data-flow-ref="${CSS.escape(refId)}"]`);
     if (!el) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    el.classList.remove('flow-flash');
-    void el.offsetWidth; // 再付与のためのアニメーションリセット
-    el.classList.add('flow-flash');
-    setTimeout(() => el.classList.remove('flow-flash'), 1400);
+    requestAnimationFrame(() => {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.remove('flow-flash');
+        void el.offsetWidth; // 再付与のためのアニメーションリセット
+        el.classList.add('flow-flash');
+        setTimeout(() => el.classList.remove('flow-flash'), 1400);
+    });
 }
 
 // グラフ節・切替ボタンを出すかの事前判定。create より先に呼ぶ（仕様決定 AK）。
@@ -455,8 +458,21 @@ function makeHandle(canvas, layer, device, context, format) {
             const p0 = [a.x + a.w / 2, a.y];
             const p3 = [b.x + b.w / 2, b.y + b.h];
             const d = Math.max(36, Math.abs(p3[1] - p0[1]) * 0.5);
-            const p1 = [p0[0], p0[1] - d];
-            const p2 = [p3[0], p3[1] + d];
+            let c1x = p0[0], c2x = p3[0];
+            if (p3[1] > p0[1]) {
+                // 後退エッジ: 同じ列のノードどうしでは制御点の x が一致してループが潰れ、
+                // 間のノードカードをまたぐ。空きのある側面へ制御点を張り出してループを見せる。
+                let worldW = 0;
+                for (const r of rects.values()) worldW = Math.max(worldW, r.x + r.w);
+                const rightRoom = worldW - Math.max(a.x + a.w, b.x + b.w);
+                const leftRoom = Math.min(a.x, b.x);
+                const side = rightRoom >= leftRoom ? 1 : -1;
+                const off = Math.max(a.w, b.w) / 2 + 32;
+                c1x += side * off;
+                c2x += side * off;
+            }
+            const p1 = [c1x, p0[1] - d];
+            const p2 = [c2x, p3[1] + d];
             return { p0, p1, p2, p3 };
         }
         const p0 = [a.x + a.w, a.y + a.h / 2];

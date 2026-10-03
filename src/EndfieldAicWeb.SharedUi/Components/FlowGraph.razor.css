@@ -181,6 +181,12 @@
     border-radius: 8px;
 }
 
+/* 最大化中は領域が画面を埋めるため高さハンドルは無効になる。効果の見えないドラッグで
+   復帰後の高さが変わるのを防ぐため非表示にする。 */
+.flow-graph.flow-max .flow-resize {
+    display: none;
+}
+
 @media (max-width: 780px) {
     .flow-graph-wrap {
         height: 300px;

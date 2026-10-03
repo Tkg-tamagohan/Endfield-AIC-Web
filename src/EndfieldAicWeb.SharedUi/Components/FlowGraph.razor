@@ -182,6 +182,11 @@
     {
         if (n.RefId is not null && _module is not null)
         {
+            // 最大化オーバレイの下ではジャンプ先の行が見えないため、先に復帰してからスクロールする。
+            if (Maximized)
+            {
+                await MaximizedChanged.InvokeAsync(false);
+            }
             await _module.InvokeVoidAsync("scrollToRef", n.RefId);
         }
     }
@@ -274,6 +279,9 @@
             }
             if (_escapeSub is not null)
             {
+                // DisposeAsync は相互運用参照の解放だけで JS 側の dispose() は呼ばない。
+                // document の keydown リスナーが再マウントごとに蓄積するため先に解除する。
+                await _escapeSub.InvokeVoidAsync("dispose");
                 await _escapeSub.DisposeAsync();
             }
             if (_module is not null)
