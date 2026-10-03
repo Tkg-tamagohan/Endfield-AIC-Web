@@ -61,6 +61,7 @@ internal sealed class EnvironmentJson : EntityJson
     public required string? ProviderFacilityId { get; set; }
     public required string? ConsumeItemId { get; set; }
     public required double? ConsumeRatePerMinute { get; set; }
+    public required int? CoverableMachines { get; set; }
     public required string? GameEventId { get; set; }
 }
 

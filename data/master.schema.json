@@ -66,11 +66,12 @@
         { "$ref": "#/$defs/commonAttributes" },
         {
           "type": "object",
-          "required": ["ProviderFacilityId", "ConsumeItemId", "ConsumeRatePerMinute", "GameEventId"],
+          "required": ["ProviderFacilityId", "ConsumeItemId", "ConsumeRatePerMinute", "CoverableMachines", "GameEventId"],
           "properties": {
             "ProviderFacilityId": { "type": "string", "minLength": 1 },
             "ConsumeItemId": { "type": "string", "minLength": 1 },
             "ConsumeRatePerMinute": { "type": "number", "exclusiveMinimum": 0 },
+            "CoverableMachines": { "type": "integer", "exclusiveMinimum": 0 },
             "GameEventId": { "type": ["string", "null"] }
           }
         }

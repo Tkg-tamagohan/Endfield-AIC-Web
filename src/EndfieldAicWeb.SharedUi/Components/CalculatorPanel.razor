@@ -231,7 +231,7 @@
             @if (_view.Environments.Count > 0)
             {
                 <h2 class="panel-title">環境</h2>
-                <p class="hint">散布機台数を下げると消費量に反映します（自動値が上限）。変更すると再計算します。</p>
+                <p class="hint">散布機台数を下げるとカバーできる機械数が減り、超過分は未充足になります（自動値が上限）。変更すると再計算します。</p>
                 @if (_envError is not null)
                 {
                     <p class="error">@_envError</p>

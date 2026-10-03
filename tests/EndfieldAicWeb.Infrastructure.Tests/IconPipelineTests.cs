@@ -43,7 +43,7 @@ public class IconPipelineTests
         ],
         Environments =
         [
-            new Domain.Models.Environment { Id = "env-gas", Name = "ガス環境", VersionAdded = "1.0.0", ProviderFacilityId = "f-asm", ConsumeItemId = "i-ore" },
+            new Domain.Models.Environment { Id = "env-gas", Name = "ガス環境", VersionAdded = "1.0.0", ProviderFacilityId = "f-asm", ConsumeItemId = "i-ore", CoverableMachines = 4 },
         ],
         GameEvents =
         [

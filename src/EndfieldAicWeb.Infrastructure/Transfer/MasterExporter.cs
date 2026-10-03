@@ -282,6 +282,7 @@ public static class MasterExporter
         ProviderFacilityId = e.ProviderFacilityId,
         ConsumeItemId = e.ConsumeItemId,
         ConsumeRatePerMinute = e.ConsumeRatePerMinute,
+        CoverableMachines = e.CoverableMachines,
         GameEventId = e.GameEventId,
     };
 

@@ -76,13 +76,17 @@ public sealed record RecipeRun(string RecipeId, string FacilityId, double Cycles
 
 /// <summary>
 /// 必要となった環境とその供給設備の台数・消費流量（仕様決定 I）。
+/// RequiredDispenserCount は機械数から見積もった必要台数（仕様決定 BQ・BR）で、
+/// UI の入力上限と「自動 N 台まで」の表示に使う。カバー不足で稼働が停止した
+/// 要求を持つ環境も行に残る。
 /// </summary>
 public sealed record EnvironmentRequirement(
     string EnvironmentId,
     string ProviderFacilityId,
     int DispenserCount,
     string ConsumeItemId,
-    double ConsumeRatePerMinuteTotal);
+    double ConsumeRatePerMinuteTotal,
+    int RequiredDispenserCount);
 
 /// <summary>
 /// 充当しきれなかった余剰生産（副産物残など）。

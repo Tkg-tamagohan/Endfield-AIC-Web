@@ -19,17 +19,15 @@ public static class PlanViewDefaults
     }
 
     /// <summary>
-    /// 環境ごとの散布機台数入力の上限。その環境を必要とする稼働中レシピ数を
-    /// 確定ペアから導く（仕様決定 I の既定値 = レシピにつき 1 台）。
-    /// 上書き後の台数ではなく稼働ペア基準のため、0 に下げても元の台数へ戻せる。
+    /// 環境ごとの散布機台数入力の上限。環境要件が持つ必要台数（機械数からの
+    /// 自動見積もり、仕様決定 BQ・BR）を返す。
+    /// 上書き後の台数ではなく需要基準のため、0 に下げても元の台数へ戻せる。
     /// </summary>
     public static int DispenserLimit(ProductionPlan plan, string environmentId)
     {
         ArgumentNullException.ThrowIfNull(plan);
-        return plan.PairSelections
-            .Where(p => p.Pair.EnvironmentId == environmentId)
-            .Select(p => p.RecipeId)
-            .Distinct(StringComparer.Ordinal)
-            .Count();
+        return plan.EnvironmentRequirements
+            .FirstOrDefault(e => e.EnvironmentId == environmentId)
+            ?.RequiredDispenserCount ?? 0;
     }
 }

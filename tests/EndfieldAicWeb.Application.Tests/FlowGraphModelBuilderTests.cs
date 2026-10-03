@@ -801,10 +801,11 @@ public class FlowGraphModelBuilderTests
                     [ApplicationFixtures.Pair("f-b", 6, "env-g")]),
             ]);
 
-        // 環境を要するレシピ 2 つ → 散布機 2 台 → 消費合計 720/分 を 360 ずつ分ける。
+        // 環境を要する機械数 6.0（3.0 機 × 2 ラン）→ 散布機 2 台 → 消費合計 720/分 を 360 ずつ分ける。
+        // （仕様決定 BQ: 台数は稼働レシピ数でなく機械数÷CoverableMachines）
         (_, FlowGraphModel model) = Build(
             snapshot, expandFacilities: true,
-            targets: [new ProductionTarget("i-x", 10), new ProductionTarget("i-y", 10)]);
+            targets: [new ProductionTarget("i-x", 30), new ProductionTarget("i-y", 30)]);
 
         Assert.Equal("散布機", Node(model, "facunit:f-disp#0").Note);
         Assert.Equal("散布機", Node(model, "facunit:f-disp#1").Note);
@@ -1170,7 +1171,7 @@ public class FlowGraphModelBuilderTests
             ],
             EnvironmentRequirements =
             [
-                new EnvironmentRequirement("env-g", "f-disp", 1, "i-gas", 360),
+                new EnvironmentRequirement("env-g", "f-disp", 1, "i-gas", 360, 1),
             ],
             TotalPowerConsumption = 0,
             Surpluses = [],

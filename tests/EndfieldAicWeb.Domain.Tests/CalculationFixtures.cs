@@ -42,13 +42,15 @@ internal static class CalculationFixtures
         string providerFacilityId,
         string consumeItemId,
         double ratePerMinute,
-        string? gameEventId = null) => new()
+        string? gameEventId = null,
+        int coverableMachines = 4) => new()
     {
         Id = id,
         Name = id,
         ProviderFacilityId = providerFacilityId,
         ConsumeItemId = consumeItemId,
         ConsumeRatePerMinute = ratePerMinute,
+        CoverableMachines = coverableMachines,
         VersionAdded = "1.0.0",
         GameEventId = gameEventId,
     };
@@ -359,6 +361,27 @@ internal static class CalculationFixtures
             [GameEvent("ev-off")]);
     }
 
+    /// <summary>
+    /// F-10 変形: r-hp は環境ペアのみを持ち、副産物で i-hp を賄う r-side を追加（ENV-16 用）。
+    /// i-hp 125/分は 4 秒ペアで 8.33 機分。r-side は i-side 1 サイクルにつき i-hp 5 を副産する。
+    /// r-side の実効出力レート（5×60/30=10/分）を r-hp（15/分）より低くして、
+    /// i-hp の選択ペアが r-side に流れないようにする。
+    /// </summary>
+    public static MasterDataSnapshot F10WithByproductRescue() => Snapshot(
+        [
+            Item("i-ore", "採取素材", TransportKind.Belt, null, true),
+            Item("i-gas", "採取素材", TransportKind.Pipe, null, true),
+            Item("i-hp"), Item("i-side"),
+        ],
+        [Facility("f-asm", 50.0), Facility("f-disp", 20.0), Facility("f-sid")],
+        [
+            Recipe("r-hp", [Pair("r-hp", "f-asm", 4.0, "env-gas")],
+                [("i-ore", 1.0)], [("i-hp", 1.0)]),
+            Recipe("r-side", "f-sid", 30.0,
+                [("i-ore", 1.0)], [("i-side", 1.0), ("i-hp", 5.0)]),
+        ],
+        [Env("env-gas", "f-disp", "i-gas", 360.0)]);
+
     /// <summary>F-11: 固定消費（r-fc のペアが i-fuel を 6 個/分 消費）。r-fuel は派生のみ。</summary>
     public static MasterDataSnapshot F11() => Snapshot(
         [Item("i-ore", "採取素材", TransportKind.Belt, null, true), Item("i-fuel", "採取素材", TransportKind.Belt, null, true), Item("i-fc")],
@@ -419,7 +442,11 @@ internal static class CalculationFixtures
         ],
         [
             Env("env-x", "f-disp", "i-z", 120.0),
-            Env("env-y", "f-disp", "i-y", 240.0),
+            // 散布機 1 台で済むようカバー台数を大きく取る。BQ で台数が機械数比例になると、
+            // 消費対象が自環境の生産物だと「需要→機械数→散布機→消費」の増幅ループで発散する
+            // （旧仕様のレシピ数=台数では増幅係数 0 で収束していた）。シナリオの本質は
+            // 休眠ペアの復帰なので、増幅が起きない 1 台固定相当へ寄せる。
+            Env("env-y", "f-disp", "i-y", 240.0, coverableMachines: 64),
         ]);
 
     /// <summary>F-12: イベント限定アイテム（i-ltd・i-ltd-raw が ev-ltd 所属）。</summary>

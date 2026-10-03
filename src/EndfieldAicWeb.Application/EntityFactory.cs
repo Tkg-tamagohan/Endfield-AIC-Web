@@ -68,6 +68,8 @@ public static class EntityFactory
         ProviderFacilityId = providerFacilityId ?? "",
         ConsumeItemId = consumeItemId ?? "",
         ConsumeRatePerMinute = 60,
+        // 現行のガス散布機の実測値に揃える暫定値（仕様決定 BP、implementation-plan-phase26 §3.1）。
+        CoverableMachines = 4,
         GameEventId = null,
     };
 

@@ -27,4 +27,37 @@ public class MasterJsonScaffoldTests
         }
         Assert.Equal(1, root.GetProperty("SchemaVersion").GetInt32());
     }
+
+    [Fact(DisplayName = "MJS-10: スキーマの environment 定義は CoverableMachines を required に持つ")]
+    public void EnvironmentSchemaRequiresCoverableMachines()
+    {
+        string root = FindRepoRoot();
+        using var document = JsonDocument.Parse(
+            File.ReadAllText(Path.Combine(root, "data", "master.schema.json")));
+
+        JsonElement env = document.RootElement
+            .GetProperty("$defs").GetProperty("environment")
+            .GetProperty("allOf")[1];
+
+        Assert.Contains(
+            env.GetProperty("required").EnumerateArray().Select(e => e.GetString()),
+            name => name == "CoverableMachines");
+
+        JsonElement property = env.GetProperty("properties").GetProperty("CoverableMachines");
+        Assert.Equal("integer", property.GetProperty("type").GetString());
+        Assert.Equal(0, property.GetProperty("exclusiveMinimum").GetInt32());
+    }
+
+    /// <summary>data/ を持つリポジトリルートを実行ディレクトリから遡って探す。</summary>
+    private static string FindRepoRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "data", "master.schema.json")))
+        {
+            dir = dir.Parent;
+        }
+
+        return dir?.FullName
+            ?? throw new InvalidOperationException("data/master.schema.json を持つリポジトリルートが見つかりません。");
+    }
 }

@@ -65,4 +65,13 @@ public class BundledMasterDataTests
 
         Assert.Empty(errors);
     }
+
+    [Fact(DisplayName = "MJS-11: 同梱マスタの環境は CoverableMachines=4 で読み込める")]
+    public void BundledEnvironmentsHaveCoverableMachines()
+    {
+        MasterDocument document = LoadBundledMaster();
+
+        Assert.Equal(2, document.Environments.Count);
+        Assert.All(document.Environments, env => Assert.Equal(4, env.CoverableMachines));
+    }
 }

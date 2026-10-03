@@ -23,18 +23,27 @@ public sealed class FacilityUnitSlot
 /// 設備を切上台数ぶんのユニットへ展開し、ランの占有を割り当てる（仕様決定 AO）。
 /// ランの機械数（CyclesPerMinute × CycleTime / 60）をユニット容量 1.0 へ RecipeRuns 順に
 /// 逐次充填し、ラン占有ユニットの後ろを環境ごとの散布機ユニットとする。
-/// machineScaleByFacility を渡すと設備ごとの倍率を機械数へ掛けて割り当てる
-/// （未調整ビュー: 実機械が全速稼働する想定の配置）。
+/// runScales を渡すとラン index ごとの倍率を機械数へ掛けて割り当てる
+/// （未調整ビュー: 実機械が全速稼働する想定の配置。環境ランはカバー配分で
+/// 個別倍率を持ちうるため設備単位ではなくラン単位、仕様決定 BR）。
 /// </summary>
 public static class FacilityUnitLayout
 {
+    /// <summary>
+    /// ユニットへ展開する台数の防御的上限。発散した計画（ConvergenceNotReached 付きで
+    /// 集計へ進むもの）では台数が int 規模の巨大な実数になり、ユニットごとのスロット
+    /// 生成でメモリ・時間を使い果たすため、その規模ではユニット割当を行わない
+    /// （設備は集約表示・集約判定へ退避する。通常の計画では到達しない規模）。
+    /// </summary>
+    internal const int MaxUnitSlots = 10_000;
+
     public static Dictionary<string, List<FacilityUnitSlot>> Allocate(
         IReadOnlyList<RecipeRun> recipeRuns,
         IReadOnlyList<FacilityRequirement> facilityRequirements,
         IReadOnlyList<EnvironmentRequirement> environmentRequirements,
         MasterDataSnapshot snapshot,
         IReadOnlyList<PairSelection> pairSelections,
-        IReadOnlyDictionary<string, double>? machineScaleByFacility = null)
+        IReadOnlyList<double>? runScales = null)
     {
         ArgumentNullException.ThrowIfNull(recipeRuns);
         ArgumentNullException.ThrowIfNull(facilityRequirements);
@@ -49,7 +58,7 @@ public static class FacilityUnitLayout
         var unitsByFacility = new Dictionary<string, List<FacilityUnitSlot>>(StringComparer.Ordinal);
         foreach (FacilityRequirement f in facilityRequirements)
         {
-            if (f.CeilCount < 1)
+            if (f.CeilCount < 1 || f.CeilCount > MaxUnitSlots)
             {
                 continue;
             }
@@ -71,7 +80,7 @@ public static class FacilityUnitLayout
             }
 
             double machines = RunMachines(run, snapshot, pairByRun)
-                * (machineScaleByFacility?.GetValueOrDefault(run.FacilityId, 1.0) ?? 1.0);
+                * (runScales is not null && runIndex < runScales.Count ? runScales[runIndex] : 1.0);
             if (machines <= ProductionCalculator.Epsilon)
             {
                 continue;

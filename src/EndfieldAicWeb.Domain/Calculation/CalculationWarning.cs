@@ -48,6 +48,9 @@ public enum WarningCode
 
     /// <summary>GatherRateOverride が採取素材でないアイテムを指す、または値が不正で無視した。</summary>
     InvalidGatherRateOverride,
+
+    /// <summary>散布機台数の上書きがカバーできる機械数を下回り、環境を要する生産が削られた（仕様決定 BR）。</summary>
+    EnvironmentCoverageExceeded,
 }
 
 /// <summary>
