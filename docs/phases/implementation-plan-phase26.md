@@ -115,9 +115,9 @@
 - 必要台数 `required[envId] = Ceil(envMachines[envId] / env.CoverableMachines)`
 - 散布機台数 `dispenser[envId] = override ?? required[envId]`（上書き優先は従来どおり）
 
-環境要件の行は、稼働中ランが要求する環境に加え、カバー不足で稼働が停止した要求を持つ環境（§3.3 の削減機械数が 0 より大きい環境）も出す。全量停止の環境も「自動 N 台まで」が見えて台数を戻せるようにするためである。
+環境要件の行は、稼働中ランが要求する環境に加え、カバー不足で稼働が停止した要求を持つ環境（§3.3 の有効削減機械数が 0 より大きい環境）も出す。全量停止の環境も「自動 N 台まで」が見えて台数を戻せるようにするためである。
 
-`EnvironmentRequirement` に `RequiredDispenserCount` を追加し、計算ページの入力上限（`PlanViewDefaults.DispenserLimit`）と「自動 N 台まで」の表示に使う。必要台数は `Ceil((実績機械数 + 削減機械数) / CoverableMachines)` で見積もる。
+`EnvironmentRequirement` に `RequiredDispenserCount` を追加し、計算ページの入力上限（`PlanViewDefaults.DispenserLimit`）と「自動 N 台まで」の表示に使う。必要台数は `Ceil((実績機械数 + 有効削減機械数) / CoverableMachines)` で見積もる（有効削減機械数の確定は §3.3）。
 
 ### 3.3 カバー上限の需要展開反映（BR）
 
@@ -131,11 +131,24 @@ allowed  = cap[env] − used[env]                                        // 残�
 delta    = min(delta, allowed × 60 / run.Pair.CycleTime)               // サイクルへ換算して削る
 ```
 
-削られた分は次の 3 系統へ記録する。
+削られた分は次の 2 系統へ記録する。
 
 - `Unmet[itemId] += 削減サイクル × 当該アイテムの 1 サイクル出力量`。未充足は残差需要から外れる端末計上の既存規則どおりとする
-- `_envBlockedMachines[envId] += 削減サイクル × CycleTime / 60`（必要台数の見積もり用）
-- `_envCapEnvs`（環境 ID の集合）へ記録し、`Run` 末尾の警告段で `EnvironmentCoverageExceeded` を発行する
+- `_envBlockedUnmet[(envId, itemId)]` へ削減された未充足量と、その機械数換算係数（`CycleTime / (60 × 当該アイテムの 1 サイクル出力量)`）を記録する
+
+削減記録は停止時点の機械数ではなくアイテム単位の未充足寄与として持ち、`Run` 末尾の確定時に残存 `Unmet` へ比例配分して有効削減機械数を得る。`Unmet` は副産物の充当やランの引き戻しで縮む（`TrimTerminal`）ため、確定時点で同期しないと解消済みの停止分まで必要台数・警告に残る。比例配分の式は次のとおりとする。
+
+```
+unmetAdded[itemId]      = 全原因（カバー不足・採取上限・循環未解消など）の未充足寄与の合算
+envBlocked[(env, item)] = カバー不足で記録した未充足量
+share[item]             = min(1, Unmet[item] / unmetAdded[item])            // 残存率
+有効削減量(env, item)    = envBlocked[(env, item)] × share[item]
+有効削減機械数(env)      = Σ_item 有効削減量(env, item) × 機械数換算係数
+```
+
+`unmetAdded` は `Unmet` への加算箇所すべてで併記する小さな帳簿として持ち、`Unmet[item]` が 0 に縮んだアイテムの寄与は全量解消扱いとする。必要台数の見積もりには有効削減機械数だけを含め、警告は有効削減量が 0 より大きい環境にのみ発行する。
+
+循環解放のロールバック（AQ）は `ReleaseSnapshot` に削減記録・`unmetAdded`・環境上限の使用状況も含め、帳簿一式と同時に戻す。
 
 `delta` が 0 まで削られたランは稼働させず、`RunCycles`・`RunOrder` に登録しない。登録してから引き戻しで削ると、展開と引き戻しの間で挿抜が繰り返されるためである。
 
@@ -147,7 +160,15 @@ delta    = min(delta, allowed × 60 / run.Pair.CycleTime)               // サ�
 
 警告は `Run` 末尾の既存警告段で発行する（GatherCapExceeded 等と同じ位置、最終の未充足確定後）。警告コードは `EnvironmentCoverageExceeded` とし、文面は実装 PR で確定する（テストはコードで検査する）。
 
-### 3.4 UI 反映
+### 3.4 未調整ビューのカバー上限
+
+未調整（切上台数の最大稼働）表示でも、環境を要するランはカバー上限を超えて増産しない。散布機台数はカバーできる機械数を物理的に固定するため、設備の切上げ余力は環境ランを上限超過へ使えない。現行の `ComputeFacilityScales` は設備単位の一律倍率で、共用設備の環境ランも切上げ余力で増産してしまうため、倍率をラン単位へ拡張する。
+
+- ランの未調整サイクルは `min(現行 cycles × 設備倍率, 残カバー量 × 60 / CycleTime)` とする。残カバー量の占有順は計画の `RunOrder` とし、展開時の上限占有と同じ規則に揃える
+- `ComputeUnadjustedFacilityScales` の戻りをラン単位の倍率へ拡張し、`ResultViewBuilder` の供給表示と `FlowGraphModelBuilder` のグラフ流量が同じ値を使う形にする（AN/AO の `FacilityUnitLayout` と同じく表示経路で二重実装にしない）
+- 環境ランをクランプしても同設備の非環境ランの倍率は変えない。余剰再計算（`ComputeUnadjustedSurpluses`）はクランプ後の供給量を使う
+
+### 3.5 UI 反映
 
 - `PlanViewDefaults.DispenserLimit`: `plan.EnvironmentRequirements` の当該環境の `RequiredDispenserCount` を返す形へ改める。従来の「確定ペア中に同環境を要する distinct レシピ数」の走査は、機械数比例の自動値と一致しないため置き換える
 - `CalculatorPanel.razor`: 環境節のヒントを「散布機台数を下げるとカバーできる機械数が減り、超過分は未充足になります（自動値が上限）」系へ更新する（文言は実装 PR で確定）。「（自動 N 台まで）」は `RequiredDispenserCount` を表示する（現行 `EnvAutoCount` の Max 経路に載る）
@@ -159,14 +180,15 @@ delta    = min(delta, allowed × 60 / run.Pair.CycleTime)               // サ�
 
 1. カバー不足の未充足は再展開しない暫定解釈を採る。未充足は端末計上で残差需要から外れる既存動作のままとし、引き戻しでカバーが空いても展開に戻さない。代替策はユーザーの台数引き上げとペア選択の切替である
 2. 機械数は実数（`RunCycles × CycleTime / 60`）で集計する。切上台数で割る方法も必要台数の結果は同値（`Ceil(Ceil(x)/k) = Ceil(x/k)`、k は正の整数）だが、帳簿は実数基準で統一する
-3. `RequiredDispenserCount` は `Ceil((実績 + 削減) / CoverableMachines)` の見積もりとする。停止したランの入力需要は展開されないため、停止側の下流にある他環境の自動値は真の必要台数より小さく出うる。0 台・少台数指定時の表示補助としてこの見積もりでよい
-4. 0 台指定などで全量停止した環境も環境要件の行に出す（削減機械数が 0 より大きい環境）。UI が行を失うと自動値が見えず台数を戻せないためである
-5. カバー容量の占有順は展開順（`RunOrder` 先頭から）とする
+3. `RequiredDispenserCount` は `Ceil((実績 + 有効削減) / CoverableMachines)` の見積もりとする。停止したランの入力需要は展開されないため、停止側の下流にある他環境の自動値は真の必要台数より小さく出うる。0 台・少台数指定時の表示補助としてこの見積もりでよい
+4. 0 台指定などで全量停止した環境も環境要件の行に出す（有効削減機械数が 0 より大きい環境）。UI が行を失うと自動値が見えず台数を戻せないためである
+5. カバー容量の占有順は展開順（`RunOrder` 先頭から）とする。未調整ビューの残カバー量も同じ占有順で配る
+6. 削減記録のアイテム未充足が複数原因に分かれるとき、解消は全原因へ均等ではなく残存 `Unmet` への比例配分で近似する（原因ごとの個別追跡は帳簿を複雑化するため）
 
 ## 5. テスト
 
 [test-specification-phase26.md](test-specification-phase26.md) に従う。
-計算・検証は Domain・Application・Infrastructure の xUnit で検査し、ENV 群の改訂と新規を含めて `dotnet test` 全緑を確認する。
+計算・検証は Domain・Application・Infrastructure の xUnit で検査し、ENV 群の改訂と新規・VWU 群の追加を含めて `dotnet test` 全緑を確認する。
 UI の入力上限・ヒント・未充足の見え方はブラウザ E2E で確認する。
 ブラウザプレビューによるユーザー確認は実装後・手動検査項目の実施前に挟み、フィードバックを検査へ反映する（ui-mock-first ルール、implementation-plan.md §5「UI の確認」に従う）。
 
@@ -175,4 +197,6 @@ UI の入力上限・ヒント・未充足の見え方はブラウザ E2E で確
 - 同梱マスタ（env-stable・env-acrid、CoverableMachines=4）で、息壌 31/分 は散布機自動 1 台・不活性ガス 6/分 の現状と同じ結果になる。息壌 150/分 では機械数 5.0 から散布機自動 2 台になる
 - 散布機台数を自動値未満に下げると、カバー不足の機械分が未充足として出て警告が出る。0 台は環境を要する生産を全量未充足にし、環境の入力行は「自動 N 台まで」のまま残る
 - 台数を必要台数へ戻すと未充足が解消される。代替レシピへの自動切替は起きない
+- カバー不足の未充足が副産物などで解消されたとき、必要台数の見積もりと警告は解消後の残存分に追従する
+- 未調整ビューでも環境ランはカバー上限を超えて表示されない
 - `dotnet build` と `dotnet test` が全緑である
