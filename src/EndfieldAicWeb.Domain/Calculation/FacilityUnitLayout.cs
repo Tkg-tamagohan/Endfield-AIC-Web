@@ -20,19 +20,22 @@ public sealed class FacilityUnitSlot
 
     /// <summary>
     /// ユニット実体化上限や計画不整合で末尾へ集約された専用機械群。各エントリは
-    /// 同一ランの機械群。容量判定は部分占有機械と各群の 1 機あたり入力の最大で行う
-    /// （合算流量を Used で平均化すると、別ランの高流量機械の超過が隠れる）。
+    /// 同一ランの機械群。容量判定はラン順に機械容量 1.0 の仮想機械へ充填して行う
+    /// （MaxMachineInputs 参照。合算流量を Used で平均化すると、別ランの高流量機械の
+    /// 超過が隠れる）。
     /// </summary>
     public List<FacilityUnitOverspill> OverspillGroups { get; } = new();
 }
 
 /// <summary>
-/// 末尾ユニットへ集約された同一ランの機械群。SharePortion は RunShares に含まれる
-/// 集約分の比率（部分占有分との切り分け用）。PerMachineInputs は機械群 1 台あたりの
-/// レシピ入力（アイテム Id → 個/分）。
+/// 末尾ユニットへ集約された同一ランの機械群。Machines は溢れた機械数（端数含む）、
+/// SharePortion は RunShares に含まれる集約分の比率（部分占有分との切り分け用）。
+/// PerMachineInputs は機械群 1 台あたりのレシピ入力（アイテム Id → 個/分）。
+/// 端数機は次のランの端数機と同一機械を共用しうるため、占有率の換算は評価側で行う。
 /// </summary>
 public sealed record FacilityUnitOverspill(
     int RunIndex,
+    double Machines,
     double SharePortion,
     IReadOnlyDictionary<string, double> PerMachineInputs);
 
@@ -53,9 +56,9 @@ public static class FacilityUnitLayout
     /// 上限を超えた分は既存の「収まらない分は末尾ユニットへ載せる」規則で末尾スロットに
     /// 集約され、そのスロットは Used&gt;1 の「複数機を背負うユニット」となる。
     /// 容量系の判定（輸送警告・グラフの容量超過フラグ）は集約流量を 1 機の入力とせず、
-    /// 部分占有機械の入力と集約機械群ごとの 1 機あたり入力（OverspillGroups）の最大を
-    /// 取る（MaxMachineInputs 参照）。台数分表示のノード数は実台数を下回る点だけ
-    /// 実台数とずれる（表示上の近似）。
+    /// 部分占有機械の入力と「OverspillGroups をラン順に仮想機械へ充填した列」の各機械
+    /// 入力の最大を取る（MaxMachineInputs 参照）。台数分表示のノード数は実台数を下回る
+    /// 点だけ実台数とずれる（表示上の近似）。
     /// </summary>
     internal const int MaxUnitSlots = 10_000;
 
@@ -143,15 +146,16 @@ public static class FacilityUnitLayout
                 last.Used += remaining;
                 if (snapshot.RecipesById.TryGetValue(run.RecipeId, out Recipe? recipe))
                 {
-                    // 1 機以上の溢れは満機レート、1 機未満は端数機の占有率ぶん。
-                    double occupancy = Math.Min(remaining, 1.0);
+                    // 機械群は満機レートで記録し、端数機の占有率換算と共用は評価側
+                    // （MaxMachineInputs の仮想機械充填）で行う。
                     double perMachineCycles = run.CyclesPerMinute * scale / machines;
                     last.OverspillGroups.Add(new FacilityUnitOverspill(
                         runIndex,
+                        remaining,
                         sharePortion,
                         recipe.Inputs.ToDictionary(
                             i => i.ItemId,
-                            i => i.Quantity * perMachineCycles * occupancy,
+                            i => i.Quantity * perMachineCycles,
                             StringComparer.Ordinal)));
                 }
             }
@@ -182,9 +186,11 @@ public static class FacilityUnitLayout
     /// <summary>
     /// ユニットが背負う機械のうち最も厳しい 1 台のレシピ入力（アイテム Id → 個/分）。
     /// 部分占有のみのユニットは占有比率に比例した入力合計をそのまま返す。
-    /// 末尾集約スロットは「部分占有機械の入力合計」と「各専用機械群の 1 機あたり入力」の
-    /// 最大を取る（異なるランの機械は同一機械へ合算しない。輸送容量は機械単位で判定する
-    /// ため、平均化すると別ランの高流量機械の超過が隠れる）。
+    /// 末尾集約スロットは「部分占有機械の入力合計」と「集約機械群をラン順に容量 1.0 の
+    /// 仮想機械へ充填した列」の各機械入力の最大を取る（端数機は次のランの端数機と
+    /// 同一機械を共用しうる。輸送容量は機械単位で判定するため、群ごとの独立評価や
+    /// 平均化では共用機械の合算超過や高流量機械の超過が抜ける）。同一ランの整数機械は
+    /// 全て同じ入力なので列挙せず代表 1 台だけ評価する。
     /// 固定消費・環境消費のような機械ごとの定数は含まない。runScales は Allocate と
     /// 同じものを渡す（未調整ビューではエッジ流量・機械数とも倍率を掛けた値になる）。
     /// </summary>
@@ -231,19 +237,77 @@ public static class FacilityUnitLayout
             }
         }
 
-        // 集約された専用機械群は 1 機あたりの入力を群単位で評価して最大を取る。
+        // 集約分はラン順に機械容量 1.0 の仮想機械へ逐次充填する。混在は境界の機械だけ
+        // 起きるため、開いている機械・整数分の純粋機械・末尾の端数機を順に評価すれば
+        // 機械を列挙しなくても最大入力が求まる。
+        var openMachine = new Dictionary<string, double>(StringComparer.Ordinal);
+        double openFree = 1.0;
+        bool hasOpenMachine = false;
         foreach (FacilityUnitOverspill group in unit.OverspillGroups)
         {
-            foreach ((string itemId, double rate) in group.PerMachineInputs)
+            double left = group.Machines;
+
+            // 直前のランの端数機へ続けて充填する。
+            if (hasOpenMachine && left > ProductionCalculator.Epsilon)
             {
-                if (rate > inputs.GetValueOrDefault(itemId))
+                double pour = Math.Min(left, openFree);
+                AddInputs(openMachine, group.PerMachineInputs, pour);
+                left -= pour;
+                openFree -= pour;
+                if (openFree <= ProductionCalculator.Epsilon)
                 {
-                    inputs[itemId] = rate;
+                    MergeMaxInputs(inputs, openMachine);
+                    openMachine.Clear();
+                    openFree = 1.0;
+                    hasOpenMachine = false;
                 }
             }
+
+            // 整数分は全て同一の純粋機械なので、代表として 1 台ぶんの入力を評価する。
+            if (left >= 1.0 - ProductionCalculator.Epsilon)
+            {
+                MergeMaxInputs(inputs, group.PerMachineInputs);
+                left -= Math.Floor(left);
+            }
+
+            // 末尾の端数機は次のランと共用されうる開いた機械として残す。
+            if (left > ProductionCalculator.Epsilon)
+            {
+                hasOpenMachine = true;
+                AddInputs(openMachine, group.PerMachineInputs, left);
+                openFree = 1.0 - left;
+            }
+        }
+        if (hasOpenMachine)
+        {
+            MergeMaxInputs(inputs, openMachine);
         }
 
         return inputs;
+    }
+
+    private static void AddInputs(
+        Dictionary<string, double> machine,
+        IReadOnlyDictionary<string, double> perMachineInputs,
+        double occupancy)
+    {
+        foreach ((string itemId, double rate) in perMachineInputs)
+        {
+            machine[itemId] = machine.GetValueOrDefault(itemId) + rate * occupancy;
+        }
+    }
+
+    private static void MergeMaxInputs(
+        Dictionary<string, double> inputs,
+        IReadOnlyDictionary<string, double> machineInputs)
+    {
+        foreach ((string itemId, double rate) in machineInputs)
+        {
+            if (rate > inputs.GetValueOrDefault(itemId))
+            {
+                inputs[itemId] = rate;
+            }
+        }
     }
 
     /// <summary>ランの占有機械数（CyclesPerMinute × CycleTime / 60）。確定ペア優先で CycleTime を引く。</summary>
