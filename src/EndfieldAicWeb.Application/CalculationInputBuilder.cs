@@ -1,17 +1,41 @@
 using System.Globalization;
 using EndfieldAicWeb.Domain.Calculation;
 using EndfieldAicWeb.Domain.Models;
+using DomainEnv = EndfieldAicWeb.Domain.Models.Environment;
 
 namespace EndfieldAicWeb.Application;
 
 /// <summary>生産リスト 1 行の入力値（選択アイテム Id と個/分の文字列）。</summary>
 public sealed record TargetRowInput(string? ItemId, string? RateText);
 
+/// <summary>生産リスト 1 行の入力状態（カテゴリ絞り込み・選択アイテム Id・個/分の文字列）。</summary>
+public sealed class TargetRowState
+{
+    public string? ItemId;
+    public string RateText = "30";
+    public string? Category;
+}
+
 /// <summary>散布機台数 1 行の入力値（環境 Id・表示名・台数文字列・自動検出の上限）。</summary>
 public sealed record EnvCountInput(string EnvId, string EnvName, string? CountText, int Max);
 
+/// <summary>散布機台数 1 行の入力状態（対象環境・自動上限・台数の文字列）。</summary>
+public sealed class EnvCountState(DomainEnv environment, int max)
+{
+    public DomainEnv Env { get; } = environment;
+    public int Max { get; set; } = max;
+    public string CountText = "";
+}
+
 /// <summary>採取素材の利用可能レート 1 行の入力値（アイテム Id・表示名・レート文字列。空欄はマップ既定値）。</summary>
 public sealed record GatherRateInput(string ItemId, string ItemName, string? RateText);
+
+/// <summary>採取レート 1 行の入力状態（対象アイテム Id とレート文字列。空欄はマップ既定値）。</summary>
+public sealed class GatherRateState(string itemId)
+{
+    public string ItemId { get; } = itemId;
+    public string RateText = "";
+}
 
 /// <summary>
 /// イベントのチェック状態。Checked は UI が書き換え、
@@ -132,6 +156,42 @@ public static class CalculationInputBuilder
     }
 
     /// <summary>
+    /// 再計算をまたいで保持する採取レート入力を、新しい計画の採取対象と整合させて
+    /// 入力行を再構築する。採取対象から外れ、かつ採取レートとして受理されない保持値
+    /// （アイテムが採取素材でない・値が受理されない）は keptTexts から取り除く。
+    /// 受理される値は採取対象へ戻ったときのために保持し続ける（仕様決定 AH と同型）。
+    /// </summary>
+    public static List<GatherRateState> ReconcileGatherRateRows(
+        IDictionary<string, string> keptTexts,
+        IReadOnlyList<string> gatherableItemIds,
+        MasterDataSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(keptTexts);
+        ArgumentNullException.ThrowIfNull(gatherableItemIds);
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        foreach (string itemId in keptTexts.Keys.ToList())
+        {
+            if (!gatherableItemIds.Contains(itemId)
+                && !TryParseGatherRates(
+                    [new GatherRateInput(itemId, itemId, keptTexts[itemId])],
+                    snapshot,
+                    out _,
+                    out _))
+            {
+                keptTexts.Remove(itemId);
+            }
+        }
+
+        return gatherableItemIds
+            .Select(itemId => new GatherRateState(itemId)
+            {
+                RateText = keptTexts.TryGetValue(itemId, out string? kept) ? kept : "",
+            })
+            .ToList();
+    }
+
+    /// <summary>
     /// 採取素材の利用可能レート入力行を GatherRateOverride の列に変換する。
     /// 空欄の行はマップ既定値扱いで無視する（仕様決定 AE）。
     /// 行が指すアイテムが存在しない・採取素材でない、または値が非数値・負・非有限ならエラーを返す。
@@ -171,6 +231,35 @@ public static class CalculationInputBuilder
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// 期間入力（日・時・分の各欄の文字列）を PeriodAmount へ変換する。
+    /// 空欄は 0 扱い。すべての欄が 0 以上の有限値なら true を返す。
+    /// </summary>
+    public static bool TryParsePeriod(
+        string? daysText,
+        string? hoursText,
+        string? minutesText,
+        out PeriodAmount period)
+    {
+        period = default;
+        return
+            TryParsePart(daysText, out double days)
+            && TryParsePart(hoursText, out double hours)
+            && TryParsePart(minutesText, out double minutes)
+            && PeriodAmount.TryCreate(days, hours, minutes, out period);
+    }
+
+    private static bool TryParsePart(string? text, out double value)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            value = 0;
+            return true;
+        }
+
+        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
     }
 
     /// <summary>
