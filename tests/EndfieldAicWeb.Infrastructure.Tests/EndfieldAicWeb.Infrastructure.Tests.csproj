@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\EndfieldAicWeb.Infrastructure\EndfieldAicWeb.Infrastructure.csproj" />
+    <ProjectReference Include="..\EndfieldAicWeb.Testing\EndfieldAicWeb.Testing.csproj" />
   </ItemGroup>
 
   <ItemGroup>
