@@ -7,8 +7,9 @@
 const NODE_GAP_X = 110;
 const NODE_GAP_Y = 22;
 const MARGIN = 28;
-const ZOOM_MIN = 0.4;
+const ZOOM_MIN = 0.2; // ピンチ対応で緩和（仕様決定 BL）
 const ZOOM_MAX = 1.5; // アイコンが原寸を超えて拡大されない範囲（仕様決定 AL）
+const ZOOM_STEP = 1.25; // 画面上の＋・−ボタンが段階的に掛ける倍率（仕様決定 BL）
 const EDGE_SEGMENTS = 20;
 const EDGE_HALF_W = 2.0;
 // 粒子の個数は絶対流量に比例させ、30 個/分で飽和させる（仕様決定 AP）。
@@ -88,6 +89,38 @@ fn vsParticle(@location(0) edgeIndex: u32,
 @fragment
 fn fsSolid(input: VOut) -> @location(0) vec4f { return input.color; }
 `;
+
+// 最大化中の Esc 復帰（仕様決定 BK）。dispose で解除する。
+export function registerEscape(dotnetRef) {
+    const handler = e => {
+        if (e.key === 'Escape') dotnetRef.invokeMethodAsync('OnEscapeKey').catch(() => {});
+    };
+    document.addEventListener('keydown', handler);
+    return { dispose() { document.removeEventListener('keydown', handler); } };
+}
+
+// 最大化中はページ本体のスクロールを抑止する（仕様決定 BK）。
+let scrollLockPrev = null;
+export function setScrollLock(on) {
+    const el = document.documentElement;
+    if (on) {
+        if (scrollLockPrev === null) scrollLockPrev = el.style.overflow;
+        el.style.overflow = 'hidden';
+    } else if (scrollLockPrev !== null) {
+        el.style.overflow = scrollLockPrev;
+        scrollLockPrev = null;
+    }
+}
+
+// リサイズハンドルのドラッグを指先・ペンでも継続させるためポインターを捕捉する（仕様決定 BK）。
+export function capturePointer(el, pointerId) {
+    el.setPointerCapture(pointerId);
+}
+
+// 領域高さの下限（既定値）。CSS のメディアクエリ（780px 以下で 300px）と同じ閾値を使う（仕様決定 BK）。
+export function minGraphHeight() {
+    return window.innerWidth <= 780 ? 300 : 420;
+}
 
 // ノード DOM クリックからリスト行へのスクロール＋強調。
 export function scrollToRef(refId) {
@@ -288,20 +321,54 @@ function makeHandle(canvas, layer, device, context, format) {
         view.ty = (ch - worldBounds.h * view.s) / 2;
     }
 
-    // ---- パン・ズーム ----
-    let dragging = false;
+    // ---- パン・ピンチ・ズーム ----
+    // アクティブポインターを Map で追跡し、1 点はパン・2 点はピンチとする（仕様決定 BL）。
+    const pointers = new Map();
     let moved = false;
     let lastX = 0, lastY = 0;
+    let pinchStartDist = 0, pinchStartScale = 1, pinchMidX = 0, pinchMidY = 0;
     const container = canvas.parentElement;
 
     function onPointerDown(e) {
         if (e.button !== 0) return;
-        dragging = true;
-        moved = false;
-        lastX = e.clientX; lastY = e.clientY;
+        // リサイズハンドルやズームボタン等のオーバレイ UI 上の押下はパン・ピンチへ登録しない。
+        // Blazor 委任の stopPropagation は祖先のネイティブリスナーより後に評価されるためここで除外する。
+        if (e.target.closest('.flow-resize, .flow-zoom')) return;
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pointers.size === 1) {
+            moved = false;
+            lastX = e.clientX; lastY = e.clientY;
+        } else if (pointers.size === 2) {
+            // 2 点目が触れた時点でパンからピンチへ移行し、初期の距離と中点を記録する。
+            const [a, b] = [...pointers.values()];
+            pinchStartDist = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+            pinchStartScale = view.s;
+            const rect = canvas.getBoundingClientRect();
+            pinchMidX = (a.x + b.x) / 2 - rect.left;
+            pinchMidY = (a.y + b.y) / 2 - rect.top;
+            moved = true; // ピンチ後の click は行ジャンプとして扱わない
+        }
     }
     function onPointerMove(e) {
-        if (!dragging) return;
+        const p = pointers.get(e.pointerId);
+        if (!p) return;
+        p.x = e.clientX; p.y = e.clientY;
+        if (pointers.size >= 2) {
+            // 中点をアンカーに距離比で拡大率を変え、中点の移動量をそのままパンへ加算する。
+            const [a, b] = [...pointers.values()];
+            const rect = canvas.getBoundingClientRect();
+            const midX = (a.x + b.x) / 2 - rect.left;
+            const midY = (a.y + b.y) / 2 - rect.top;
+            const dist = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+            const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, pinchStartScale * dist / pinchStartDist));
+            const k = next / view.s;
+            view.tx = midX - (pinchMidX - view.tx) * k;
+            view.ty = midY - (pinchMidY - view.ty) * k;
+            view.s = next;
+            pinchMidX = midX; pinchMidY = midY;
+            requestFrames();
+            return;
+        }
         const dx = e.clientX - lastX;
         const dy = e.clientY - lastY;
         if (!moved && Math.hypot(dx, dy) < 4) return;
@@ -310,13 +377,32 @@ function makeHandle(canvas, layer, device, context, format) {
         view.tx += dx; view.ty += dy;
         requestFrames();
     }
-    function onPointerUp() { dragging = false; }
+    function onPointerUp(e) {
+        pointers.delete(e.pointerId);
+        if (pointers.size === 1) {
+            // 残った 1 点でパンへ戻る。
+            const [r] = [...pointers.values()];
+            lastX = r.x; lastY = r.y;
+        }
+    }
     function onClickCapture(e) {
-        // ドラッグ移動した直後の click はノードの行ジャンプとして扱わない。
+        // ドラッグ移動・ピンチした直後の click はノードの行ジャンプとして扱わない。
         if (moved) {
             e.stopPropagation();
             moved = false;
         }
+    }
+    // 領域中心をアンカーに拡大率を next へ変える（ホイールと同じアンカー方式）。
+    function zoomTo(next) {
+        next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next));
+        if (next === view.s) return;
+        const rect = canvas.getBoundingClientRect();
+        const mx = rect.width / 2;
+        const my = rect.height / 2;
+        view.tx = mx - (mx - view.tx) * (next / view.s);
+        view.ty = my - (my - view.ty) * (next / view.s);
+        view.s = next;
+        requestFrames();
     }
     function onWheel(e) {
         e.preventDefault();
@@ -333,6 +419,7 @@ function makeHandle(canvas, layer, device, context, format) {
     container.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
     container.addEventListener('click', onClickCapture, true);
     container.addEventListener('wheel', onWheel, { passive: false });
 
@@ -358,10 +445,20 @@ function makeHandle(canvas, layer, device, context, format) {
         ];
     }
 
-    function edgeGeometry(e, rects) {
+    function edgeGeometry(e, rects, vertical) {
         const a = rects.get(e.fromId);
         const b = rects.get(e.toId);
         if (!a || !b) return null;
+        if (vertical) {
+            // 縦表示（仕様決定 BJ）: 出口はソース上辺中央、入口はターゲット下辺中央、
+            // 制御点は垂直方向へ張り出す。循環の後退エッジも同じ規則で側面に膨らむループになる。
+            const p0 = [a.x + a.w / 2, a.y];
+            const p3 = [b.x + b.w / 2, b.y + b.h];
+            const d = Math.max(36, Math.abs(p3[1] - p0[1]) * 0.5);
+            const p1 = [p0[0], p0[1] - d];
+            const p2 = [p3[0], p3[1] + d];
+            return { p0, p1, p2, p3 };
+        }
         const p0 = [a.x + a.w, a.y + a.h / 2];
         const p3 = [b.x, b.y + b.h / 2];
         const d = Math.max(36, Math.abs(p3[0] - p0[0]) * 0.5);
@@ -373,14 +470,14 @@ function makeHandle(canvas, layer, device, context, format) {
     // レイアウトに影響する構造（配置と実測寸法）の署名。署名が同じ限り fitView をせず
     // ユーザーのパン・ズームを維持する。流量など寸法に影響しない値は含めない。
     let lastTopology = '';
-    function topologyKey(m, rects) {
-        return (m?.nodes ?? []).map(n => {
+    function topologyKey(m, rects, vertical) {
+        return (vertical ? 'v|' : 'h|') + (m?.nodes ?? []).map(n => {
             const r = rects.get(n.id);
             return `${n.id}:${n.rank}:${n.order}:${r ? r.w : 0}x${r ? r.h : 0}`;
         }).join('|');
     }
 
-    function update(model) {
+    function update(model, vertical) {
         const nodes = model?.nodes ?? [];
         const edgeList = model?.edges ?? [];
         const maxRate = Math.max(model?.maxRatePerMinute ?? 0, 1e-9);
@@ -396,40 +493,82 @@ function makeHandle(canvas, layer, device, context, format) {
             if (!byRank.has(n.rank)) byRank.set(n.rank, []);
             byRank.get(n.rank).push(n);
         }
-        let maxH = 0;
-        const rankMeta = new Map();
-        for (const [rank, list] of byRank) {
-            list.sort((a, b) => a.order - b.order);
-            let h = MARGIN;
-            let w = 0;
-            for (const n of list) {
-                const el = els.get(n.id);
-                const nw = el ? el.offsetWidth : 140;
-                const nh = el ? el.offsetHeight : 56;
-                rects.set(n.id, { x: 0, y: h, w: nw, h: nh });
-                h += nh + NODE_GAP_Y;
-                w = Math.max(w, nw);
+        if (vertical) {
+            // 縦表示（仕様決定 BJ）: rank→行・order→行内の横位置の転置。
+            // 行の高さは含まれるノードの最大高、行は最大行幅に対して水平中央寄せ、
+            // ノードは行内で上辺揃え。rank 0（採取側の最深）を最下行、最大 rank を最上行とする。
+            let maxW = 0;
+            const rankMeta = new Map();
+            for (const [rank, list] of byRank) {
+                list.sort((a, b) => a.order - b.order);
+                let w = MARGIN;
+                let h = 0;
+                for (const n of list) {
+                    const el = els.get(n.id);
+                    const nw = el ? el.offsetWidth : 140;
+                    const nh = el ? el.offsetHeight : 56;
+                    rects.set(n.id, { x: 0, y: 0, w: nw, h: nh });
+                    w += nw + NODE_GAP_X;
+                    h = Math.max(h, nh);
+                }
+                const rowW = w - NODE_GAP_X + MARGIN;
+                rankMeta.set(rank, { w: rowW, h });
+                maxW = Math.max(maxW, rowW);
             }
-            rankMeta.set(rank, { h: h - NODE_GAP_Y + MARGIN, w });
-            maxH = Math.max(maxH, h - NODE_GAP_Y + MARGIN);
-        }
-        let x = MARGIN;
-        let maxX = 0;
-        for (const rank of [...rankMeta.keys()].sort((a, b) => a - b)) {
-            const meta = rankMeta.get(rank);
-            const offsetY = Math.max(0, (maxH - meta.h) / 2);
-            for (const n of byRank.get(rank)) {
-                const r = rects.get(n.id);
-                r.x = x;
-                r.y += offsetY;
-                const el = els.get(n.id);
-                if (el) el.style.transform = `translate(${r.x}px, ${r.y}px)`;
+            let y = MARGIN;
+            let maxY = 0;
+            for (const rank of [...rankMeta.keys()].sort((a, b) => b - a)) {
+                const meta = rankMeta.get(rank);
+                const offsetX = Math.max(0, (maxW - meta.w) / 2);
+                let x = MARGIN + offsetX;
+                for (const n of byRank.get(rank)) {
+                    const r = rects.get(n.id);
+                    r.x = x;
+                    r.y = y;
+                    const el = els.get(n.id);
+                    if (el) el.style.transform = `translate(${r.x}px, ${r.y}px)`;
+                    x += r.w + NODE_GAP_X;
+                }
+                y += meta.h + NODE_GAP_Y;
+                maxY = y - NODE_GAP_Y + MARGIN;
             }
-            x += meta.w + NODE_GAP_X;
-            maxX = x - NODE_GAP_X + MARGIN;
+            worldBounds = { w: maxW, h: maxY };
+        } else {
+            let maxH = 0;
+            const rankMeta = new Map();
+            for (const [rank, list] of byRank) {
+                list.sort((a, b) => a.order - b.order);
+                let h = MARGIN;
+                let w = 0;
+                for (const n of list) {
+                    const el = els.get(n.id);
+                    const nw = el ? el.offsetWidth : 140;
+                    const nh = el ? el.offsetHeight : 56;
+                    rects.set(n.id, { x: 0, y: h, w: nw, h: nh });
+                    h += nh + NODE_GAP_Y;
+                    w = Math.max(w, nw);
+                }
+                rankMeta.set(rank, { h: h - NODE_GAP_Y + MARGIN, w });
+                maxH = Math.max(maxH, h - NODE_GAP_Y + MARGIN);
+            }
+            let x = MARGIN;
+            let maxX = 0;
+            for (const rank of [...rankMeta.keys()].sort((a, b) => a - b)) {
+                const meta = rankMeta.get(rank);
+                const offsetY = Math.max(0, (maxH - meta.h) / 2);
+                for (const n of byRank.get(rank)) {
+                    const r = rects.get(n.id);
+                    r.x = x;
+                    r.y += offsetY;
+                    const el = els.get(n.id);
+                    if (el) el.style.transform = `translate(${r.x}px, ${r.y}px)`;
+                }
+                x += meta.w + NODE_GAP_X;
+                maxX = x - NODE_GAP_X + MARGIN;
+            }
+            worldBounds = { w: maxX, h: maxH };
         }
-        worldBounds = { w: maxX, h: maxH };
-        const topoKey = topologyKey(model, rects);
+        const topoKey = topologyKey(model, rects, vertical);
         if (topoKey !== lastTopology) {
             lastTopology = topoKey;
             fitView();
@@ -440,7 +579,7 @@ function makeHandle(canvas, layer, device, context, format) {
         const params = [];
         const instances = [];
         for (const e of edgeList) {
-            const g = edgeGeometry(e, rects);
+            const g = edgeGeometry(e, rects, vertical);
             if (!g) continue;
             const color = e.overCapacity ? OVER_COLOR : EDGE_COLORS[e.kind] ?? EDGE_COLORS[0];
             const edgeIndex = params.length;
@@ -520,6 +659,8 @@ function makeHandle(canvas, layer, device, context, format) {
     return {
         update,
         refit() { fitView(); requestFrames(); },
+        // ＋・−ボタン: 領域中心アンカーの段階的な拡大縮小（仕様決定 BL）。
+        zoomStep(dir) { zoomTo(view.s * (dir > 0 ? ZOOM_STEP : 1 / ZOOM_STEP)); },
         dispose() {
             destroyed = true;
             running = false;
@@ -530,6 +671,7 @@ function makeHandle(canvas, layer, device, context, format) {
             container.removeEventListener('pointerdown', onPointerDown);
             window.removeEventListener('pointermove', onPointerMove);
             window.removeEventListener('pointerup', onPointerUp);
+            window.removeEventListener('pointercancel', onPointerUp);
             container.removeEventListener('click', onClickCapture, true);
             container.removeEventListener('wheel', onWheel);
             edgeVertexBuffer?.destroy();

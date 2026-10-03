@@ -1,25 +1,47 @@
-@* 生産フローグラフ（仕様決定 AI/AJ）。canvas は WebGPU がエッジと粒子を描き、ノードは DOM カードが担う。 *@
+@* 生産フローグラフ（仕様決定 AI/AJ・BJ〜BL）。canvas は WebGPU がエッジと粒子を描き、ノードは DOM カードが担う。
+   表示方向・高さ・最大化は親が保持するパラメータで、グラフ⇄リスト切替の再マウントをまたいで維持される。 *@
 @using System.Globalization
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
-<div class="flow-graph-wrap">
-    <canvas @ref="_canvas" class="flow-canvas"></canvas>
-    <div @ref="_layer" class="fnode-layer">
-        @foreach (FlowGraphNode n in Model.Nodes)
-        {
-            <button type="button" class="fnode @NodeClass(n)" data-node-id="@n.Id" @key="n.Id"
-                 @onclick="() => OnNodeClick(n)">
-                <EntityIcon IconKey="@n.IconKey" />
-                <span class="fnode-text">
-                    <span class="fnode-label">@n.Label</span>
-                    <span class="fnode-meta">@NodeMeta(n)</span>
-                </span>
-            </button>
-        }
+<div class="flow-graph@(Maximized ? " flow-max" : "")">
+    <div class="flow-toolbar">
+        <div class="segmented">
+            <button type="button" class="seg@(Vertical ? " on" : "")" @onclick="() => SetVertical(true)">縦</button>
+            <button type="button" class="seg@(!Vertical ? " on" : "")" @onclick="() => SetVertical(false)">横</button>
+        </div>
+        <button type="button" class="btn ghost flow-maxbtn"
+                title="@(Maximized ? "元のサイズに戻す" : "画面いっぱいに表示")"
+                @onclick="ToggleMaximize">@(Maximized ? "元に戻す" : "最大化")</button>
     </div>
+    <div class="flow-graph-wrap" style="@WrapStyle">
+        <canvas @ref="_canvas" class="flow-canvas"></canvas>
+        <div @ref="_layer" class="fnode-layer">
+            @foreach (FlowGraphNode n in Model.Nodes)
+            {
+                <button type="button" class="fnode @NodeClass(n)" data-node-id="@n.Id" @key="n.Id"
+                     @onclick="() => OnNodeClick(n)">
+                    <EntityIcon IconKey="@n.IconKey" />
+                    <span class="fnode-text">
+                        <span class="fnode-label">@n.Label</span>
+                        <span class="fnode-meta">@NodeMeta(n)</span>
+                    </span>
+                </button>
+            }
+        </div>
+        <div class="flow-zoom" @onpointerdown:stopPropagation="true">
+            <button type="button" class="btn flow-zoombtn" title="拡大" @onclick="ZoomIn">＋</button>
+            <button type="button" class="btn flow-zoombtn" title="縮小" @onclick="ZoomOut">−</button>
+            <button type="button" class="btn flow-zoombtn" title="グラフ全体を領域に収める" @onclick="Fit">フィット</button>
+        </div>
+        <div @ref="_resizeHandle" class="flow-resize" title="ドラッグで高さを変更"
+             @onpointerdown="OnResizeStart" @onpointerdown:stopPropagation="true"
+             @onpointermove="OnResizeMove" @onpointerup="OnResizeEnd" @onpointercancel="OnResizeEnd">
+            <span class="flow-resize-grip"></span>
+        </div>
+    </div>
+    <p class="hint">ドラッグで移動、ピンチまたはホイールで拡大・縮小できます。ノードを押すと下のリストへジャンプします。</p>
 </div>
-<p class="hint">ドラッグで移動、ホイールで拡大・縮小できます。ノードを押すと下のリストへジャンプします。</p>
 
 @code {
     /// <summary>表示するグラフモデル（FlowGraphModelBuilder の出力）。</summary>
@@ -31,20 +53,59 @@
     /// <summary>WebGPU が使えず描画を諦めたときに親へ通知する。</summary>
     [Parameter] public EventCallback OnUnavailable { get; set; }
 
+    /// <summary>縦方向表示（既定）か横方向表示か（仕様決定 BJ）。再マウントをまたぐため親が保持する。</summary>
+    [Parameter] public bool Vertical { get; set; } = true;
+
+    /// <summary>Vertical の双方向バインド用コールバック。</summary>
+    [Parameter] public EventCallback<bool> VerticalChanged { get; set; }
+
+    /// <summary>領域の高さ（px）。null は CSS の既定値（420px、モバイル幅 300px）（仕様決定 BK）。</summary>
+    [Parameter] public double? Height { get; set; }
+
+    /// <summary>Height の双方向バインド用コールバック。ドラッグ確定時にのみ通知する。</summary>
+    [Parameter] public EventCallback<double?> HeightChanged { get; set; }
+
+    /// <summary>画面全面オーバレイで表示するか（仕様決定 BK）。</summary>
+    [Parameter] public bool Maximized { get; set; }
+
+    /// <summary>Maximized の双方向バインド用コールバック。</summary>
+    [Parameter] public EventCallback<bool> MaximizedChanged { get; set; }
+
     private ElementReference _canvas;
     private ElementReference _layer;
+    private ElementReference _resizeHandle;
     private IJSObjectReference? _module;
     private IJSObjectReference? _handle;
+    private IJSObjectReference? _escapeSub;
+    private DotNetObjectReference<FlowGraph>? _selfRef;
     private bool _updatePending = true;
     private bool _unavailableNotified;
+    private bool _scrollLocked;
+    private double? _height;
+    private bool _resizing;
+    private double _resizeStartY;
+    private double _resizeStartH;
+    private double _minH = 420;
 
-    protected override void OnParametersSet() => _updatePending = true;
+    private string? WrapStyle =>
+        _height is { } h ? $"height: {h.ToString("0", CultureInfo.InvariantCulture)}px" : null;
+
+    protected override void OnParametersSet()
+    {
+        _updatePending = true;
+        if (!_resizing)
+        {
+            _height = Height;
+        }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/EndfieldAicWeb.SharedUi/js/flow-graph.js");
+            _selfRef = DotNetObjectReference.Create(this);
+            _escapeSub = await _module.InvokeAsync<IJSObjectReference>("registerEscape", _selfRef);
             _handle = await _module.InvokeAsync<IJSObjectReference?>("create", _canvas, _layer);
             if (_handle is null)
             {
@@ -59,7 +120,13 @@
         if (_handle is not null && _updatePending)
         {
             _updatePending = false;
-            await _handle.InvokeVoidAsync("update", Model);
+            await _handle.InvokeVoidAsync("update", Model, Vertical);
+        }
+        // 最大化状態へスクロール抑止を同期する（再マウント時に最大化が維持される場合を含む）。
+        if (_module is not null && _scrollLocked != Maximized)
+        {
+            _scrollLocked = Maximized;
+            await _module.InvokeVoidAsync("setScrollLock", Maximized);
         }
     }
 
@@ -119,6 +186,83 @@
         }
     }
 
+    private async Task SetVertical(bool vertical)
+    {
+        if (vertical != Vertical)
+        {
+            await VerticalChanged.InvokeAsync(vertical);
+        }
+    }
+
+    private async Task ToggleMaximize() => await MaximizedChanged.InvokeAsync(!Maximized);
+
+    /// <summary>Esc で最大化を復帰する（flow-graph.js の registerEscape から呼ばれる）。</summary>
+    [JSInvokable]
+    public async Task OnEscapeKey()
+    {
+        if (Maximized)
+        {
+            await MaximizedChanged.InvokeAsync(false);
+        }
+    }
+
+    private async Task ZoomIn()
+    {
+        if (_handle is not null)
+        {
+            await _handle.InvokeVoidAsync("zoomStep", 1);
+        }
+    }
+
+    private async Task ZoomOut()
+    {
+        if (_handle is not null)
+        {
+            await _handle.InvokeVoidAsync("zoomStep", -1);
+        }
+    }
+
+    private async Task Fit()
+    {
+        if (_handle is not null)
+        {
+            await _handle.InvokeVoidAsync("refit");
+        }
+    }
+
+    private async Task OnResizeStart(PointerEventArgs e)
+    {
+        if (_module is null)
+        {
+            return;
+        }
+        _minH = await _module.InvokeAsync<double>("minGraphHeight");
+        _resizing = true;
+        _resizeStartY = e.ClientY;
+        _resizeStartH = _height ?? _minH;
+        _height = _resizeStartH;
+        await _module.InvokeVoidAsync("capturePointer", _resizeHandle, e.PointerId);
+    }
+
+    private void OnResizeMove(PointerEventArgs e)
+    {
+        if (!_resizing)
+        {
+            return;
+        }
+        _height = Math.Max(_minH, _resizeStartH + (e.ClientY - _resizeStartY));
+    }
+
+    private async Task OnResizeEnd(PointerEventArgs e)
+    {
+        if (!_resizing)
+        {
+            return;
+        }
+        _resizing = false;
+        await HeightChanged.InvokeAsync(_height);
+    }
+
     public async ValueTask DisposeAsync()
     {
         try
@@ -128,13 +272,22 @@
                 await _handle.InvokeVoidAsync("dispose");
                 await _handle.DisposeAsync();
             }
+            if (_escapeSub is not null)
+            {
+                await _escapeSub.DisposeAsync();
+            }
             if (_module is not null)
             {
+                if (_scrollLocked)
+                {
+                    await _module.InvokeVoidAsync("setScrollLock", false);
+                }
                 await _module.DisposeAsync();
             }
         }
         catch (JSDisconnectedException)
         {
         }
+        _selfRef?.Dispose();
     }
 }

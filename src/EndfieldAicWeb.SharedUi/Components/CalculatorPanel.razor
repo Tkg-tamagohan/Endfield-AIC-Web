@@ -140,7 +140,8 @@
             @if (_graphSupported && _graphOpen && _flowModel is not null)
             {
                 <h2 class="panel-title">生産フロー</h2>
-                <FlowGraph Model="_flowModel" FormatRate="FormatGraphRate" OnUnavailable="OnGraphUnavailable" />
+                <FlowGraph Model="_flowModel" FormatRate="FormatGraphRate" OnUnavailable="OnGraphUnavailable"
+                           @bind-Vertical="_graphVertical" @bind-Height="_graphHeight" @bind-Maximized="_graphMaximized" />
             }
 
             <h2 class="panel-title">素材</h2>
@@ -311,6 +312,11 @@
     private bool _graphSupported;
     private bool _graphOpen;
     private bool _graphExpandFacilities;
+
+    // 表示方向・高さ・最大化は FlowGraph が再マウントされても維持するためここで保持する（仕様決定 BJ/BK）。
+    private bool _graphVertical = true;
+    private double? _graphHeight;
+    private bool _graphMaximized;
     private ContextFilter _context = new();
     private string? _mapId;
     private string? _inputError;
