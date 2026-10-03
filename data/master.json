@@ -487,7 +487,7 @@
       "IsGatherable": false,
       "TransportKind": "Belt",
       "GameEventId": null,
-      "Id": "item-cupriumCanitster",
+      "Id": "item-cupriumCanister",
       "Name": "赤銅圧力タンク",
       "Description": "",
       "IconKey": null,
@@ -511,7 +511,7 @@
       "IsGatherable": false,
       "TransportKind": "Pipe",
       "GameEventId": null,
-      "Id": "item-swage",
+      "Id": "item-sewage",
       "Name": "汚水",
       "Description": "",
       "IconKey": null,
@@ -662,7 +662,7 @@
       "Width": 3,
       "Height": 3,
       "PowerConsumption": 10,
-      "Id": "fac-moulding ",
+      "Id": "fac-moulding",
       "Name": "成形機",
       "Description": "",
       "IconKey": null,
@@ -1046,20 +1046,20 @@
       ],
       "Outputs": [
         {
-          "ItemId": "item-cupriumCanitster",
+          "ItemId": "item-cupriumCanister",
           "Quantity": 1,
           "SortOrder": 0
         }
       ],
       "Facilities": [
         {
-          "FacilityId": "fac-moulding ",
+          "FacilityId": "fac-moulding",
           "CycleTime": 2,
           "EnvironmentId": "env-stable",
           "FixedConsumption": null
         }
       ],
-      "Id": "recipe-cupriumCanitster",
+      "Id": "recipe-cupriumCanister",
       "Name": "赤銅圧力タンク",
       "Description": "",
       "IconKey": null,
@@ -1070,7 +1070,7 @@
       "GameEventId": null,
       "Inputs": [
         {
-          "ItemId": "item-cupriumCanitster",
+          "ItemId": "item-cupriumCanister",
           "Quantity": 1
         },
         {
@@ -1119,7 +1119,7 @@
           "SortOrder": 0
         },
         {
-          "ItemId": "item-swage",
+          "ItemId": "item-sewage",
           "Quantity": 1,
           "SortOrder": 1
         }

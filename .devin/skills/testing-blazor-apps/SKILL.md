@@ -79,7 +79,7 @@ dotnet run --project src/EndfieldAicWeb.Admin --no-launch-profile --urls http://
 
 ## 環境付き計算のゴールデンパス（旧同梱マスタ 0.2.0 での実測例）
 
-同梱マスタ 0.2.8 には Environments（安定環境・酸性環境）と散布機（ガス散布機）に加えて、安定環境ペアを持つレシピが 3 件（recipe-xiranite02・recipe-cupriumCanitster・recipe-heavyXiragen02）登録されており、環境行の基本表示は息壌の計算でそのまま確認できる（前表参照）。固定消費を持つペアも同梱になった（recipe-heavyXiranite02・ガス固体転換機・息壌ガス 6/分）ため、固定消費の表示は重息壌の計算で実データのまま確認できる。本節の値は旧サンプルデータでの実測例であり、フロー制限ヒント等の表示形式の目安として残す。投入は後述の採取フィクスチャと同じく稼働中 `wwwroot/data/master.json` への注入で行う。
+同梱マスタ 0.2.8 には Environments（安定環境・酸性環境）と散布機（ガス散布機）に加えて、安定環境ペアを持つレシピが 3 件（recipe-xiranite02・recipe-cupriumCanister・recipe-heavyXiragen02）登録されており、環境行の基本表示は息壌の計算でそのまま確認できる（前表参照）。固定消費を持つペアも同梱になった（recipe-heavyXiranite02・ガス固体転換機・息壌ガス 6/分）ため、固定消費の表示は重息壌の計算で実データのまま確認できる。本節の値は旧サンプルデータでの実測例であり、フロー制限ヒント等の表示形式の目安として残す。投入は後述の採取フィクスチャと同じく稼働中 `wwwroot/data/master.json` への注入で行う。
 
 汎用部品（item-part）を数量 10 で計算すると、環境・固定消費・フロー制限ヒントの表示を 1 回の計算で確認できる。App・Admin プレビュー共通の期待値:
 
