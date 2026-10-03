@@ -67,6 +67,7 @@ public sealed class MasterDataSnapshot
     private readonly IReadOnlyDictionary<string, Recipe> _recipesById = new Dictionary<string, Recipe>(StringComparer.Ordinal);
     private readonly IReadOnlyDictionary<string, GameMap> _mapsById = new Dictionary<string, GameMap>(StringComparer.Ordinal);
     private readonly IReadOnlyDictionary<string, IReadOnlyList<Recipe>> _recipesByOutputItemId = new Dictionary<string, IReadOnlyList<Recipe>>(StringComparer.Ordinal);
+    private readonly IReadOnlyDictionary<string, IReadOnlyList<Recipe>> _disposalRecipesByInputItemId = new Dictionary<string, IReadOnlyList<Recipe>>(StringComparer.Ordinal);
 
     public required IReadOnlyList<Item> Items
     {
@@ -124,6 +125,7 @@ public sealed class MasterDataSnapshot
             _recipesById = new ReadOnlyDictionary<string, Recipe>(
                 _recipes.ToDictionary(r => r.Id, StringComparer.Ordinal));
             _recipesByOutputItemId = BuildRecipesByOutputItemId(_recipes);
+            _disposalRecipesByInputItemId = BuildDisposalRecipesByInputItemId(_recipes);
         }
     }
 
@@ -156,6 +158,40 @@ public sealed class MasterDataSnapshot
 
     /// <summary>出力アイテム Id → そのアイテムを出力するレシピ一覧。</summary>
     public IReadOnlyDictionary<string, IReadOnlyList<Recipe>> RecipesByOutputItemId => _recipesByOutputItemId;
+
+    /// <summary>
+    /// 入力アイテム Id → そのアイテムを入力に持つ出力なしレシピ（処理レシピ、仕様決定 BZ）一覧。
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<Recipe>> DisposalRecipesByInputItemId => _disposalRecipesByInputItemId;
+
+    private static IReadOnlyDictionary<string, IReadOnlyList<Recipe>> BuildDisposalRecipesByInputItemId(IReadOnlyList<Recipe> recipes)
+    {
+        var byInput = new Dictionary<string, List<Recipe>>(StringComparer.Ordinal);
+        foreach (Recipe recipe in recipes)
+        {
+            if (recipe.Outputs.Count > 0)
+            {
+                continue;
+            }
+
+            foreach (RecipeInput input in recipe.Inputs)
+            {
+                if (!byInput.TryGetValue(input.ItemId, out List<Recipe>? list))
+                {
+                    list = [];
+                    byInput[input.ItemId] = list;
+                }
+
+                list.Add(recipe);
+            }
+        }
+
+        return new ReadOnlyDictionary<string, IReadOnlyList<Recipe>>(
+            byInput.ToDictionary(
+                p => p.Key,
+                p => (IReadOnlyList<Recipe>)p.Value.AsReadOnly(),
+                StringComparer.Ordinal));
+    }
 
     private static IReadOnlyDictionary<string, IReadOnlyList<Recipe>> BuildRecipesByOutputItemId(IReadOnlyList<Recipe> recipes)
     {

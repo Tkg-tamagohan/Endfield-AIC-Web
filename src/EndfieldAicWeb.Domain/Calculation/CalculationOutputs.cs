@@ -71,8 +71,14 @@ public sealed record FacilityRequirement(string FacilityId, double ExactCount, i
 
 /// <summary>
 /// 稼働が確定したペアとそのサイクル数/分。
+/// Pair はランに選ばれた設備ペア行（出力なしレシピのラン＝処理ランは PairSelections に載らないため
+/// ラン自身に保持する、仕様決定 CC）。
 /// </summary>
-public sealed record RecipeRun(string RecipeId, string FacilityId, double CyclesPerMinute);
+public sealed record RecipeRun(
+    string RecipeId,
+    string FacilityId,
+    double CyclesPerMinute,
+    RecipeFacility? Pair = null);
 
 /// <summary>
 /// 必要となった環境とその供給設備の台数・消費流量（仕様決定 I）。

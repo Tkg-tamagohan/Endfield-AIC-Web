@@ -4,13 +4,14 @@ using Environment = EndfieldAicWeb.Domain.Models.Environment;
 
 namespace EndfieldAicWeb.Application;
 
-/// <summary>素材行の表示用モデル。</summary>
+/// <summary>素材行の表示用モデル。DisposalPerMinute は処理ランによる消費量（仕様決定 CC）。</summary>
 public sealed record MaterialViewRow(
     string ItemId,
     double RequiredPerMinute,
     IReadOnlyList<SupplyPortion> Supplies,
     double UnmetPerMinute,
-    string? SelectedPairKey);
+    string? SelectedPairKey,
+    double DisposalPerMinute);
 
 /// <summary>設備行の表示用モデル。FlowLimits は調整済ビューでのみ入る。</summary>
 public sealed record FacilityViewRow(
@@ -66,6 +67,21 @@ public static class ResultViewBuilder
             .GroupBy(s => s.ItemId, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
 
+        // 処理消費（出力なしレシピのラン由来、仕様決定 CC）。調整済は計画どおりの量を、
+        // 未調整はラン倍率でスケールし未調整の利用可能量内にクランプした量を出す（暫定解釈 8）。
+        IReadOnlyDictionary<string, List<(int RunIndex, double PerMinute)>> disposalByItem;
+        IReadOnlyList<SurplusProduction> surpluses;
+        if (unadjusted)
+        {
+            (surpluses, disposalByItem) = ComputeUnadjustedDisposalAndSurpluses(
+                plan, snapshot, context, runScales);
+        }
+        else
+        {
+            surpluses = plan.Surpluses;
+            disposalByItem = ComputeDisposalByItem(plan, snapshot, null);
+        }
+
         var materials = plan.ItemRequirements
             .Select(req =>
             {
@@ -79,7 +95,11 @@ public static class ResultViewBuilder
                 string? selectedKey = selectionsByItem.TryGetValue(req.ItemId, out PairSelection? sel)
                     ? PairOptionKey.Create(sel)
                     : null;
-                return new MaterialViewRow(req.ItemId, req.RequiredPerMinute, supplies, req.UnmetPerMinute, selectedKey);
+                double disposal = disposalByItem.TryGetValue(req.ItemId, out List<(int RunIndex, double PerMinute)>? entries)
+                    ? entries.Sum(e => e.PerMinute)
+                    : 0.0;
+                return new MaterialViewRow(
+                    req.ItemId, req.RequiredPerMinute, supplies, req.UnmetPerMinute, selectedKey, disposal);
             })
             .ToList();
 
@@ -112,10 +132,6 @@ public static class ResultViewBuilder
                     ? limits
                     : []))
             .ToList();
-
-        IReadOnlyList<SurplusProduction> surpluses = unadjusted
-            ? RecomputeSurpluses(plan, snapshot, context, runScales)
-            : plan.Surpluses;
 
         return new ResultView(
             materials,
@@ -157,8 +173,9 @@ public static class ResultViewBuilder
         var envRunIndexes = new Dictionary<string, List<int>>(StringComparer.Ordinal);
         for (int i = 0; i < plan.RecipeRuns.Count; i++)
         {
-            if (pairByRecipe.TryGetValue(plan.RecipeRuns[i].RecipeId, out RecipeFacility? pair)
-                && pair.EnvironmentId is string envId)
+            RecipeFacility? pair = plan.RecipeRuns[i].Pair
+                ?? pairByRecipe.GetValueOrDefault(plan.RecipeRuns[i].RecipeId);
+            if (pair?.EnvironmentId is string envId)
             {
                 if (!envRunIndexes.TryGetValue(envId, out List<int>? indexes))
                 {
@@ -182,7 +199,7 @@ public static class ResultViewBuilder
             for (int j = 0; j < indexes.Count; j++)
             {
                 RecipeRun run = plan.RecipeRuns[indexes[j]];
-                machines[j] = run.CyclesPerMinute * pairByRecipe[run.RecipeId].CycleTime / 60.0;
+                machines[j] = run.CyclesPerMinute * PairCycleTime(run, pairByRecipe) / 60.0;
             }
 
             double remaining = Math.Max(0.0, cap - machines.Sum());
@@ -215,7 +232,80 @@ public static class ResultViewBuilder
         ContextFilter context,
         IReadOnlyList<double> runScales)
     {
-        return RecomputeSurpluses(plan, snapshot, context, runScales);
+        return RecomputeSurplusesAndDisposal(plan, snapshot, context, runScales).Surpluses;
+    }
+
+    /// <summary>
+    /// 未調整ビューの処理消費と余剰。処理消費はラン倍率でスケールし未調整の利用可能量内に
+    /// クランプし、余剰は処理後の残量とする（暫定解釈 8）。FlowGraphModelBuilder が共用する。
+    /// </summary>
+    internal static (List<SurplusProduction> Surpluses, Dictionary<string, List<(int RunIndex, double PerMinute)>> DisposalByItem)
+        ComputeUnadjustedDisposalAndSurpluses(
+            ProductionPlan plan,
+            MasterDataSnapshot snapshot,
+            ContextFilter context,
+            IReadOnlyList<double> runScales)
+    {
+        return RecomputeSurplusesAndDisposal(plan, snapshot, context, runScales);
+    }
+
+    /// <summary>
+    /// 調整済ビューの処理消費（item → 消費ラン内訳）。FlowGraphModelBuilder が共用する。
+    /// </summary>
+    internal static Dictionary<string, List<(int RunIndex, double PerMinute)>> ComputeDisposalShown(
+        ProductionPlan plan,
+        MasterDataSnapshot snapshot)
+    {
+        return ComputeDisposalByItem(plan, snapshot, null);
+    }
+
+    /// <summary>
+    /// 出力なしレシピのランによるアイテム消費（アイテム → （ラン index, 処理量 個/分）の内訳）。
+    /// runScales を渡すとラン倍率を掛けた量を返す（未調整ビュー）。
+    /// </summary>
+    internal static Dictionary<string, List<(int RunIndex, double PerMinute)>> ComputeDisposalByItem(
+        ProductionPlan plan,
+        MasterDataSnapshot snapshot,
+        IReadOnlyList<double>? runScales)
+    {
+        var byItem = new Dictionary<string, List<(int RunIndex, double PerMinute)>>(StringComparer.Ordinal);
+        for (int i = 0; i < plan.RecipeRuns.Count; i++)
+        {
+            RecipeRun run = plan.RecipeRuns[i];
+            if (!snapshot.RecipesById.TryGetValue(run.RecipeId, out Recipe? recipe)
+                || recipe.Outputs.Count > 0)
+            {
+                continue;
+            }
+
+            double scale = runScales is not null && i < runScales.Count ? runScales[i] : 1.0;
+            foreach (RecipeInput input in recipe.Inputs)
+            {
+                double rate = run.CyclesPerMinute * scale * input.Quantity;
+                if (rate <= Epsilon)
+                {
+                    continue;
+                }
+
+                if (!byItem.TryGetValue(input.ItemId, out List<(int RunIndex, double PerMinute)>? list))
+                {
+                    list = [];
+                    byItem[input.ItemId] = list;
+                }
+
+                list.Add((i, rate));
+            }
+        }
+
+        return byItem;
+    }
+
+    /// <summary>ランの CycleTime を確定ペア → ラン保持ペア → レシピ先頭一致ペアの順で引く。</summary>
+    private static double PairCycleTime(
+        RecipeRun run,
+        IReadOnlyDictionary<string, RecipeFacility> pairByRecipe)
+    {
+        return (run.Pair ?? pairByRecipe.GetValueOrDefault(run.RecipeId))?.CycleTime ?? 0.0;
     }
 
     /// <summary>設備ごとの未調整倍率 s(F)。散布機のみの設備は 1。</summary>
@@ -228,8 +318,13 @@ public static class ResultViewBuilder
         var recipeExact = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (RecipeRun run in plan.RecipeRuns)
         {
+            // ランに保持されたペアを最優先にする（処理ランは PairSelections に載らない、CC）。
             double cycleTime;
-            if (pairByRecipe.TryGetValue(run.RecipeId, out RecipeFacility? pair))
+            if (run.Pair is { } runPair)
+            {
+                cycleTime = runPair.CycleTime;
+            }
+            else if (pairByRecipe.TryGetValue(run.RecipeId, out RecipeFacility? pair))
             {
                 cycleTime = pair.CycleTime;
             }
@@ -272,14 +367,17 @@ public static class ResultViewBuilder
     }
 
     /// <summary>
-    /// 未調整の余剰を再計算する。produced' = Σ run(cycles × runScale × 出力個数)。
+    /// 未調整の余剰と処理消費を再計算する。produced' = Σ run(cycles × runScale × 出力個数)。
     /// イベント不可アイテムは全量が余剰（仕様決定 X を調整済と同じ規則で適用）。
+    /// 処理消費はスケール後の量を未調整の利用可能量内にクランプして返し、
+    /// 余剰はその残量とする（暫定解釈 8）。
     /// </summary>
-    private static List<SurplusProduction> RecomputeSurpluses(
-        ProductionPlan plan,
-        MasterDataSnapshot snapshot,
-        ContextFilter context,
-        IReadOnlyList<double> runScales)
+    private static (List<SurplusProduction> Surpluses, Dictionary<string, List<(int RunIndex, double PerMinute)>> DisposalByItem)
+        RecomputeSurplusesAndDisposal(
+            ProductionPlan plan,
+            MasterDataSnapshot snapshot,
+            ContextFilter context,
+            IReadOnlyList<double> runScales)
     {
         var produced = new Dictionary<string, double>(StringComparer.Ordinal);
         for (int i = 0; i < plan.RecipeRuns.Count; i++)
@@ -309,6 +407,35 @@ public static class ResultViewBuilder
                 r => r.Supplies.Where(s => s.Kind == SupplyKind.Gathered).Sum(s => s.AmountPerMinute),
                 StringComparer.Ordinal);
 
+        // 計画の需要に含まれる処理消費（スケールなし=計画値）とスケール後の処理消費。
+        var planDisposalByItem = ComputeDisposalByItem(plan, snapshot, null)
+            .ToDictionary(kv => kv.Key, kv => kv.Value.Sum(d => d.PerMinute), StringComparer.Ordinal);
+        var rawDisposalByItem = ComputeDisposalByItem(plan, snapshot, runScales);
+
+        // 処理消費のクランプは採取のみで賄う補助入力など produced に載らないアイテムにも
+        // 必要なため、全処理対象で計算する。
+        var shownByItem = new Dictionary<string, List<(int RunIndex, double PerMinute)>>(StringComparer.Ordinal);
+        var shownTotalByItem = new Dictionary<string, double>(StringComparer.Ordinal);
+        foreach ((string itemId, List<(int RunIndex, double PerMinute)> entries) in rawDisposalByItem)
+        {
+            double otherDemand = Math.Max(
+                0.0,
+                demandByItem.GetValueOrDefault(itemId) - planDisposalByItem.GetValueOrDefault(itemId));
+            double available = Math.Max(
+                0.0,
+                produced.GetValueOrDefault(itemId) + gatheredByItem.GetValueOrDefault(itemId) - otherDemand);
+            double rawTotal = entries.Sum(e => e.PerMinute);
+            double shownTotal = Math.Min(rawTotal, available);
+            double factor = rawTotal > Epsilon ? shownTotal / rawTotal : 0.0;
+            // 表示量 0 のエントリは残さない（処理のないアイテムがグラフで紫化しないよう）。
+            // 素材行の処理量は shownTotalByItem 側の 0 のまま保持する。
+            shownByItem[itemId] = entries
+                .Select(e => (e.RunIndex, PerMinute: e.PerMinute * factor))
+                .Where(e => e.PerMinute > Epsilon)
+                .ToList();
+            shownTotalByItem[itemId] = shownTotal;
+        }
+
         var surpluses = new List<SurplusProduction>();
         foreach ((string itemId, double amount) in produced)
         {
@@ -316,15 +443,19 @@ public static class ResultViewBuilder
                 && item.GameEventId is not null
                 && !context.ActiveGameEventIds.Contains(item.GameEventId);
 
+            double otherDemand = Math.Max(
+                0.0,
+                demandByItem.GetValueOrDefault(itemId) - planDisposalByItem.GetValueOrDefault(itemId));
             double excess = inactive
                 ? amount
-                : amount + gatheredByItem.GetValueOrDefault(itemId) - demandByItem.GetValueOrDefault(itemId);
+                : amount + gatheredByItem.GetValueOrDefault(itemId)
+                    - otherDemand - shownTotalByItem.GetValueOrDefault(itemId);
             if (excess > Epsilon)
             {
                 surpluses.Add(new SurplusProduction(itemId, excess));
             }
         }
 
-        return surpluses;
+        return (surpluses, shownByItem);
     }
 }

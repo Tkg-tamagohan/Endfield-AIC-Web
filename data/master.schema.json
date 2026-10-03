@@ -140,8 +140,8 @@
           "type": "object",
           "required": ["Inputs", "Outputs", "Facilities", "GameEventId"],
           "properties": {
-            "Inputs": { "type": "array", "items": { "$ref": "#/$defs/recipeIo" } },
-            "Outputs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/recipeOutput" } },
+            "Inputs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/recipeIo" } },
+            "Outputs": { "type": "array", "minItems": 0, "items": { "$ref": "#/$defs/recipeOutput" } },
             "Facilities": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/recipeFacility" } },
             "GameEventId": { "anyOf": [{ "$ref": "#/$defs/idValue" }, { "type": "null" }] }
           }

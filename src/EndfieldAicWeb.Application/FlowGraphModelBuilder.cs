@@ -37,7 +37,18 @@ public sealed record FlowGraphNode(
     double UnmetPerMinute,
     double SurplusPerMinute,
     double GatheredPerMinute,
-    string? Note);
+    string? Note,
+    IReadOnlyList<FlowGraphDisposal> Disposals);
+
+/// <summary>
+/// アイテムノードへ持たせる処理消費 1 件（仕様決定 CD）。
+/// Count は計画の設備要件の切上げ台数（兼用設備の処理分だけの按分はしない、暫定解釈 4）。
+/// </summary>
+public sealed record FlowGraphDisposal(
+    string FacilityId,
+    string FacilityName,
+    int Count,
+    double PerMinute);
 
 /// <summary>
 /// グラフのエッジ。同一ノード対・同種別は流量を合算して 1 本にまとめる。
@@ -102,6 +113,16 @@ public static class FlowGraphModelBuilder
             ? ResultViewBuilder.ComputeUnadjustedRunScales(plan, snapshot)
             : [];
 
+        // 処理ラン（出力なしレシピのラン）はエッジ生成・ユニット割当の対象外とし、
+        // そのランのみを占有する設備は設備ノードを持たない（仕様決定 CD）。
+        var disposalRunIndex = new bool[plan.RecipeRuns.Count];
+        for (int i = 0; i < plan.RecipeRuns.Count; i++)
+        {
+            disposalRunIndex[i] =
+                snapshot.RecipesById.TryGetValue(plan.RecipeRuns[i].RecipeId, out Recipe? disposalRecipe)
+                && disposalRecipe.Outputs.Count == 0;
+        }
+
         var ceilByFacility = plan.FacilityRequirements
             .ToDictionary(f => f.FacilityId, f => f.CeilCount, StringComparer.Ordinal);
 
@@ -148,8 +169,15 @@ public static class FlowGraphModelBuilder
             var users = new List<string>();
             for (int runIndex = 0; runIndex < plan.RecipeRuns.Count; runIndex++)
             {
+                // 処理ランの設備はノードを持たないため利用設備には数えない（CD）。
+                if (disposalRunIndex[runIndex])
+                {
+                    continue;
+                }
+
                 RecipeRun run = plan.RecipeRuns[runIndex];
-                RecipeFacility? runPair = pairByRecipe.GetValueOrDefault(run.RecipeId);
+                // ランに保持されたペアを最優先にする（処理ランは PairSelections に載らない、CC）。
+                RecipeFacility? runPair = run.Pair ?? pairByRecipe.GetValueOrDefault(run.RecipeId);
                 if (runPair is null
                     && snapshot.RecipesById.TryGetValue(run.RecipeId, out Recipe? runRecipe))
                 {
@@ -203,7 +231,8 @@ public static class FlowGraphModelBuilder
         for (int runIndex = 0; runIndex < plan.RecipeRuns.Count; runIndex++)
         {
             RecipeRun run = plan.RecipeRuns[runIndex];
-            if (!snapshot.RecipesById.TryGetValue(run.RecipeId, out Recipe? recipe))
+            if (disposalRunIndex[runIndex]
+                || !snapshot.RecipesById.TryGetValue(run.RecipeId, out Recipe? recipe))
             {
                 continue;
             }
@@ -232,8 +261,9 @@ public static class FlowGraphModelBuilder
             }
 
             // 固定消費の乗数は最終切上台数（散布機分を含む FacilityRequirement.CeilCount）。
-            // 台数分表示では全ユニットへ等量に分ける。
-            RecipeFacility? pair = pairByRecipe.GetValueOrDefault(run.RecipeId)
+            // 台数分表示では全ユニットへ等量に分ける。ラン保持ペアを最優先に引く（CC）。
+            RecipeFacility? pair = run.Pair
+                ?? pairByRecipe.GetValueOrDefault(run.RecipeId)
                 ?? recipe.Facilities.FirstOrDefault(p => p.FacilityId == run.FacilityId);
             if (pair?.FixedConsumption is { } fixedConsumption)
             {
@@ -271,13 +301,20 @@ public static class FlowGraphModelBuilder
                 }
                 else
                 {
-                    double perUnit = env.ConsumeRatePerMinuteTotal / envUnits.Count;
-                    foreach (FacilityUnitSlot unit in envUnits)
+                    // 退化ケースも表示対象のユニットへだけ分ける（ノードの無い空ユニットは宛先にしない）。
+                    List<FacilityUnitSlot> shownUnits = envUnits
+                        .Where(u => u.IsDispenser || u.Used > Epsilon)
+                        .ToList();
+                    if (shownUnits.Count > 0)
                     {
-                        edgeParts.Add(new FlowGraphEdge(
-                            ItemNodeId(env.ConsumeItemId),
-                            UnitNodeId(env.ProviderFacilityId, unit.Index),
-                            FlowGraphEdgeKind.EnvironmentConsume, perUnit, false));
+                        double perUnit = env.ConsumeRatePerMinuteTotal / shownUnits.Count;
+                        foreach (FacilityUnitSlot unit in shownUnits)
+                        {
+                            edgeParts.Add(new FlowGraphEdge(
+                                ItemNodeId(env.ConsumeItemId),
+                                UnitNodeId(env.ProviderFacilityId, unit.Index),
+                                FlowGraphEdgeKind.EnvironmentConsume, perUnit, false));
+                        }
                     }
                 }
                 continue;
@@ -304,9 +341,21 @@ public static class FlowGraphModelBuilder
                 g.All(e => e.IsByproduct)))
             .ToList();
 
-        IReadOnlyList<SurplusProduction> surpluses = unadjusted
-            ? ResultViewBuilder.ComputeUnadjustedSurpluses(plan, snapshot, context, runScales)
-            : plan.Surpluses;
+        // 処理消費（アイテム → 消費ラン内訳）。調整済は計画値、未調整はラン倍率でスケールし
+        // 利用可能量内にクランプした量（暫定解釈 8）。アイテムノードの紫化とメタ行に使う。
+        IReadOnlyDictionary<string, List<(int RunIndex, double PerMinute)>> disposalByItem;
+        IReadOnlyList<SurplusProduction> surpluses;
+        if (unadjusted)
+        {
+            (surpluses, disposalByItem) = ResultViewBuilder.ComputeUnadjustedDisposalAndSurpluses(
+                plan, snapshot, context, runScales);
+        }
+        else
+        {
+            surpluses = plan.Surpluses;
+            disposalByItem = ResultViewBuilder.ComputeDisposalShown(plan, snapshot);
+        }
+
         var surplusByItem = surpluses
             .ToDictionary(s => s.ItemId, s => s.ExcessPerMinute, StringComparer.Ordinal);
 
@@ -325,8 +374,25 @@ public static class FlowGraphModelBuilder
             itemIds.Add(surplus.ItemId);
         }
 
+        // 処理ランのみを占有する設備は設備ノードを持たない（CD）。
+        // 生産ランや散布機を兼ねる設備は従来どおりノードを持つ。
+        var productionFacilityIds = new HashSet<string>(StringComparer.Ordinal);
+        var disposalFacilityIds = new HashSet<string>(StringComparer.Ordinal);
+        for (int i = 0; i < plan.RecipeRuns.Count; i++)
+        {
+            (disposalRunIndex[i] ? disposalFacilityIds : productionFacilityIds)
+                .Add(plan.RecipeRuns[i].FacilityId);
+        }
+
         foreach (FacilityRequirement f in plan.FacilityRequirements)
         {
+            if (!productionFacilityIds.Contains(f.FacilityId)
+                && disposalFacilityIds.Contains(f.FacilityId)
+                && dispenserByFacility.GetValueOrDefault(f.FacilityId) <= 0)
+            {
+                continue;
+            }
+
             facilityIds.Add(f.FacilityId);
         }
 
@@ -349,6 +415,24 @@ public static class FlowGraphModelBuilder
                 : req.Supplies
                     .Where(s => s.Kind == SupplyKind.Gathered)
                     .Sum(s => s.AmountPerMinute);
+            // 処理消費のあるアイテムは処理設備・台数・処理量を保持する（CD）。
+            IReadOnlyList<FlowGraphDisposal> disposals = [];
+            if (disposalByItem.TryGetValue(itemId, out List<(int RunIndex, double PerMinute)>? entries))
+            {
+                disposals = entries
+                    .Select(e =>
+                    {
+                        RecipeRun run = plan.RecipeRuns[e.RunIndex];
+                        snapshot.FacilitiesById.TryGetValue(run.FacilityId, out Facility? dfac);
+                        return new FlowGraphDisposal(
+                            run.FacilityId,
+                            dfac?.Name ?? run.FacilityId,
+                            ceilByFacility.GetValueOrDefault(run.FacilityId),
+                            e.PerMinute);
+                    })
+                    .ToList();
+            }
+
             nodes[ItemNodeId(itemId)] = new FlowGraphNode(
                 ItemNodeId(itemId), FlowGraphNodeKind.Item,
                 item?.Name ?? itemId, item?.IconKey, itemId,
@@ -358,7 +442,8 @@ public static class FlowGraphModelBuilder
                 req?.UnmetPerMinute ?? 0,
                 surplusByItem.GetValueOrDefault(itemId),
                 gatheredPerMinute,
-                null);
+                null,
+                disposals);
         }
 
         foreach (string facilityId in facilityIds)
@@ -370,6 +455,13 @@ public static class FlowGraphModelBuilder
             {
                 foreach (FacilityUnitSlot unit in units)
                 {
+                    // 出力なしランは割当対象外のため、占有なし・非散布機のユニットは
+                    // 処理分として実体化しない（CD）。兼用設備は生産・散布機分のユニットのみ出る。
+                    if (!unit.IsDispenser && unit.Used <= Epsilon)
+                    {
+                        continue;
+                    }
+
                     // ラン占有ユニットは占有率、散布機ユニットは役割を注記する。
                     string unitNote = unit.IsDispenser
                         ? "散布機"
@@ -378,7 +470,7 @@ public static class FlowGraphModelBuilder
                     nodes[unitNodeId] = new FlowGraphNode(
                         unitNodeId, FlowGraphNodeKind.Facility,
                         facility?.Name ?? facilityId, facility?.IconKey, facilityId,
-                        0, 0, false, 0, 0, 0, 0, unitNote);
+                        0, 0, false, 0, 0, 0, 0, unitNote, []);
                 }
                 continue;
             }
@@ -394,7 +486,7 @@ public static class FlowGraphModelBuilder
             nodes[facilityNodeId] = new FlowGraphNode(
                 facilityNodeId, FlowGraphNodeKind.Facility,
                 facility?.Name ?? facilityId, facility?.IconKey, facilityId,
-                0, 0, false, 0, 0, 0, 0, note);
+                0, 0, false, 0, 0, 0, 0, note, []);
         }
 
         (Dictionary<string, int> rank, Dictionary<string, int> order) = AssignRanks(
@@ -466,8 +558,16 @@ public static class FlowGraphModelBuilder
     {
         if (unitsByFacility.TryGetValue(facilityId, out List<FacilityUnitSlot>? units) && units.Count > 1)
         {
-            double share = 1.0 / units.Count;
-            return units.Select(u => (UnitNodeId(facilityId, u.Index), share)).ToList();
+            // 表示対象のユニット（占有または散布機）だけへ分ける。処理分として実体化しない
+            // 空ユニットを宛先にするとノードが無く吊るしになる（CD）。
+            List<FacilityUnitSlot> shown = units
+                .Where(u => u.IsDispenser || u.Used > Epsilon)
+                .ToList();
+            if (shown.Count > 0)
+            {
+                double share = 1.0 / shown.Count;
+                return shown.Select(u => (UnitNodeId(facilityId, u.Index), share)).ToList();
+            }
         }
         return [(FacilityNodeId(facilityId), 1.0)];
     }

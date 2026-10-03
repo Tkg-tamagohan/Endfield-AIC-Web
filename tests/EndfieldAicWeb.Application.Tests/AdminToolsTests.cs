@@ -177,6 +177,8 @@ public class AdminToolsTests
     {
         MasterDocument doc = M01();
         Recipe recipe = EntityFactory.NewRecipe("recipe-001", doc.DataVersion, "i-part", "f-asm");
+        // Inputs も 1 件以上必要（仕様決定 BZ）。工場生成は行を持たないため参照先の入力行を足す。
+        recipe.Inputs.Add(new RecipeInput { ItemId = "i-ore", Quantity = 1 });
         doc.Recipes.Add(recipe);
 
         Assert.Single(recipe.Outputs);
@@ -327,5 +329,31 @@ public class AdminToolsTests
         Assert.Empty(MasterReferenceFinder.FindFacilityReferences(doc, "f-unknown"));
         Assert.Empty(MasterReferenceFinder.FindEnvironmentReferences(doc, "env-unknown"));
         Assert.Empty(MasterReferenceFinder.FindGameEventReferences(doc, "ev-unknown"));
+    }
+
+    // RCP-11/12: 出力なしレシピの自動提案除外（docs/phases/test-specification-phase32.md §5、仕様決定 CE）。
+
+    [Fact]
+    public void RCP11_出力0件のレシピは提案を計算しない()
+    {
+        Recipe recipe = ApplicationFixtures.Recipe(
+            "r-disp", "汚水処理",
+            [("i-ore", 1)],
+            [],
+            [ApplicationFixtures.Pair("f-asm", 4)]);
+
+        Assert.Null(RecipeAutoFill.Suggest(M01(), recipe));
+    }
+
+    [Fact]
+    public void RCP12_出力を追加すれば提案の対象に戻る()
+    {
+        Recipe recipe = ApplicationFixtures.Recipe(
+            "r-disp", "汚水処理",
+            [("i-ore", 1)],
+            [("i-part", 1)],
+            [ApplicationFixtures.Pair("f-asm", 4)]);
+
+        Assert.Equal(("recipe-i-part", "汎用部品"), RecipeAutoFill.Suggest(M01(), recipe));
     }
 }

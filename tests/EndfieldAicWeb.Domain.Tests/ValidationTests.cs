@@ -449,6 +449,31 @@ public class ValidationTests
             && e.Message.Contains("必須"));
     }
 
+    [Fact(DisplayName = "VAL-29: Outputs 0 件の処理レシピは検証を通過する（BZ）")]
+    public void EmptyOutputsRecipe_IsValid()
+    {
+        (List<Item> items, List<Facility> facilities, List<Environment> environments,
+            List<GameEvent> gameEvents, List<Recipe> recipes) = ValidBaseline();
+        recipes.Add(F.Recipe("r-disp", [F.Pair("r-disp", "f-a", 4.0)],
+            [("i-ore", 1.0)], []));
+
+        List<MasterValidationError> errors =
+            Errs(items, facilities, environments, gameEvents, recipes);
+
+        Assert.DoesNotContain(errors, e => e.EntityId == "r-disp");
+    }
+
+    [Fact(DisplayName = "VAL-30: Inputs 0 件のレシピは違反（BZ）")]
+    public void EmptyInputsRecipe_IsViolation()
+    {
+        var errors = new List<MasterValidationError>();
+        MasterValidator.ValidateRecipe(
+            F.Recipe("r-noin", "f-a", 4.0, [], [("i-p", 1.0)]), errors);
+
+        Assert.Contains(errors,
+            e => e.EntityId == "r-noin" && e.Field == "Inputs" && e.Message.Contains("1 件以上"));
+    }
+
     private static List<MasterValidationError> Errs(
         IReadOnlyList<Item> items,
         IReadOnlyList<Facility> facilities,

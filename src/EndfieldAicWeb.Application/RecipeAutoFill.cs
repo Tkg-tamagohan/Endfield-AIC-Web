@@ -20,6 +20,12 @@ public sealed class RecipeAutoFill
     /// </summary>
     public static (string Id, string Name)? Suggest(MasterDocument doc, Recipe recipe)
     {
+        // 出力なしレシピ（処理レシピ）は自動提案の対象外（仕様決定 CE）。
+        if (recipe.Outputs.Count == 0)
+        {
+            return null;
+        }
+
         Item? main = EntityFactory.MainProductItem(doc, recipe);
         if (main is null)
         {

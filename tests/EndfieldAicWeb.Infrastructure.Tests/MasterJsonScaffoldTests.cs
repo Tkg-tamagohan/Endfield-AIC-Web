@@ -104,6 +104,24 @@ public class MasterJsonScaffoldTests
         Assert.Matches(regex, "fac-x");
     }
 
+    [Fact(DisplayName = "MJS-14: スキーマの recipe 定義は Outputs の minItems が 0（BZ）")]
+    public void RecipeOutputsAllowEmpty()
+    {
+        using var document = LoadSchema();
+        JsonElement recipe = EntityExtension(document.RootElement.GetProperty("$defs"), "recipe");
+
+        Assert.Equal(0, recipe.GetProperty("Outputs").GetProperty("minItems").GetInt32());
+    }
+
+    [Fact(DisplayName = "MJS-15: スキーマの recipe 定義は Inputs の minItems が 1（BZ 暫定解釈）")]
+    public void RecipeInputsStillRequireOne()
+    {
+        using var document = LoadSchema();
+        JsonElement recipe = EntityExtension(document.RootElement.GetProperty("$defs"), "recipe");
+
+        Assert.Equal(1, recipe.GetProperty("Inputs").GetProperty("minItems").GetInt32());
+    }
+
     /// <summary>data/master.schema.json を開いて返す。</summary>
     private static JsonDocument LoadSchema() =>
         JsonDocument.Parse(File.ReadAllText(Path.Combine(FindRepoRoot(), "data", "master.schema.json")));

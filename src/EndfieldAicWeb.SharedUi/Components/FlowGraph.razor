@@ -142,6 +142,11 @@
         {
             cls += " fnode-gather";
         }
+        // 処理消費のあるアイテムは紫系の fnode-disposal を併用する（仕様決定 CD）。
+        if (n.Disposals.Count > 0)
+        {
+            cls += " fnode-disposal";
+        }
         if (n.IsTarget)
         {
             cls += " fnode-target";
@@ -177,6 +182,14 @@
         if (n.GatheredPerMinute > 1e-9)
         {
             parts.Add($"採取 {FmtRate(n.GatheredPerMinute)}");
+        }
+        // 処理消費は「処理 〈設備名〉×〈台数〉・〈処理量〉」の形で併記する（仕様決定 CD・暫定解釈 4）。
+        if (n.Disposals.Count > 0)
+        {
+            string facilities = string.Join(
+                "・",
+                n.Disposals.Select(d => $"{d.FacilityName}×{d.Count}"));
+            parts.Add($"処理 {facilities}・{FmtRate(n.Disposals.Sum(d => d.PerMinute))}");
         }
         return string.Join("・", parts);
     }
