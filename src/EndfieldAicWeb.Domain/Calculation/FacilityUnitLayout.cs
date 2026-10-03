@@ -30,10 +30,12 @@ public sealed class FacilityUnitSlot
 public static class FacilityUnitLayout
 {
     /// <summary>
-    /// ユニットへ展開する台数の防御的上限。発散した計画（ConvergenceNotReached 付きで
+    /// ユニットへ実体化する台数の防御的上限。発散した計画（ConvergenceNotReached 付きで
     /// 集計へ進むもの）では台数が int 規模の巨大な実数になり、ユニットごとのスロット
-    /// 生成でメモリ・時間を使い果たすため、その規模ではユニット割当を行わない
-    /// （設備は集約表示・集約判定へ退避する。通常の計画では到達しない規模）。
+    /// 生成でメモリ・時間を使い果たすため、先頭 MaxUnitSlots 個だけを実体化する。
+    /// 上限を超えた分は既存の「収まらない分は末尾ユニットへ載せる」規則で末尾スロットに
+    /// 集約され、割当を見る側（輸送警告・グラフの台数分表示）は同じユニット群を使う。
+    /// 台数分表示のノード数は実台数を下回る点だけ実台数とずれる（表示上の近似）。
     /// </summary>
     internal const int MaxUnitSlots = 10_000;
 
@@ -58,13 +60,14 @@ public static class FacilityUnitLayout
         var unitsByFacility = new Dictionary<string, List<FacilityUnitSlot>>(StringComparer.Ordinal);
         foreach (FacilityRequirement f in facilityRequirements)
         {
-            if (f.CeilCount < 1 || f.CeilCount > MaxUnitSlots)
+            if (f.CeilCount < 1)
             {
                 continue;
             }
 
-            var units = new List<FacilityUnitSlot>(f.CeilCount);
-            for (int i = 0; i < f.CeilCount; i++)
+            int emitCount = Math.Min(f.CeilCount, MaxUnitSlots);
+            var units = new List<FacilityUnitSlot>(emitCount);
+            for (int i = 0; i < emitCount; i++)
             {
                 units.Add(new FacilityUnitSlot { Index = i });
             }

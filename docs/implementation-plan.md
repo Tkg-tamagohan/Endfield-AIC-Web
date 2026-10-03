@@ -310,7 +310,7 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 - [x] `Environment` に `CoverableMachines`（正の整数）を追加する（仕様決定 BP）。モデル・スキーマ・JSON 入出力・`MasterValidator`・`EntityFactory`・管理ツールの環境編集に追従させ、同梱マスタの env-stable・env-acrid へ 4 を投入する
 - [x] 散布機の既定台数を「環境を要する機械数合計 ÷ `CoverableMachines` の切上げ」へ改め、環境要件に必要台数（自動値）を保持する（仕様決定 BQ、I の改定）
 - [x] 散布機台数の上書きを機械数のカバー上限として需要展開へ反映し、超過分を未充足＋カバー不足警告とする（仕様決定 BR）
-- [x] `dotnet test` 全緑を確認し、ブラウザ E2E（台数の機械数比例・カバー不足時の未充足と警告）を実施する
+- [ ] `dotnet test` 全緑を確認し、ブラウザ E2E（台数の機械数比例・カバー不足時の未充足と警告）を実施する（`dotnet test` は全緑。E2E は実施後にチェックする）
 - **受け入れ条件**: 息壌 150/分 で散布機が自動 2 台になり、台数を下げるとカバー不足分が未充足として出る。詳細は `phases/implementation-plan-phase26.md` と `phases/test-specification-phase26.md`。
 
 ## 5. 実装メモ・規約

@@ -61,6 +61,12 @@
 | MJS-10 | `master.schema.json` の environment 定義が `CoverableMachines`（integer、exclusiveMinimum 0）を required に持ち、同梱 master.json が `tools/validate_master.py` を通る |
 | MJS-11 | 同梱マスタの env-stable・env-acrid が `CoverableMachines=4` で読み込める（BundledMasterDataTests 経由） |
 
+### ユニット割当（FUL）: FacilityUnitLayout
+
+| ID | 内容 |
+|---|---|
+| FUL-01 | 台数が防御的上限（`MaxUnitSlots`）を超えても割当はスキップしない。先頭 10,000 ユニットで占有を行い、収まらない分は末尾ユニットへ集約される（ランの share 合計は 1.0 を維持）。輸送警告とグラフの台数分表示が同じ割当を見るための一貫性を確認する |
+
 ## 2. 手動確認項目
 
 E2E 検証は WebGPU 対応 Chrome で行う。台数の自動値・未充足・警告は実マスタ（息壌の安定環境）で検証し、管理ツールの環境編集は `admin-driven-fixture-blazor-testing`・`fixture-injection-blazor-testing` の手順に従う。
