@@ -780,15 +780,21 @@ internal static class MasterJsonReader
         }
 
         string trimmed = value.Trim();
+        if (nullable && trimmed.Length == 0)
+        {
+            // 空文字列は Domain 検証を素通りする一方 idValue（minLength 1）に反するため、
+            // 「空白のみ→未指定」の拡張として null に揃える。空白除去がなかった空文字列は記録しない。
+            if (trimmed != value)
+            {
+                normalizations.Add($"{location}: 「null」");
+            }
+
+            return null;
+        }
+
         if (trimmed == value)
         {
             return value;
-        }
-
-        if (nullable && trimmed.Length == 0)
-        {
-            normalizations.Add($"{location}: 「null」");
-            return null;
         }
 
         normalizations.Add($"{location}: 「{trimmed}」");

@@ -602,4 +602,25 @@ public class MasterJsonLoaderTests
         Assert.Contains(result.Errors, e => e.Field == "Id" && e.Message.Contains("空白"));
         Assert.Empty(result.Normalizations);
     }
+
+    [Fact(DisplayName = "VAL-34: null 許容参照値の空文字列は null に正規化される（Devin Review 回帰）")]
+    public void EmptyNullableReference_BecomesNull()
+    {
+        // 空文字列は Domain 検証を素通りする一方 idValue（minLength 1）に反するため、
+        // 「空白のみ→未指定」の拡張として null に揃える。除去した空白がないので記録もしない。
+        string json = TestJson.Mutate(root =>
+        {
+            root["Items"]!.AsArray()[0]!.AsObject()["GameEventId"] = "";
+            root["Recipes"]!.AsArray()[0]!.AsObject()["Facilities"]!
+                .AsArray()[0]!.AsObject()["EnvironmentId"] = "";
+        });
+
+        MasterJsonLoadResult result = MasterJsonLoader.Load(json);
+
+        Assert.True(result.Success, string.Join("\n", result.Errors.Select(e => e.Message)));
+        Assert.NotNull(result.Document);
+        Assert.Null(result.Document.Items[0].GameEventId);
+        Assert.Null(result.Document.Recipes[0].Facilities[0].EnvironmentId);
+        Assert.Empty(result.Normalizations);
+    }
 }
