@@ -219,7 +219,7 @@ public static class CalculationInputBuilder
 
             if (!snapshot.ItemsById.TryGetValue(row.ItemId, out Item? item) || !item.IsGatherable)
             {
-                error = $"{EntityDisplay.Format(item?.Name ?? row.ItemName, row.ItemId)} は採取素材ではありません。";
+                error = $"{EntityDisplay.Format(item?.Name, row.ItemId)} は採取素材ではありません。";
                 return false;
             }
 

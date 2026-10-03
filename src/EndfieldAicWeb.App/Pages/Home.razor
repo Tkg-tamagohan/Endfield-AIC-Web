@@ -50,11 +50,18 @@ else
     private string VersionLabel => $"データ版 {MasterData.Document?.DataVersion}";
 
     private EntityDisplay? _display;
+    private MasterDocument? _displayDocument;
 
-    /// <summary>エラーのエンティティ参照を `名前（Id）` へ整形する（仕様決定 CF）。文書未取得時は Id のみ。</summary>
+    /// <summary>エラーのエンティティ参照を `名前（Id）` へ整形する（仕様決定 CF）。文書未取得時は Id のみ。
+    /// 読み込み直しで文書が差し替わったら解決器を作り直す。</summary>
     private string EntityText(MasterValidationError err)
     {
-        _display ??= MasterData.Document is { } doc ? new EntityDisplay(doc) : null;
+        if (!ReferenceEquals(_displayDocument, MasterData.Document))
+        {
+            _displayDocument = MasterData.Document;
+            _display = _displayDocument is { } doc ? new EntityDisplay(doc) : null;
+        }
+
         return _display?.For(err.EntityKind, err.EntityId) ?? err.EntityId;
     }
 }

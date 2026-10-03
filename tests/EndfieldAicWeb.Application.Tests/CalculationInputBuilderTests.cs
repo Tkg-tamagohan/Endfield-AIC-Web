@@ -331,9 +331,9 @@ public class GatherRateParseTests
     }
 
     // GRI-04: 存在しない・採取素材でないアイテムはエラー。
-    // 実在アイテムはスナップショットの名前で、存在しないものは行の表示名で 名前（Id） に整形する。
+    // 実在アイテムはスナップショットの名前で 名前（Id）、存在しないものは Id のみ（CF フォールバック）。
     [Theory]
-    [InlineData("i-ghost", "対象アイテム（i-ghost） は採取素材ではありません。")]
+    [InlineData("i-ghost", "i-ghost は採取素材ではありません。")]
     [InlineData("i-part", "汎用部品（i-part） は採取素材ではありません。")]
     public void UnknownOrNonGatherableItemsReturnError(string itemId, string expected)
     {
