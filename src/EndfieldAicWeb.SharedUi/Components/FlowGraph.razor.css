@@ -103,6 +103,12 @@
     border-color: #3A5A42;
 }
 
+/* 処理消費のあるアイテムノードは紫系（仕様決定 CD、BO の緑化と同型）。 */
+.fnode-disposal {
+    background: #1F1626;
+    border-color: #5A3F73;
+}
+
 .fnode-target {
     border-color: var(--accent);
     box-shadow: 0 0 0 1px rgba(242, 163, 60, .45), 0 2px 10px rgba(0, 0, 0, .35);

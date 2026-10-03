@@ -160,6 +160,10 @@
                         {
                             <span class="danger">未充足 @Fmt(m.UnmetPerMinute)@Suffix()</span>
                         }
+                        @if (m.DisposalPerMinute > 1e-9)
+                        {
+                            <span class="muted">処理 @Fmt(m.DisposalPerMinute)@Suffix()</span>
+                        }
                     </div>
                     <div class="mat-body">
                         @foreach (SupplyPortion s in m.Supplies)

@@ -82,6 +82,14 @@ public static class FacilityUnitLayout
                 continue;
             }
 
+            // 出力なしレシピのラン（処理ラン）はユニット割当の対象外。処理分のスロットは
+            // 実体化せず、処理専用・処理占有のユニットノードも出さない（仕様決定 CD）。
+            if (snapshot.RecipesById.TryGetValue(run.RecipeId, out Recipe? runRecipe)
+                && runRecipe.Outputs.Count == 0)
+            {
+                continue;
+            }
+
             double scale = runScales is not null && runIndex < runScales.Count
                 ? runScales[runIndex]
                 : 1.0;
@@ -150,7 +158,8 @@ public static class FacilityUnitLayout
         MasterDataSnapshot snapshot,
         IReadOnlyDictionary<(string RecipeId, string FacilityId), RecipeFacility> pairByRun)
     {
-        RecipeFacility? pair = pairByRun.GetValueOrDefault((run.RecipeId, run.FacilityId));
+        // ランに保持されたペアを最優先にする（処理ランは PairSelections に載らない、CC）。
+        RecipeFacility? pair = run.Pair ?? pairByRun.GetValueOrDefault((run.RecipeId, run.FacilityId));
         if (pair is null && snapshot.RecipesById.TryGetValue(run.RecipeId, out Recipe? recipe))
         {
             pair = recipe.Facilities.FirstOrDefault(p => p.FacilityId == run.FacilityId);

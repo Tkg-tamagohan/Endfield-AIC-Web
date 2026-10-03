@@ -239,4 +239,53 @@ public class UnadjustedViewTests
             ApplicationFixtures.Recipe("r-nc", "非環境品", [("i-ore", 1)], [("i-nc", 1)],
                 [ApplicationFixtures.Pair("f-asm", 4)]),
         ]);
+
+    // DSP-15・DSP-21: 未調整ビューの処理消費表示（docs/phases/test-specification-phase32.md §1）。
+
+    /// <summary>r-m が副産物 i-sew を出し、r-disp（f-trt 5 秒）が処理する構成。</summary>
+    private static MasterDataSnapshot DisposalFixture() => ApplicationFixtures.Snapshot(
+        [
+            ApplicationFixtures.Item("i-ore", "鉄鉱石", gatherable: true),
+            ApplicationFixtures.Item("i-p", "製品"),
+            ApplicationFixtures.Item("i-sew", "汚水"),
+        ],
+        [
+            ApplicationFixtures.Facility("f-asm", "加工機", 10),
+            ApplicationFixtures.Facility("f-trt", "水処理設備", 10),
+        ],
+        [], [],
+        [
+            ApplicationFixtures.Recipe("r-m", "製造", [("i-ore", 1)], [("i-p", 1), ("i-sew", 1)],
+                [ApplicationFixtures.Pair("f-asm", 4)]),
+            ApplicationFixtures.Recipe("r-disp", "汚水処理", [("i-sew", 1)], [],
+                [ApplicationFixtures.Pair("f-trt", 5)]),
+        ]);
+
+    // DSP-15: 処理消費も未調整ビューでは設備倍率で拡大され、利用可能量でクランプされる。
+    [Fact]
+    public void DisposalClampsToUnadjustedAvailability()
+    {
+        // i-p 45/分: r-m 45 サイクル×4 秒 = 実数 3.0 → 倍率 1.0 で副産物 45/分。
+        // r-disp 45 サイクル×5 秒 = 実数 3.75 → 切上げ 4 → 倍率 4/3.75 で生表示 48/分。
+        // 利用可能量 45/分を超えないようクランプして 45/分を表示し余剰行は出さない。
+        (_, ResultView view) = Build(DisposalFixture(), new ProductionTarget("i-p", 45));
+
+        MaterialViewRow row = Assert.Single(view.Materials, m => m.ItemId == "i-sew");
+        Assert.Equal(45, row.DisposalPerMinute, 6);
+        Assert.DoesNotContain(view.Surpluses, s => s.ItemId == "i-sew");
+    }
+
+    // DSP-21: 生産側にも切上げがある場合は両側の拡大が整合する。
+    [Fact]
+    public void DisposalMatchesUnadjustedProduction()
+    {
+        // i-p 40/分: r-m 40 サイクル×4 秒 = 実数 8/3 → 切上げ 3 → 倍率 1.125 で副産物 45/分。
+        // r-disp 40 サイクル×5 秒 = 実数 10/3 → 切上げ 4 → 倍率 1.2 で生表示 48/分。
+        // 処理表示は 45/分に揃い、余剰も出ない（調整済みでは余剰 0）。
+        (_, ResultView view) = Build(DisposalFixture(), new ProductionTarget("i-p", 40));
+
+        MaterialViewRow row = Assert.Single(view.Materials, m => m.ItemId == "i-sew");
+        Assert.Equal(45, row.DisposalPerMinute, 6);
+        Assert.DoesNotContain(view.Surpluses, s => s.ItemId == "i-sew");
+    }
 }

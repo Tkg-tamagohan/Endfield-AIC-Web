@@ -109,10 +109,11 @@ public static class MasterValidator
 
         CheckCommonFields(recipe, "Recipe", errors);
 
-        if (recipe.Outputs is null || recipe.Outputs.Count == 0)
+        // Outputs は 0 件を許容する（出力なしレシピ＝処理レシピ、仕様決定 BZ）。
+        if (recipe.Inputs is null || recipe.Inputs.Count == 0)
         {
             errors.Add(new MasterValidationError(
-                "Recipe", recipe.Id, "Outputs", "Outputs は 1 件以上必要です。"));
+                "Recipe", recipe.Id, "Inputs", "Inputs は 1 件以上必要です。"));
         }
 
         if (recipe.Facilities is null || recipe.Facilities.Count == 0)

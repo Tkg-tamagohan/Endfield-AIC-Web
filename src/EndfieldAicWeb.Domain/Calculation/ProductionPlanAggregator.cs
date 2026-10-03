@@ -92,7 +92,7 @@ internal static class ProductionPlanAggregator
             .ToList();
 
         var recipeRuns = session.RunOrder
-            .Select(r => new RecipeRun(r.Recipe.Id, r.Pair.FacilityId, session.RunCycles[r]))
+            .Select(r => new RecipeRun(r.Recipe.Id, r.Pair.FacilityId, session.RunCycles[r], r.Pair))
             .ToList();
 
         // 確定ペアは実際に稼働中（RunOrder に残る）のものだけを出す。
@@ -149,6 +149,12 @@ internal static class ProductionPlanAggregator
 
         foreach (PairSelector.Selection run in session.RunOrder)
         {
+            // 出力なしレシピのラン（処理ラン）に推奨流量制限は意味を持たない（CC）。
+            if (run.Recipe.Outputs.Count == 0)
+            {
+                continue;
+            }
+
             double machines = session.RunCycles[run] * run.Pair.CycleTime / 60.0;
             if (ProductionCalculator.Ceil(machines) <= machines + ProductionCalculator.Epsilon)
             {
