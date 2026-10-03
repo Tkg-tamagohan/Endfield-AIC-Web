@@ -40,8 +40,8 @@ public static class ResultViewText
         string amount = $"{Format(portion.AmountPerMinute, unit, period)}{AmountConverter.Suffix(unit)}";
         return portion.Kind switch
         {
-            SupplyKind.Recipe => $"レシピ {snapshot.RecipeName(portion.RecipeId!)} {amount}",
-            SupplyKind.Byproduct => $"副産物 {snapshot.RecipeName(portion.RecipeId!)} {amount}",
+            SupplyKind.Recipe => $"レシピ {snapshot.RecipeLabel(portion.RecipeId!)} {amount}",
+            SupplyKind.Byproduct => $"副産物 {snapshot.RecipeLabel(portion.RecipeId!)} {amount}",
             SupplyKind.Gathered => $"採取 {amount}",
             _ => "",
         };
@@ -52,7 +52,7 @@ public static class ResultViewText
     {
         ArgumentNullException.ThrowIfNull(option);
 
-        string label = $"{snapshot.RecipeName(option.RecipeId)} ／ {snapshot.FacilityName(option.FacilityId)} {option.CycleTime.ToString("0.##", CultureInfo.InvariantCulture)}秒";
+        string label = $"{snapshot.RecipeLabel(option.RecipeId)} ／ {snapshot.FacilityName(option.FacilityId)} {option.CycleTime.ToString("0.##", CultureInfo.InvariantCulture)}秒";
         label += option.EnvironmentId is null ? "・環境なし" : $"・{snapshot.EnvName(option.EnvironmentId)}";
         if (option.FixedConsumption is { } fc)
         {

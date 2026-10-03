@@ -24,7 +24,6 @@ const EDGE_COLORS = [
     [0.95, 0.64, 0.24, 0.85],  // RecipeOutput: --accent
     [0.66, 0.58, 0.80, 0.50],  // FixedConsumption
     [0.45, 0.70, 0.80, 0.50],  // EnvironmentConsume
-    [0.42, 0.72, 0.50, 0.70],  // Gathered
 ];
 const OVER_COLOR = [0.90, 0.28, 0.30, 0.95]; // --danger
 const CLEAR_COLOR = { r: 0.063, g: 0.078, b: 0.102, a: 1.0 }; // --panel-deep

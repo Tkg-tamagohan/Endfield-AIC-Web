@@ -135,9 +135,13 @@
         string cls = n.Kind switch
         {
             FlowGraphNodeKind.Facility => "fnode-fac",
-            FlowGraphNodeKind.Gather => "fnode-gather",
             _ => "fnode-item",
         };
+        // 採取供給のあるアイテムは緑系の fnode-gather を併用する（仕様決定 BO）。
+        if (n.GatheredPerMinute > 1e-9)
+        {
+            cls += " fnode-gather";
+        }
         if (n.IsTarget)
         {
             cls += " fnode-target";
@@ -152,8 +156,6 @@
     private string NodeMeta(FlowGraphNode n) => n.Kind switch
     {
         FlowGraphNodeKind.Facility => n.Note ?? "",
-        FlowGraphNodeKind.Gather => FmtRate(
-            Model.Edges.Where(e => e.Kind == FlowGraphEdgeKind.Gathered).Sum(e => e.RatePerMinute)),
         _ => ItemMeta(n),
     };
 
@@ -171,6 +173,10 @@
         if (n.SurplusPerMinute > 1e-9)
         {
             parts.Add($"余剰 +{FmtRate(n.SurplusPerMinute)}");
+        }
+        if (n.GatheredPerMinute > 1e-9)
+        {
+            parts.Add($"採取 {FmtRate(n.GatheredPerMinute)}");
         }
         return string.Join("・", parts);
     }

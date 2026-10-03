@@ -8,7 +8,6 @@ public enum FlowGraphNodeKind
 {
     Item,
     Facility,
-    Gather,
 }
 
 /// <summary>生産フローグラフのエッジ種別。</summary>
@@ -18,12 +17,12 @@ public enum FlowGraphEdgeKind
     RecipeOutput,
     FixedConsumption,
     EnvironmentConsume,
-    Gathered,
 }
 
 /// <summary>
 /// グラフのノード。描画側がラベル・アイコン・強調をそのまま使えるよう表示用の値を保持する。
-/// RefId はリスト行へのスクロール対象（ItemId または FacilityId、採取ノードは null）。
+/// RefId はリスト行へのスクロール対象（ItemId または FacilityId）。
+/// GatheredPerMinute は計画内の採取供給量（採取ノード廃止後の緑化判定、仕様決定 BO）。
 /// </summary>
 public sealed record FlowGraphNode(
     string Id,
@@ -37,6 +36,7 @@ public sealed record FlowGraphNode(
     double RequiredPerMinute,
     double UnmetPerMinute,
     double SurplusPerMinute,
+    double GatheredPerMinute,
     bool OverCapacity,
     string? Note);
 
@@ -66,6 +66,9 @@ public sealed record FlowGraphModel(
 /// 後退エッジとして層割りに使わずレイアウトだけを確定させる（仕様決定 BH）。
 /// 容量超過判定は設備への入力エッジ単位（仕様決定 AN）。
 /// expandFacilities=true のとき設備を切上台数ぶんのユニットノードへ展開する（仕様決定 AO）。
+/// 出力を持たない環境供給設備（散布機）は利用設備の最小層へ固定してから再層割りする
+/// （仕様決定 BM）。採取供給は共通ノードを持たずアイテムノードの属性として保持する
+/// （仕様決定 BO）。
 /// </summary>
 public static class FlowGraphModelBuilder
 {
@@ -73,9 +76,6 @@ public static class FlowGraphModelBuilder
     private const string ItemPrefix = "item:";
     private const string FacilityPrefix = "fac:";
     private const string UnitPrefix = "facunit:";
-
-    /// <summary>採取供給の共通ノード Id（計画に採取がある場合のみ存在する）。</summary>
-    public const string GatherNodeId = "gather";
 
     public static string ItemNodeId(string itemId) => ItemPrefix + itemId;
 
@@ -135,6 +135,70 @@ public static class FlowGraphModelBuilder
             foreach (FacilityUnitSlot unit in units)
             {
                 unitFacility[UnitNodeId(facilityId, unit.Index)] = facilityId;
+            }
+        }
+
+        // 環境供給設備の表示ノード → その環境を利用する設備の表示ノード群（仕様決定 BM）。
+        // 「利用設備」は選択ペアの EnvironmentId が当該環境と一致するランを持つ設備で、
+        // ラン→ペアの対応は固定消費と同じく pairByRecipe（recipe.Facilities への
+        // フォールバック付き）で引く。利用設備が 0 件の環境は層割り側で従来規則へ退避する。
+        // 消費者側の表示ノードはビューに従う: 台数分表示ではランを占有するユニットノード、
+        // 集約表示では設備ノード。供給側も台数分表示ではその環境の散布機ユニット、
+        // 集約表示では設備ノード（担う全環境の利用設備を合わせる）。
+        var envConsumers = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        foreach (EnvironmentRequirement env in plan.EnvironmentRequirements)
+        {
+            var users = new List<string>();
+            for (int runIndex = 0; runIndex < plan.RecipeRuns.Count; runIndex++)
+            {
+                RecipeRun run = plan.RecipeRuns[runIndex];
+                RecipeFacility? runPair = pairByRecipe.GetValueOrDefault(run.RecipeId);
+                if (runPair is null
+                    && snapshot.RecipesById.TryGetValue(run.RecipeId, out Recipe? runRecipe))
+                {
+                    runPair = runRecipe.Facilities.FirstOrDefault(
+                        p => p.FacilityId == run.FacilityId);
+                }
+
+                if (runPair?.EnvironmentId != env.EnvironmentId)
+                {
+                    continue;
+                }
+
+                if (expandFacilities
+                    && unitsByFacility.TryGetValue(run.FacilityId, out List<FacilityUnitSlot>? runUnits)
+                    && runUnits.Count > 1)
+                {
+                    users.AddRange(runUnits
+                        .Where(u => u.RunShares.ContainsKey(runIndex))
+                        .Select(u => UnitNodeId(run.FacilityId, u.Index)));
+                }
+                else
+                {
+                    users.Add(FacilityNodeId(run.FacilityId));
+                }
+            }
+
+            List<string> providerNodes =
+                expandFacilities
+                && unitsByFacility.TryGetValue(env.ProviderFacilityId, out List<FacilityUnitSlot>? providerUnits)
+                && providerUnits.Count > 1
+                    ? providerUnits
+                        .Where(u => u.DispenserEnvironmentId == env.EnvironmentId)
+                        .Select(u => UnitNodeId(env.ProviderFacilityId, u.Index))
+                        .ToList()
+                    : [FacilityNodeId(env.ProviderFacilityId)];
+
+            foreach (string providerNode in providerNodes)
+            {
+                if (envConsumers.TryGetValue(providerNode, out List<string>? consumers))
+                {
+                    consumers.AddRange(users);
+                }
+                else
+                {
+                    envConsumers[providerNode] = new List<string>(users);
+                }
             }
         }
 
@@ -225,19 +289,6 @@ public static class FlowGraphModelBuilder
             edgeParts.Add(new FlowGraphEdge(
                 ItemNodeId(env.ConsumeItemId), FacilityNodeId(env.ProviderFacilityId),
                 FlowGraphEdgeKind.EnvironmentConsume, env.ConsumeRatePerMinuteTotal, false, false));
-        }
-
-        foreach (ItemRequirement req in plan.ItemRequirements)
-        {
-            double gathered = req.Supplies
-                .Where(s => s.Kind == SupplyKind.Gathered)
-                .Sum(s => s.AmountPerMinute);
-            if (gathered > Epsilon)
-            {
-                edgeParts.Add(new FlowGraphEdge(
-                    GatherNodeId, ItemNodeId(req.ItemId), FlowGraphEdgeKind.Gathered,
-                    gathered, false, false));
-            }
         }
 
         string DisplayNodeId(string nodeId) => expandFacilities
@@ -331,6 +382,12 @@ public static class FlowGraphModelBuilder
         {
             snapshot.ItemsById.TryGetValue(itemId, out Item? item);
             requirementByItem.TryGetValue(itemId, out ItemRequirement? req);
+            // 採取供給は共通ノードではなくアイテムノードの属性として保持する（仕様決定 BO）。
+            double gatheredPerMinute = req is null
+                ? 0
+                : req.Supplies
+                    .Where(s => s.Kind == SupplyKind.Gathered)
+                    .Sum(s => s.AmountPerMinute);
             nodes[ItemNodeId(itemId)] = new FlowGraphNode(
                 ItemNodeId(itemId), FlowGraphNodeKind.Item,
                 item?.Name ?? itemId, item?.IconKey, itemId,
@@ -339,6 +396,7 @@ public static class FlowGraphModelBuilder
                 req?.RequiredPerMinute ?? 0,
                 req?.UnmetPerMinute ?? 0,
                 surplusByItem.GetValueOrDefault(itemId),
+                gatheredPerMinute,
                 overCapacityItems.Contains(itemId),
                 null);
         }
@@ -360,7 +418,7 @@ public static class FlowGraphModelBuilder
                     nodes[unitNodeId] = new FlowGraphNode(
                         unitNodeId, FlowGraphNodeKind.Facility,
                         facility?.Name ?? facilityId, facility?.IconKey, facilityId,
-                        0, 0, false, 0, 0, 0,
+                        0, 0, false, 0, 0, 0, 0,
                         overCapacityFacilities.Contains(unitNodeId), unitNote);
                 }
                 continue;
@@ -377,19 +435,12 @@ public static class FlowGraphModelBuilder
             nodes[facilityNodeId] = new FlowGraphNode(
                 facilityNodeId, FlowGraphNodeKind.Facility,
                 facility?.Name ?? facilityId, facility?.IconKey, facilityId,
-                0, 0, false, 0, 0, 0,
+                0, 0, false, 0, 0, 0, 0,
                 overCapacityFacilities.Contains(facilityNodeId), note);
         }
 
-        if (edges.Any(e => e.Kind == FlowGraphEdgeKind.Gathered))
-        {
-            nodes[GatherNodeId] = new FlowGraphNode(
-                GatherNodeId, FlowGraphNodeKind.Gather,
-                "採取", null, null,
-                0, 0, false, 0, 0, 0, false, null);
-        }
-
-        (Dictionary<string, int> rank, Dictionary<string, int> order) = AssignRanks(nodes, edges);
+        (Dictionary<string, int> rank, Dictionary<string, int> order) = AssignRanks(
+            nodes, edges, envConsumers);
         var nodeList = nodes.Values
             .Select(n => n with { Rank = rank[n.Id], Order = order[n.Id] })
             .OrderBy(n => n.Rank)
@@ -494,13 +545,16 @@ public static class FlowGraphModelBuilder
     /// 出る場合は大きい層にまとめる（仕様決定 BF）。消費される目標もこの規則に従う（BG）。
     /// 循環の残存ノードは後退エッジを無視し、確定済みの後続だけで層を決める（BH）。
     /// 仮確定より深い経路が残るときは、自分自身を経由しない出口への最長単純経路で
-    /// 層を引き直す。散布機など出力を持たない設備ノードは層割りの対象外とし、
-    /// 消費アイテムの直下流に置く。表示は Layer0 を右端列とするため、返すランクは
+    /// 層を引き直す。出力を持たない設備ノード（終端ノード）は第 1 段の層割り対象外とし、
+    /// 環境供給設備は利用設備の最小層へ固定してから第 2 段で再伝播し、残りは消費アイテムの
+    /// 直下流に置く（仕様決定 BM）。表示は Layer0 を右端列とするため、返すランクは
     /// 最大層からの反転値。
+    /// envConsumers は環境供給設備の表示ノード → その環境を利用する設備の表示ノード群。
     /// </summary>
     private static (Dictionary<string, int> Rank, Dictionary<string, int> Order) AssignRanks(
         IReadOnlyDictionary<string, FlowGraphNode> nodes,
-        IReadOnlyList<FlowGraphEdge> edges)
+        IReadOnlyList<FlowGraphEdge> edges,
+        IReadOnlyDictionary<string, List<string>> envConsumers)
     {
         var preds = nodes.Keys.ToDictionary(id => id, _ => new List<string>(), StringComparer.Ordinal);
         var succs = nodes.Keys.ToDictionary(id => id, _ => new List<string>(), StringComparer.Ordinal);
@@ -526,7 +580,7 @@ public static class FlowGraphModelBuilder
             StringComparer.Ordinal);
 
         // Layer0 の起点: 目標アイテム、およびどの設備にも消費されない（下流エッジのない）
-        // アイテム（未消費の副産物や余剰を含む）。採取ノードは最深の供給先の次層に沈む。
+        // アイテム（未消費の副産物や余剰を含む）。
         bool IsAnchor(string id) =>
             nodes[id].Kind == FlowGraphNodeKind.Item
             && (nodes[id].IsTarget || effSuccs[id].Count == 0);
@@ -699,9 +753,86 @@ public static class FlowGraphModelBuilder
             }
         }
 
-        // 終端ノード（散布機など出力を持たない設備）は最も深い消費アイテムの直下流に置く。
+        // 環境供給設備（散布機など）の終端ノードは、その環境を利用する設備の最小層へ固定する
+        // （仕様決定 BM）。第 1 段の層で決め、後段の再伝播で利用設備が深く動いても追従しない。
+        // 利用設備が 0 件の環境は従来規則へ退避する（計算機では散布機台数が稼働中ランの
+        // 環境にのみ計上されるため到達しない防御的経路）。
+        // virtualPreds は行内順を利用設備の隣へ寄せるためのバリセンター仮想先行ノードで、
+        // 最小層を取った利用設備だけに絞る。
+        var envFixed = new Dictionary<string, int>(StringComparer.Ordinal);
+        var virtualPreds = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         foreach (string id in terminals)
         {
+            if (!envConsumers.TryGetValue(id, out List<string>? users))
+            {
+                continue;
+            }
+
+            int minLayer = users
+                .Where(layer.ContainsKey)
+                .Select(u => layer[u])
+                .DefaultIfEmpty(-1)
+                .Min();
+            if (minLayer < 0)
+            {
+                continue;
+            }
+
+            envFixed[id] = minLayer;
+            layer[id] = minLayer;
+            virtualPreds[id] = users.Where(u => layer.GetValueOrDefault(u, -1) == minLayer).ToList();
+        }
+
+        // 第 2 段: 固定した環境供給設備を消費者として層を再伝播する。消費アイテムは
+        // 環境設備の層+1 以降へ沈み、消費アイテム→環境設備のエッジは順方向を保つ。
+        // 第 1 段と同じく循環部分内のエッジは層割りに使わない。環境設備自体は層を
+        // 変えないシンクとして扱う。
+        if (envFixed.Count > 0)
+        {
+            var pass2Succs = nodes.Keys.ToDictionary(
+                id => id,
+                id => effSuccs[id]
+                    .Where(s => !deferredSet.Contains(id) || !deferredSet.Contains(s))
+                    .Concat(succs[id].Where(envFixed.ContainsKey))
+                    .ToList(),
+                StringComparer.Ordinal);
+            bool moved = true;
+            while (moved)
+            {
+                moved = false;
+                foreach (string id in nodes.Keys)
+                {
+                    if (envFixed.ContainsKey(id) || terminals.Contains(id))
+                    {
+                        continue;
+                    }
+
+                    int best = layer[id];
+                    foreach (string s in pass2Succs[id])
+                    {
+                        if (layer.TryGetValue(s, out int sl) && sl + 1 > best)
+                        {
+                            best = sl + 1;
+                        }
+                    }
+
+                    if (best != layer[id])
+                    {
+                        layer[id] = best;
+                        moved = true;
+                    }
+                }
+            }
+        }
+
+        // 残りの終端ノードは最も深い消費アイテムの直下流に置く。層は再伝播後の値で取る。
+        foreach (string id in terminals)
+        {
+            if (envFixed.ContainsKey(id))
+            {
+                continue;
+            }
+
             layer[id] = preds[id]
                 .Where(layer.ContainsKey)
                 .Select(p => layer[p])
@@ -726,12 +857,24 @@ public static class FlowGraphModelBuilder
             }
         }
 
+        // バリセンターの先行ノード集合: エッジ由来の preds に、環境供給設備の
+        // 仮想先行ノード（最小層を取った利用設備）を加える（仕様決定 BM の行内順規則）。
+        List<string> BarycenterPreds(string id) =>
+            virtualPreds.TryGetValue(id, out List<string>? extra)
+                ? [.. preds[id], .. extra]
+                : preds[id];
+
+        var barycenterPreds = nodes.Keys.ToDictionary(
+            id => id,
+            id => (IReadOnlyList<string>)BarycenterPreds(id),
+            StringComparer.Ordinal);
+
         for (int pass = 0; pass < 4; pass++)
         {
             var barycenter = nodes.Keys.ToDictionary(
                 id => id,
-                id => preds[id].Count > 0
-                    ? preds[id].Average(p => rank[p] * 1_000_000.0 + order[p])
+                id => barycenterPreds[id].Count > 0
+                    ? barycenterPreds[id].Average(p => rank[p] * 1_000_000.0 + order[p])
                     : rank[id] * 1_000_000.0 + order[id],
                 StringComparer.Ordinal);
             foreach (List<string> ids in nodesByRank.Values)
