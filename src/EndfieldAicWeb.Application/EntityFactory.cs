@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using EndfieldAicWeb.Domain.Models;
 using Environment = EndfieldAicWeb.Domain.Models.Environment;
 
@@ -12,6 +13,36 @@ public static class EntityFactory
 {
     /// <summary>新規エンティティの VersionAdded 既定値（仕様決定 AV）。実装されたゲームバージョンなのでデータ版とは別に固定する。</summary>
     public const string DefaultVersionAdded = "1.0.0";
+    /// <summary><see cref="NewRecipe"/> が置く仮の名前。未編集のプレースホルダ判定に使う。</summary>
+    public const string PlaceholderRecipeName = "新規レシピ";
+
+    /// <summary>
+    /// <see cref="NewRecipe"/> が採番した Id をレシピインスタンスに紐付けて記録する。
+    /// 「未編集の仮採番」はこの記録との一致で判定し、同じ形式を手入力した Id や
+    /// インポート済みのレシピと区別する。
+    /// </summary>
+    private static readonly ConditionalWeakTable<Recipe, FactoryPlaceholder> _recipePlaceholders = new();
+
+    private sealed class FactoryPlaceholder
+    {
+        public required string Id { get; init; }
+    }
+
+    /// <summary>
+    /// <see cref="NewRecipe"/> で生成され、Id が生成時の採番値のままのレシピかを判定する。
+    /// 生成後に Id が編集された場合や、ファクトリを通らない既存レシピは false。
+    /// </summary>
+    public static bool IsUntouchedPlaceholderRecipeId(Recipe recipe) =>
+        _recipePlaceholders.TryGetValue(recipe, out FactoryPlaceholder? placeholder)
+        && recipe.Id == placeholder.Id;
+
+    /// <summary>
+    /// <see cref="NewRecipe"/> で生成され、名前が生成時の仮値（<see cref="PlaceholderRecipeName"/>）のままかを判定する。
+    /// </summary>
+    public static bool IsUntouchedPlaceholderRecipeName(Recipe recipe) =>
+        _recipePlaceholders.TryGetValue(recipe, out _)
+        && recipe.Name == PlaceholderRecipeName;
+
     /// <summary>種別ごとの新規 Id 接頭辞。</summary>
     public static string SuggestId(IEnumerable<string> existingIds, string prefix)
     {
@@ -25,6 +56,47 @@ public static class EntityFactory
             }
         }
     }
+
+    /// <summary>ItemId からスラッグ部を取る。先頭の <c>item-</c> を除き、始まらない ItemId は全体を使う。</summary>
+    public static string ItemSlug(string itemId) =>
+        itemId.StartsWith("item-", StringComparison.Ordinal) ? itemId["item-".Length..] : itemId;
+
+    /// <summary>
+    /// レシピの新規 Id 提案（仕様決定 BU）。<c>recipe-&lt;slug&gt;</c> を返し、
+    /// 既存レシピと衝突するときのみ &lt;slug&gt; に 2 桁連番（01 から）を付けて最初の空きを採番する。
+    /// </summary>
+    public static string SuggestRecipeId(IEnumerable<string> existingIds, string itemId)
+    {
+        var taken = new HashSet<string>(existingIds, StringComparer.Ordinal);
+        string baseId = $"recipe-{ItemSlug(itemId)}";
+        if (!taken.Contains(baseId))
+        {
+            return baseId;
+        }
+
+        for (int i = 1; ; i++)
+        {
+            string candidate = $"{baseId}{i:00}";
+            if (!taken.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
+
+    /// <summary>
+    /// レシピの主産物（<see cref="Recipe.Outputs"/> の SortOrder 最小行。同率は先頭行）のアイテム。
+    /// Outputs が空、または主産物の ItemId が文書のアイテムに存在しないときは null。
+    /// </summary>
+    public static Item? MainProductItem(MasterDocument doc, Recipe recipe)
+    {
+        RecipeOutput? main = recipe.Outputs.OrderBy(o => o.SortOrder).FirstOrDefault();
+        return main is null ? null : doc.Items.FirstOrDefault(i => i.Id == main.ItemId);
+    }
+
+    /// <summary>レシピ名の提案値（主産物アイテムの名前。仕様決定 BU）。主産物を解決できないとき null。</summary>
+    public static string? SuggestRecipeName(MasterDocument doc, Recipe recipe) =>
+        MainProductItem(doc, recipe)?.Name;
 
     public static Item NewItem(string id, string versionAdded = DefaultVersionAdded) => new()
     {
@@ -98,25 +170,39 @@ public static class EntityFactory
     };
 
     /// <summary>Outputs と Facilities は各 1 件必要なため、候補があれば 1 行ずつ入れて返す。</summary>
+    /// <param name="idIsPlaceholder">
+    /// <paramref name="id"/> が <see cref="SuggestId"/> による一時採番（<c>recipe-NNN</c>）のとき true。
+    /// 自動提案の未編集判定にのみ使い、呼び出し側が選んだ Id には false のままにする。
+    /// </param>
     public static Recipe NewRecipe(
         string id,
         string versionAdded = DefaultVersionAdded,
         string? outputItemId = null,
-        string? facilityId = null) => new()
+        string? facilityId = null,
+        bool idIsPlaceholder = false)
     {
-        Id = id,
-        Name = "新規レシピ",
-        Description = "",
-        IconKey = null,
-        VersionAdded = versionAdded,
-        VersionRemoved = null,
-        GameEventId = null,
-        Inputs = [],
-        Outputs = outputItemId is null
-            ? []
-            : [new RecipeOutput { ItemId = outputItemId, Quantity = 1, SortOrder = 0 }],
-        Facilities = facilityId is null
-            ? []
-            : [new RecipeFacility { RecipeId = id, FacilityId = facilityId, CycleTime = 2 }],
-    };
+        var recipe = new Recipe
+        {
+            Id = id,
+            Name = PlaceholderRecipeName,
+            Description = "",
+            IconKey = null,
+            VersionAdded = versionAdded,
+            VersionRemoved = null,
+            GameEventId = null,
+            Inputs = [],
+            Outputs = outputItemId is null
+                ? []
+                : [new RecipeOutput { ItemId = outputItemId, Quantity = 1, SortOrder = 0 }],
+            Facilities = facilityId is null
+                ? []
+                : [new RecipeFacility { RecipeId = id, FacilityId = facilityId, CycleTime = 2 }],
+        };
+        if (idIsPlaceholder)
+        {
+            _recipePlaceholders.Add(recipe, new FactoryPlaceholder { Id = id });
+        }
+
+        return recipe;
+    }
 }

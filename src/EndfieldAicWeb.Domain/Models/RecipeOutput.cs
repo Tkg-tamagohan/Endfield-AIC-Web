@@ -8,6 +8,6 @@ public class RecipeOutput
     public required string ItemId { get; set; }
     public double Quantity { get; set; }
 
-    /// <summary>出力の並び順。0 が主産物（レシピアイコンのフォールバック先）。</summary>
+    /// <summary>出力の並び順。最小の行が主産物（同率は先頭行。レシピアイコンのフォールバック先）。</summary>
     public int SortOrder { get; set; }
 }
