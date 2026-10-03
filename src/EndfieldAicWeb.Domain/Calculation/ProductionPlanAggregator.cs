@@ -123,7 +123,6 @@ internal static class ProductionPlanAggregator
         var flowAdjustments = BuildFlowAdjustments(session);
 
         WarningBag warnings = session.Warnings;
-        AddTransportWarnings(master, recipeRuns, facilityRequirements, environmentRequirements, pairSelections, warnings);
 
         return new ProductionPlan
         {
@@ -168,117 +167,6 @@ internal static class ProductionPlanAggregator
             .Where(kv => kv.Value > ProductionCalculator.Epsilon)
             .Select(kv => new FlowAdjustment(kv.Key.RecipeId, kv.Key.InputItemId, kv.Value, kv.Value))
             .ToList();
-    }
-
-    /// <summary>
-    /// 設備 1 ユニットへの入力流量が輸送媒体（ベルト 30 個/分・パイプ 60 個/分）の上限を
-    /// 超える場合に警告を追加する（仕様決定 AN）。
-    /// 台数・レーンを増やせば解消できる集計超過（需要・生産・採取の流量）は対象外。
-    /// </summary>
-    internal static void AddTransportWarnings(
-        MasterDataSnapshot master,
-        IReadOnlyList<RecipeRun> recipeRuns,
-        IReadOnlyList<FacilityRequirement> facilityRequirements,
-        IReadOnlyList<EnvironmentRequirement> environmentRequirements,
-        IReadOnlyList<PairSelection> pairSelections,
-        WarningBag warnings)
-    {
-        Dictionary<string, List<FacilityUnitSlot>> unitsByFacility = FacilityUnitLayout.Allocate(
-            recipeRuns, facilityRequirements, environmentRequirements, master, pairSelections);
-
-        var maxRateByItem = new Dictionary<string, double>(StringComparer.Ordinal);
-        foreach ((string facilityId, List<FacilityUnitSlot> units) in unitsByFacility)
-        {
-            // 固定消費・環境消費はユニット（機械）ごとの定数。
-            var flatInputs = units
-                .Select(_ => new Dictionary<string, double>(StringComparer.Ordinal))
-                .ToList();
-
-            for (int runIndex = 0; runIndex < recipeRuns.Count; runIndex++)
-            {
-                RecipeRun run = recipeRuns[runIndex];
-                if (run.FacilityId != facilityId
-                    || !master.RecipesById.TryGetValue(run.RecipeId, out Recipe? recipe))
-                {
-                    continue;
-                }
-
-                // 固定消費はユニットごとに同量を消費する。
-                RecipeFacility? pair = pairSelections
-                    .Where(s => s.RecipeId == run.RecipeId && s.Pair.FacilityId == run.FacilityId)
-                    .Select(s => s.Pair)
-                    .FirstOrDefault()
-                    ?? recipe.Facilities.FirstOrDefault(p => p.FacilityId == run.FacilityId);
-                if (pair?.FixedConsumption is { } fixedConsumption)
-                {
-                    foreach (Dictionary<string, double> unitFlatInputs in flatInputs)
-                    {
-                        unitFlatInputs[fixedConsumption.ItemId] =
-                            unitFlatInputs.GetValueOrDefault(fixedConsumption.ItemId)
-                            + fixedConsumption.RatePerMinute;
-                    }
-                }
-            }
-
-            // 環境消費はその環境の散布機ユニットへ台数ぶん等量に分かれる。
-            foreach (EnvironmentRequirement env in environmentRequirements)
-            {
-                if (env.ProviderFacilityId != facilityId || env.DispenserCount <= 0)
-                {
-                    continue;
-                }
-
-                double perUnit = env.ConsumeRatePerMinuteTotal / env.DispenserCount;
-                foreach (FacilityUnitSlot unit in units
-                    .Where(u => u.DispenserEnvironmentId == env.EnvironmentId))
-                {
-                    Dictionary<string, double> unitFlatInputs = flatInputs[unit.Index];
-                    unitFlatInputs[env.ConsumeItemId] =
-                        unitFlatInputs.GetValueOrDefault(env.ConsumeItemId) + perUnit;
-                }
-            }
-
-            // 容量は機械単位で判定する。ユニットのレシピ入力は「最も厳しい 1 台」の
-            // 入力（部分占有機械と集約機械群の最大）へ換算してから定数分を足す
-            // （集約スロットの合算流量を 1 機の入力としても、平均化しても誤判定になる）。
-            for (int i = 0; i < units.Count; i++)
-            {
-                Dictionary<string, double> machineInputs =
-                    FacilityUnitLayout.MaxMachineInputs(units[i], recipeRuns, master);
-                foreach (string itemId in machineInputs.Keys.Union(flatInputs[i].Keys))
-                {
-                    double rate = machineInputs.GetValueOrDefault(itemId)
-                        + flatInputs[i].GetValueOrDefault(itemId);
-                    if (rate > maxRateByItem.GetValueOrDefault(itemId))
-                    {
-                        maxRateByItem[itemId] = rate;
-                    }
-                }
-            }
-        }
-
-        foreach ((string itemId, double rate) in maxRateByItem.OrderBy(kv => kv.Key, StringComparer.Ordinal))
-        {
-            if (!master.ItemsById.TryGetValue(itemId, out Item? item))
-            {
-                continue;
-            }
-
-            double limit = item.TransportKind switch
-            {
-                TransportKind.Belt => ProductionCalculator.BeltCapacityPerMinute,
-                TransportKind.Pipe => ProductionCalculator.PipeCapacityPerMinute,
-                _ => 0,
-            };
-            if (limit <= 0 || rate <= limit + ProductionCalculator.Epsilon)
-            {
-                continue;
-            }
-
-            warnings.Add(new CalculationWarning(
-                WarningCode.TransportCapacityExceeded,
-                $"アイテム {itemId} の設備 1 台への入力流量 {rate:F2} 個/分 が輸送容量（{item.TransportKind} {limit:F0} 個/分）を超えています"));
-        }
     }
 }
 

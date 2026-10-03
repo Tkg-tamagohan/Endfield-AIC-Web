@@ -40,7 +40,7 @@
           "properties": {
             "Category": { "type": "string", "minLength": 1, "description": "表示用の分類タグ（計算の判定には使わない）" },
             "IsGatherable": { "type": "boolean", "description": "需要展開の終端となる採取素材か（true なら外部調達扱い）" },
-            "TransportKind": { "enum": ["None", "Belt", "Pipe"], "description": "None は仮想アイテム（輸送容量対象外）" },
+            "TransportKind": { "enum": ["None", "Belt", "Pipe"], "description": "None は電力等の仮想アイテム（レシピ入力不可・計算ページの目標候補から除外）" },
             "GameEventId": { "anyOf": [{ "$ref": "#/$defs/idValue" }, { "type": "null" }], "description": "null=常設" }
           }
         }

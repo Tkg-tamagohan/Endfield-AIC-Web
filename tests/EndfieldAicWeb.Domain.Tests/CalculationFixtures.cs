@@ -330,23 +330,6 @@ internal static class CalculationFixtures
         [Facility("f-t")],
         [Recipe("r-t", "f-t", 2.0, [("i-u", 4.0)], [("i-t", 1.0)])]);
 
-    /// <summary>F-08: 輸送容量（Belt/Pipe/None の3系統）。</summary>
-    public static MasterDataSnapshot F08() => Snapshot(
-        [
-            Item("i-belt-item", "部品", TransportKind.Belt),
-            Item("i-pipe-item", "部品", TransportKind.Pipe),
-            Item("i-none-item", "部品", TransportKind.None),
-            Item("i-belt-src", "採取素材", TransportKind.Belt, null, true),
-            Item("i-pipe-src", "採取素材", TransportKind.Pipe, null, true),
-        ],
-        [Facility("f-tr")],
-        [
-            Recipe("r-belt", "f-tr", 6.0, [("i-belt-src", 1.0)], [("i-belt-item", 1.0)]),
-            Recipe("r-pipe", "f-tr", 6.0, [("i-pipe-src", 1.0)], [("i-pipe-item", 1.0)]),
-            // 仮想アイテムを入力には使えないため、微量の通常素材を入力とする（出力側の容量判定だけを見る）。
-            Recipe("r-none", "f-tr", 6.0, [("i-belt-src", 0.01)], [("i-none-item", 1.0)]),
-        ]);
-
     /// <summary>F-10: 環境（env-gas を要するペアと、不要ペアの両方を持つ r-hp）。</summary>
     public static MasterDataSnapshot F10() => Snapshot(
         [

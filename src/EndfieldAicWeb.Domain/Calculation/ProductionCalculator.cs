@@ -3,7 +3,7 @@ using EndfieldAicWeb.Domain.Models;
 namespace EndfieldAicWeb.Domain.Calculation;
 
 /// <summary>
-/// 生産計画の計算（需要展開・副産物充当・設備台数・環境計上・固定消費・流量調整・輸送容量）を行う。
+/// 生産計画の計算（需要展開・副産物充当・設備台数・環境計上・固定消費・流量調整）を行う。
 /// 骨格は旧 ProductionCalculator の Session（展開→引き戻しの固定点反復）を移植したもので、
 /// ペア選択（F/U）・環境計上（I）・固定消費（J/V）・イベント不可扱い（T/X）・収束反復を含む。
 /// 公開 API と共有の定数・小ヘルパーのみを持ち、計算状態は <see cref="CalculationSession"/>、
@@ -12,12 +12,6 @@ namespace EndfieldAicWeb.Domain.Calculation;
 public static class ProductionCalculator
 {
     internal const double Epsilon = 1e-9;
-
-    /// <summary>ベルトの輸送上限（個/分）。</summary>
-    public const double BeltCapacityPerMinute = 30.0;
-
-    /// <summary>パイプの輸送上限（個/分）。</summary>
-    public const double PipeCapacityPerMinute = 60.0;
 
     /// <summary>環境消費・固定消費の追加需要が収束するまでの反復上限（docs/implementation-plan.md §3-8）。</summary>
     internal const int MaxConvergenceIterations = 10;
