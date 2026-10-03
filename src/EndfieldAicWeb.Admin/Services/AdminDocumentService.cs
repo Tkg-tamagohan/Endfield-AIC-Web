@@ -140,6 +140,9 @@ public sealed class AdminDocumentService
     /// <summary>最後に書き出しを成功させた時点の編集回数。</summary>
     private int _counterAtExport = -1;
 
+    /// <summary>最後に書き出しを成功させた文書。読み込み直しで別文書へ差し替わったかの判定に使う。</summary>
+    private MasterDocument? _exportedDocument;
+
     /// <summary>URL（相対パスまたは絶対 URL）からマスタ JSON を取得して読み込む。
     /// 待機中に別の読み込みが始まった場合は結果を捨てる（新しいほうが優先）。</summary>
     public async Task<bool> LoadFromUrlAsync(string url)
@@ -288,7 +291,8 @@ public sealed class AdminDocumentService
             Document = result.Document;
             _iconResolver = null;
             SourceLabel = sourceLabel;
-            IsDirty = false;
+            // 正規化で修正のあった文書は未エクスポートの変更ありとする（仕様決定 CH）。
+            IsDirty = result.Normalizations.Count > 0;
             ValidationErrors = [];
             ValidationRan = false;
             ValidationStale = false;
@@ -382,6 +386,7 @@ public sealed class AdminDocumentService
             string json = MasterExporter.Export(Document, dataVersion: version);
             Document.DataVersion = version;
             _counterAtExport = _editCounter;
+            _exportedDocument = Document;
             ValidationErrors = [];
             ValidationRan = true;
             ValidationStale = false;
@@ -532,6 +537,7 @@ public sealed class AdminDocumentService
             Document.Icons = manifest;
             _iconResolver = null;
             _counterAtExport = _editCounter;
+            _exportedDocument = Document;
             ValidationErrors = [];
             ValidationRan = true;
             ValidationStale = false;
@@ -547,10 +553,14 @@ public sealed class AdminDocumentService
     }
 
     /// <summary>JSON ファイルのダウンロードが完了したことを記録し、ダーティフラグを落とす。
-    /// 書き出し成功から完了までの間に編集が入っていた場合はダーティを維持する。</summary>
+    /// 書き出し成功から完了までの間に編集が入っていた場合はダーティを維持する。
+    /// 書き出し後に別文書へ読み込み直していた場合は、その文書のダーティ状態を上書きしない。</summary>
     public void MarkExported()
     {
-        IsDirty = _editCounter != _counterAtExport;
+        if (ReferenceEquals(Document, _exportedDocument))
+        {
+            IsDirty = _editCounter != _counterAtExport;
+        }
     }
 
     public event Action? Changed;
