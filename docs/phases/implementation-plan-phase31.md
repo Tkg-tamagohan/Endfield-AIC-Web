@@ -1,7 +1,7 @@
 # Phase 31 実装詳細計画
 
 **対象フェーズ**: Phase 31（ID 系値の空白禁止と読み込み時正規化）（仮採番）
-**前提ドキュメント**: [implementation-plan.md](../implementation-plan.md)、[requirements.md](../requirements.md)、[decision-records.md](../decision-records.md)（仕様決定 BV〜BX）
+**前提ドキュメント**: [implementation-plan.md](../implementation-plan.md)、[requirements.md](../requirements.md)、[decision-records.md](../decision-records.md)（仕様決定 BW〜BY）
 **関連ドキュメント**: [test-specification-phase31.md](test-specification-phase31.md)（本 Phase のテスト仕様）、[remaining-issues.md](../remaining-issues.md)（「管理ツール側の登録データの ID 修正」項目）
 
 > 本書は Phase 31 の作業項目を、作業者が追加の判断なしに実行できる粒度へ分解したものである。
@@ -12,10 +12,10 @@
 
 ### やること
 
-- エンティティの Id と参照 Id 値に「空白文字を含まない」の規則を追加し、`MasterValidator` の検証違反とする（仕様決定 BV）
-- `master.schema.json` に空白禁止の `pattern` を記載し、CI の validate_master.py でも検出可能にする（BV）
-- JSON 読み込みで ID 系値の前後空白を一貫して除去する正規化を読み込み経路に追加し、除去箇所を管理ツールの読み込み画面へ通知する（BW）
-- 管理ツールの共通属性編集で Id 欄を確定時トリムする（BX）
+- エンティティの Id と参照 Id 値に「空白文字を含まない」の規則を追加し、`MasterValidator` の検証違反とする（仕様決定 BW）
+- `master.schema.json` に空白禁止の `pattern` を記載し、CI の validate_master.py でも検出可能にする（BW）
+- JSON 読み込みで ID 系値の前後空白を一貫して除去する正規化を読み込み経路に追加し、除去箇所を管理ツールの読み込み画面へ通知する（BX）
+- 管理ツールの共通属性編集で Id 欄を確定時トリムする（BY）
 - `remaining-issues.md` の「管理ツール側の登録データの ID 修正」項目を、導入後の状態に合わせて更新する
 
 ### やらないこと
@@ -73,14 +73,14 @@
 
 | ファイル | 変更 |
 |---|---|
-| `docs/decision-records.md` | 仕様決定 BV・BW・BX を追加する（計画 PR で先行して追加済み） |
+| `docs/decision-records.md` | 仕様決定 BW・BX・BY を追加する（計画 PR で先行して追加済み） |
 | `docs/requirements.md` | §5.2 共通属性・§5.10 マスタ文書へ規則を反映する（計画 PR で先行して反映済み） |
 | `docs/implementation-plan.md` | Phase 31 の節を追加する（計画 PR で追加済み） |
 | `docs/remaining-issues.md` | 「管理ツール側の登録データの ID 修正」項目を実施後の状態に合わせて更新する |
 
 ## 4. 変更詳細
 
-### 4-1. 検証規則（BV）
+### 4-1. 検証規則（BW）
 
 `MasterValidator` に `RequireNoWhitespace`（仮称）を追加する。値が非空かつ空白文字を 1 文字でも含むとき違反とする。メッセージは `"{field} には空白を含めないでください: {value}"` とする（IconKey 違反の形式に揃える）。
 
@@ -95,7 +95,7 @@
 
 空白のみの値は従来どおり必須違反（`IsNullOrWhiteSpace`）とし、新規則は空白を含む非空の値に適用する。
 
-### 4-2. 読み込み時の正規化（BW）
+### 4-2. 読み込み時の正規化（BX）
 
 `MasterJsonReader` に `NormalizeIdValues`（仮称）を追加し、`MasterJsonLoader.Load` で `Parse` と `ValidateStructure` の間に呼ぶ。`MasterJsonDocument` は型付き DTO のため、各エンティティリストを走査して対象プロパティへトリム後の値を代入するだけでよい。
 
@@ -103,18 +103,18 @@
 
 - 必須の ID 系値（各 `Id`・`ProviderFacilityId`・`ConsumeItemId`・`FacilityId`・各 `ItemId`）は `Trim()` するのみとし、空になっても null にしない（後段の必須違反に委ねる）
 - null 許容の参照値（`GameEventId`・ペアの `EnvironmentId`）は `Trim()` して空なら null とする
-- 内部空白は `Trim()` の対象外のため残り、BV の違反として後段の検証で捕捉される
+- 内部空白は `Trim()` の対象外のため残り、BW の違反として後段の検証で捕捉される
 - `IconKey`・`Name`・`Description`・`VersionAdded` は対象外
 
 除去が発生した値は `{ロケーション}: 「{正規化後の値}」` 形式の文字列として `normalizations` に記録する。ロケーションは `RequireField` が使う形式に揃え、`Facilities[2].Id` 等とする。`MasterJsonLoadResult` に `Normalizations`（`IReadOnlyList<string>`、既定空）を追加して返す。
 
 Id と参照値の双方へ同じ規則で適用するため、`fac-moulding ` のエンティティと参照が揃って `fac-moulding` へ矯正され、参照整合は保たれる。トリムで重複した Id（`fac-a` と `fac-a ` の併存）は `EnsureUniqueIds` が違反として捕捉する。
 
-### 4-3. 読み込み通知（BW）
+### 4-3. 読み込み通知（BX）
 
 `AdminDocumentService` に `LoadNotes`（`IReadOnlyList<string>`、既定空）を追加し、`LoadJson` で `result.Normalizations` を保持する（読み込み失敗時・再読み込み時は空へ戻す）。`Home.razor` の読み込みパネルに、件数が 0 でないときだけ「前後の空白を除去した ID 系値が N 件あります。」と各エントリの一覧を表示する。表示は注記系スタイルとし、先頭 20 件＋残件数とする。
 
-### 4-4. スキーマへの反映（BV）
+### 4-4. スキーマへの反映（BW）
 
 `$defs` に `idValue` を新設する。
 
@@ -126,7 +126,7 @@ Id と参照値の双方へ同じ規則で適用するため、`fac-moulding ` �
 
 `$(?![\\s\\S])` は Python の `$` が末尾改行前にも一致する落とし穴を避ける IconKey と同じイディオムである。null 許容フィールドへの適用で空文字も弾かれるようになるが、空文字の参照値は null に統一する意図的な強化とする。
 
-### 4-5. Id 欄のトリム（BX）
+### 4-5. Id 欄のトリム（BY）
 
 `CommonFieldsEditor` の Id 行を `Apply(e, v => Entity.Id = v.Trim())` に変える。`IconEditor` の `value.Trim()` と同型である。`Name`・`Description`・`VersionAdded` は対象外とする（`VersionAdded` は空白入りであれば semver 違反として検出済み）。
 
@@ -138,14 +138,14 @@ Id と参照値の双方へ同じ規則で適用するため、`fac-moulding ` �
 
 - 公開アプリは同じ `MasterJsonLoader` 経路で読み込むため正規化は自動適用されるが、同梱マスタに空白入り・空文字の ID 系値はなく（81 ID 実測済み）実データ上の差分は出ない
 - `MasterExporter` のエクスポートも `ValidateAll` を通るため、空白入り ID はエクスポートでも拒否される
-- 正規化は読み込み経路のみに入れ、編集中の文書への新規混入は BX の入力トリムで予防する
+- 正規化は読み込み経路のみに入れ、編集中の文書への新規混入は BY の入力トリムで予防する
 - null 許容参照フィールドのスキーマ強化で空文字が弾かれるようになるが、空文字の参照値は同梱マスタに存在しない（実測済み）
 
 ## 6. 受け入れ条件
 
-- 空白入りのエンティティ Id・参照 Id 値が検証違反になる（BV）
-- 前後空白入りの ID 系値を含む JSON が読み込め、参照整合が保たれ、除去箇所が通知される（BW）
-- 内部空白を含む ID 系値は読み込みでも違反として残る（BV・BW の境界）
-- 管理ツールの Id 欄で空白を含めて確定しても保存値に空白が残らない（BX）
+- 空白入りのエンティティ Id・参照 Id 値が検証違反になる（BW）
+- 前後空白入りの ID 系値を含む JSON が読み込め、参照整合が保たれ、除去箇所が通知される（BX）
+- 内部空白を含む ID 系値は読み込みでも違反として残る（BW・BX の境界）
+- 管理ツールの Id 欄で空白を含めて確定しても保存値に空白が残らない（BY）
 - `validate_master.py` 経由でも空白入り ID を検出できる
 - `dotnet test` 全緑
