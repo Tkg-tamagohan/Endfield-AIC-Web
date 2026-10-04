@@ -20,7 +20,7 @@
 ### やること
 
 - 描画の実行時失敗（デバイスロスト・`uncapturederror`・`frame()` の例外）を検知し、一度だけ .NET 側へ通知してグラフ節を畳む退避経路を追加する（仕様決定 CJ）
-- 失敗後のハンドル操作（`update`・`refit`・`zoomStep`・`dispose`）を無害な no-op にし、`fail` を冪等にする
+- 失敗後のハンドル操作（`update`・`refit`・`zoomStep`・`dispose`）を無害な no-op にし、`fail` と `dispose` で冪等な後片付け（リスナー解除・オブザーバー切断・バッファ破棄・デバイス破棄）を共有する
 - `u.time` が閾値を超えた時点で、各粒子の位相へ時間積算分の小数部を畳み込み、時刻基準をリセットする（見た目は不変の内部処理）
 - canvas バッファのピクセル比を `min(devicePixelRatio, 2)` に上限付けする（仕様決定 CK）
 - E2E から失敗経路と時刻リセットを発火できる検証用エクスポート `debugFail(canvas)`・`debugAdvance(canvas, seconds)` を追加する
@@ -31,7 +31,7 @@
 - npm / Node.js のテスト基盤（jsdom＋モック GPU で `node --test` を回す nagi 式ハーネス）は導入しない。純粋関数の資産が少なく、package.json の維持コストに見合わないため（後述の協議記録参照）
 - グラフの見た目・レイアウト・粒子密度・色は変えない。仕様決定 AP・BF〜BH・BJ〜BL・BO・CD の表示契約は据え置き
 - `webgpuSupported`・`create` の非対応判定ロジックは変えない
-- 失敗時の自動復帰（デバイス再取得・canvas 再構成）は実装しない。復帰は次回マウント（計算の再実行）に委ねる（仕様決定 CJ）
+- 失敗時の自動復帰（デバイス再取得・canvas 再構成）は実装しない。復帰は CalculatorPanel の再生成（ページ遷移・リロード）に委ねる（仕様決定 CJ）。計算の再実行では `_graphSupported=false` が維持され、グラフは復帰しない
 - `CalculatorPanel.razor` は変更しない（既存の `OnUnavailable` 経路を再利用する）
 
 ## 2. 変更一覧
@@ -39,7 +39,7 @@
 | ファイル | 変更 |
 |---|---|
 | `src/EndfieldAicWeb.SharedUi/wwwroot/js/flow-graph.js` | `create(canvas, layer, dotnetRef)` の第 3 引数（任意）を追加。`makeHandle` 内に失敗通知 `fail(err)` を実装し、`device.lost` ・`uncapturederror`・`frame()` 全体の try/catch から呼ぶ。`update` の先頭に `destroyed` ガードを追加。`applyView` に時刻リセットを実装。DPR 取得を共通関数化して上限 2 を適用。`debugFail`・`debugAdvance` をエクスポートし、canvas → 内部ハンドルの WeakMap レジストリを設ける |
-| `src/EndfieldAicWeb.SharedUi/Components/FlowGraph.razor` | `create` の呼び出しに `_selfRef` を渡す。`[JSInvokable] OnGraphFailed` を追加し、ハンドルの best-effort dispose 後に `OnUnavailable` を発火する |
+| `src/EndfieldAicWeb.SharedUi/Components/FlowGraph.razor` | `create` の呼び出しに `_selfRef` を渡す。`[JSInvokable] OnGraphFailed` を追加し、ハンドルの dispose（`fail` 済みなら冪等の後片付けとして無害）後に `OnUnavailable` を発火する |
 | `docs/decision-records.md` | 仕様決定 CJ・CK を追加 |
 | `docs/requirements.md` | フローグラフ項（§35 相当箇所・§323 相当箇所）に実行時退避とピクセル比上限を追記 |
 | `docs/implementation-plan.md` | Phase 34 のチェックリスト項目を追加 |
@@ -51,9 +51,11 @@
 `makeHandle` 内に冪等の `fail(err)` を置く。処理は次の通り。
 
 1. `destroyed = true`・`running = false` とし、保留中の rAF をキャンセルする
-2. GPU リソース（edgeVertexBuffer・particleInstanceBuffer・edgeParamBuffer・quadBuffer・uniformBuffer）を try/catch 内で best-effort 破棄する。デバイスロスト後の `destroy()` が投げても通知処理を止めないためである
+2. `dispose` と共通の後片付けを try/catch 内で実行する。対象は window・container のイベントリスナー解除、ResizeObserver・IntersectionObserver の切断、visibilitychange リスナー解除、GPU バッファ（edgeVertexBuffer・particleInstanceBuffer・edgeParamBuffer・quadBuffer・uniformBuffer）破棄、`device.destroy()` の一式である。デバイスロスト後の `destroy()` や `dispose()` が投げても通知処理を止めないため、全体を例外で囲む
 3. `dotnetRef.invokeMethodAsync('OnGraphFailed')` を一度だけ呼ぶ（`failed` フラグで多重通知を防ぐ。呼び出し側切断に備え `.catch(() => {})` を付ける）
 4. `console.warn` に理由を残す。ページ上の警告文面は出さない（仕様決定 CF の「ページに表示する警告」に該当しない内部通知である）
+
+後片付けは `removeEventListener`・`disconnect()`・`device.destroy()` のいずれも冪等なため、`fail` 済みのハンドルへ `dispose` が来ても二重実行の害はない。`fail` でリスナー類まで解放するのは、退避後に DOM から外れた canvas へ window の pointer リスナーや Observer が残り続けるのを防ぐためである
 
 失敗の検知は 3 経路とする。
 
@@ -61,7 +63,7 @@
 - `device.addEventListener('uncapturederror', ...)`：パイプライン作成以降の検証エラーを捕捉する。ここで拾うエラーは描画が破綻している兆候であり、グラフを畳んでリストへ戻すほうが利用者に優しい
 - `frame()` の try/catch：`getCurrentTexture()` や `queue.submit` の実行時例外を捕捉する。例外後は rAF を再登録せず `fail` へ渡す
 
-`FlowGraph.razor` 側の `OnGraphFailed` は、JS ハンドルの dispose を試みてから `_handle = null` とし、`_unavailableNotified` を再利用して `OnUnavailable` を一度だけ発火する。結果として `CalculatorPanel` の `_graphSupported` が false になり、初期化失敗時と同じくグラフ節（切替ボタン・最大化・canvas 一式）が DOM から外れてリスト表示へ戻る。当該マウント内での復帰は行わない。
+`FlowGraph.razor` 側の `OnGraphFailed` は、JS ハンドルの dispose を試みてから `_handle = null` とし、`_unavailableNotified` を再利用して `OnUnavailable` を一度だけ発火する。結果として `CalculatorPanel` の `_graphSupported` が false になり、初期化失敗時と同じくグラフ節（切替ボタン・最大化・canvas 一式）が DOM から外れてリスト表示へ戻る。`_graphSupported` はコンポーネントの状態であり `OnAfterRenderAsync` のガード上は再評価されないため、計算の再実行でもグラフは復帰しない。復帰は CalculatorPanel の再生成（ページ遷移・リロード）に委ねる。
 
 ### 3-2. 時刻リセット（内部処理、仕様決定の対象外）
 
