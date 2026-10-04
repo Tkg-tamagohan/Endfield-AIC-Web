@@ -260,7 +260,9 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
         layer.style.transform = `translate(${view.tx}px, ${view.ty}px) scale(${view.s})`;
         const dpr = effDpr();
         let elapsed = (performance.now() - startTime) / 1000;
-        if (elapsed > TIME_WRAP_S && instanceData) {
+        // 動き抑制の静止画モードでは u.time を使わず位相をそのまま描くため、畳み込みは行わない。
+        // 行うと次回の単発描画で粒子が現在位置から動いて見えてしまう。
+        if (!reducedMotion && elapsed > TIME_WRAP_S && instanceData) {
             // u.time が大きくなると f32 の量子化誤差が粒子位相へ出始めるため、経過時間を
             // 位相へ畳み込んで時刻基準をリセットする。fract は整数シフト不変なので表示は連続する（Phase 34）。
             for (let i = 0; i < particleCount; i++) {
@@ -895,9 +897,9 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
 
     return {
         update,
-        refit() { fitView(); requestFrames(); },
+        refit() { if (destroyed) return; fitView(); requestFrames(); },
         // ＋・−ボタン: 領域中心アンカーの段階的な拡大縮小（仕様決定 BL）。
-        zoomStep(dir) { zoomTo(view.s * (dir > 0 ? ZOOM_STEP : 1 / ZOOM_STEP)); },
+        zoomStep(dir) { if (destroyed) return; zoomTo(view.s * (dir > 0 ? ZOOM_STEP : 1 / ZOOM_STEP)); },
         dispose() {
             if (destroyed) return;
             destroyed = true;
