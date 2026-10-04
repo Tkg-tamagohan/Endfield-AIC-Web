@@ -51,11 +51,11 @@
 `makeHandle` 内に冪等の `fail(err)` を置く。処理は次の通り。
 
 1. `destroyed = true`・`running = false` とし、保留中の rAF をキャンセルする
-2. `dispose` と共通の後片付けを try/catch 内で実行する。対象は window・container のイベントリスナー解除、ResizeObserver・IntersectionObserver の切断、visibilitychange リスナー解除、GPU バッファ（edgeVertexBuffer・particleInstanceBuffer・edgeParamBuffer・quadBuffer・uniformBuffer）破棄、`device.destroy()` の一式である。デバイスロスト後の `destroy()` や `dispose()` が投げても通知処理を止めないため、全体を例外で囲む
+2. `dispose` と共通の後片付けを実行する。対象は window・container のイベントリスナー解除、ResizeObserver・IntersectionObserver の切断、visibilitychange リスナー解除、GPU バッファ（edgeVertexBuffer・particleInstanceBuffer・edgeParamBuffer・quadBuffer・uniformBuffer）破棄、`device.destroy()` の一式である。投げうる操作（ロスト後の GPU 破棄など）はそれぞれ独立した try/catch（または `tryQuietly(fn)` のようなヘルパー）で囲み、一つの失敗が後続の解放をスキップしないようにする
 3. `dotnetRef.invokeMethodAsync('OnGraphFailed')` を一度だけ呼ぶ（`failed` フラグで多重通知を防ぐ。呼び出し側切断に備え `.catch(() => {})` を付ける）
 4. `console.warn` に理由を残す。ページ上の警告文面は出さない（仕様決定 CF の「ページに表示する警告」に該当しない内部通知である）
 
-後片付けは `removeEventListener`・`disconnect()`・`device.destroy()` のいずれも冪等なため、`fail` 済みのハンドルへ `dispose` が来ても二重実行の害はない。`fail` でリスナー類まで解放するのは、退避後に DOM から外れた canvas へ window の pointer リスナーや Observer が残り続けるのを防ぐためである
+後片付けは `removeEventListener`・`disconnect()`・`device.destroy()` のいずれも冪等なため、`fail` 済みのハンドルへ `dispose` が来ても二重実行の害はない。`fail` でリスナー類まで解放するのは、退避後に DOM から外れた canvas へ window の pointer リスナーや Observer が残り続けるのを防ぐためである。例外の扱いは操作ごとに独立させる。GPU 破棄が投げてもリスナー解除・Observer 切断・通知は実行され続ける必要がある
 
 失敗の検知は 3 経路とする。
 
