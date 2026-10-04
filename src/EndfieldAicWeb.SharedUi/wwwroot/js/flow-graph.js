@@ -3,6 +3,8 @@
 // このモジュールはモデルのランク・順序からノード座標を決めて DOM に反映し、
 // パン・ズーム・フォールバック判定を管理する。
 // 非対応環境では create が null を返すだけで例外は投げない（仕様決定 AK）。
+// 描画中の実行時失敗（デバイスロスト・GPU エラー・描画例外）は fail が一度だけ .NET へ通知し、
+// 初期化失敗と同じ経路でグラフ節を畳む（仕様決定 CJ）。
 
 const NODE_GAP_X = 110;
 const NODE_GAP_Y = 22;
@@ -17,6 +19,15 @@ const EDGE_HALF_W = 2.0;
 const PARTICLE_COUNT_MIN = 3;
 const PARTICLE_COUNT_MAX = 10;
 const PARTICLE_SATURATE_PER_MINUTE = 30;
+
+// u.time は f32 で書かれるため、量子化誤差が位相へ蓄積しないよう時刻基準をリセットする閾値（秒）。
+const TIME_WRAP_S = 1024;
+
+// canvas バッファのピクセル比上限（仕様決定 CK）。resize と applyView で同じ値を使う。
+const DPR_MAX = 2;
+function effDpr() {
+    return Math.min(devicePixelRatio || 1, DPR_MAX);
+}
 
 // FlowGraphEdgeKind の enum 序数に対応する描画色（RGBA、app.css の変数と同色）。
 const EDGE_COLORS = [
@@ -147,7 +158,7 @@ export function viewportWidth() {
     return window.innerWidth;
 }
 
-export async function create(canvas, layer) {
+export async function create(canvas, layer, dotnetRef) {
     try {
         if (!navigator.gpu) return null;
         const adapter = await navigator.gpu.requestAdapter();
@@ -157,13 +168,13 @@ export async function create(canvas, layer) {
         if (!context) return null;
         const format = navigator.gpu.getPreferredCanvasFormat();
         context.configure({ device, format, alphaMode: 'opaque' });
-        return makeHandle(canvas, layer, device, context, format);
+        return makeHandle(canvas, layer, device, context, format, dotnetRef);
     } catch {
         return null;
     }
 }
 
-function makeHandle(canvas, layer, device, context, format) {
+function makeHandle(canvas, layer, device, context, format, dotnetRef) {
     const module = device.createShaderModule({ code: WGSL });
     const blend = {
         color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
@@ -229,6 +240,10 @@ function makeHandle(canvas, layer, device, context, format) {
     let edgeParamBuffer = null;
     let bindGroup = null;
     let destroyed = false;
+    let failed = false;
+    // 時刻リセットで位相を畳み込むため、インスタンスバッファの生データと各粒子のエッジ速度を保持する。
+    let instanceData = null;
+    let instanceSpeeds = null;
 
     const view = { s: 1, tx: 0, ty: 0 };
     let worldBounds = { x: 0, y: 0, w: 0, h: 0 };
@@ -243,11 +258,24 @@ function makeHandle(canvas, layer, device, context, format) {
     function applyView() {
         layer.style.transformOrigin = '0 0';
         layer.style.transform = `translate(${view.tx}px, ${view.ty}px) scale(${view.s})`;
-        const dpr = devicePixelRatio || 1;
+        const dpr = effDpr();
+        let elapsed = (performance.now() - startTime) / 1000;
+        // 動き抑制の静止画モードでは u.time を使わず位相をそのまま描くため、畳み込みは行わない。
+        // 行うと次回の単発描画で粒子が現在位置から動いて見えてしまう。
+        if (!reducedMotion && elapsed > TIME_WRAP_S && instanceData) {
+            // u.time が大きくなると f32 の量子化誤差が粒子位相へ出始めるため、経過時間を
+            // 位相へ畳み込んで時刻基準をリセットする。fract は整数シフト不変なので表示は連続する（Phase 34）。
+            for (let i = 0; i < particleCount; i++) {
+                instanceData[i * 2 + 1] = (elapsed * instanceSpeeds[i] + instanceData[i * 2 + 1]) % 1;
+            }
+            if (particleInstanceBuffer) device.queue.writeBuffer(particleInstanceBuffer, 0, instanceData);
+            startTime = performance.now();
+            elapsed = (performance.now() - startTime) / 1000;
+        }
         const uniforms = new Float32Array([
             view.s * dpr, view.s * dpr, view.tx * dpr, view.ty * dpr,
             canvas.width, canvas.height,
-            (performance.now() - startTime) / 1000,
+            elapsed,
             reducedMotion ? 1 : 0,
         ]);
         device.queue.writeBuffer(uniformBuffer, 0, uniforms);
@@ -270,28 +298,35 @@ function makeHandle(canvas, layer, device, context, format) {
         if (destroyed) return;
         rafId = 0;
         if (!(running && visible && inView)) return;
-        applyView();
-        const encoder = device.createCommandEncoder();
-        const pass = encoder.beginRenderPass({
-            colorAttachments: [{
-                view: context.getCurrentTexture().createView(),
-                loadOp: 'clear', clearValue: CLEAR_COLOR, storeOp: 'store',
-            }],
-        });
-        pass.setBindGroup(0, bindGroup);
-        if (edgeVertexCount > 0 && edgeVertexBuffer) {
-            pass.setPipeline(edgePipeline);
-            pass.setVertexBuffer(0, edgeVertexBuffer);
-            pass.draw(edgeVertexCount);
+        // getCurrentTexture や submit の実行時例外はデバイスロストの兆候であり、
+        // rAF を再登録せずに fail へ渡してリスト表示へ退避する（仕様決定 CJ）。
+        try {
+            applyView();
+            const encoder = device.createCommandEncoder();
+            const pass = encoder.beginRenderPass({
+                colorAttachments: [{
+                    view: context.getCurrentTexture().createView(),
+                    loadOp: 'clear', clearValue: CLEAR_COLOR, storeOp: 'store',
+                }],
+            });
+            pass.setBindGroup(0, bindGroup);
+            if (edgeVertexCount > 0 && edgeVertexBuffer) {
+                pass.setPipeline(edgePipeline);
+                pass.setVertexBuffer(0, edgeVertexBuffer);
+                pass.draw(edgeVertexCount);
+            }
+            if (particleCount > 0 && particleInstanceBuffer) {
+                pass.setPipeline(particlePipeline);
+                pass.setVertexBuffer(0, particleInstanceBuffer);
+                pass.setVertexBuffer(1, quadBuffer);
+                pass.draw(6, particleCount);
+            }
+            pass.end();
+            device.queue.submit([encoder.finish()]);
+        } catch (err) {
+            fail(err);
+            return;
         }
-        if (particleCount > 0 && particleInstanceBuffer) {
-            pass.setPipeline(particlePipeline);
-            pass.setVertexBuffer(0, particleInstanceBuffer);
-            pass.setVertexBuffer(1, quadBuffer);
-            pass.draw(6, particleCount);
-        }
-        pass.end();
-        device.queue.submit([encoder.finish()]);
         // 動き抑制時は静止画のため、状態変化ごとの単発描画にする。
         if (!reducedMotion) rafId = requestAnimationFrame(frame);
     }
@@ -301,7 +336,7 @@ function makeHandle(canvas, layer, device, context, format) {
     }
 
     function resize() {
-        const dpr = devicePixelRatio || 1;
+        const dpr = effDpr();
         const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
         const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
         if (canvas.width === w && canvas.height === h) return;
@@ -443,6 +478,16 @@ function makeHandle(canvas, layer, device, context, format) {
     };
     document.addEventListener('visibilitychange', onVisibility);
 
+    // ---- 実行時失敗の検知（仕様決定 CJ）----
+    // dispose 内の device.destroy() が発火する reason 'destroyed' は destroyed フラグで除外する。
+    const onUncapturedError = e => { if (!destroyed) fail(e.error); };
+    if (typeof device.addEventListener === 'function') {
+        device.addEventListener('uncapturederror', onUncapturedError);
+    }
+    device.lost.then(info => {
+        if (!destroyed) fail(new Error(`WebGPU device lost (${info.reason}): ${info.message}`));
+    });
+
     // ---- レイアウトとジオメトリ ----
     function cubic(p0, p1, p2, p3, t) {
         const s = 1 - t;
@@ -581,6 +626,7 @@ function makeHandle(canvas, layer, device, context, format) {
     }
 
     function update(model, vertical) {
+        if (destroyed) return;
         const nodes = model?.nodes ?? [];
         const edgeList = model?.edges ?? [];
         const maxRate = Math.max(model?.maxRatePerMinute ?? 0, 1e-9);
@@ -772,9 +818,12 @@ function makeHandle(canvas, layer, device, context, format) {
 
         if (particleInstanceBuffer) particleInstanceBuffer.destroy();
         particleCount = instances.length / 2;
-        const instanceData = new Float32Array(instances);
+        instanceData = new Float32Array(instances);
         const instanceU32 = new Uint32Array(instanceData.buffer);
         for (let i = 0; i < particleCount; i++) instanceU32[i * 2] = instances[i * 2];
+        // 時刻リセットの位相畳み込みで使う各粒子のエッジ速度を保持する。
+        instanceSpeeds = new Float32Array(particleCount);
+        for (let i = 0; i < particleCount; i++) instanceSpeeds[i] = params[instances[i * 2]].speed;
         particleInstanceBuffer = particleCount
             ? device.createBuffer({ size: instanceData.byteLength, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST })
             : null;
@@ -787,34 +836,89 @@ function makeHandle(canvas, layer, device, context, format) {
         return [Math.min(1, c[0] + 0.18), Math.min(1, c[1] + 0.18), Math.min(1, c[2] + 0.18), Math.min(1, c[3] + 0.25)];
     }
 
+    // ---- 後片付けと失敗通知（仕様決定 CJ）----
+    // fail と dispose で共有する冪等の後片付け。投げうる操作はそれぞれ独立した
+    // try/catch で囲み、一つの失敗が後続の解放をスキップしないようにする。
+    function tryQuietly(fn) {
+        try { fn(); } catch { }
+    }
+
+    function teardown() {
+        tryQuietly(() => resizeObserver.disconnect());
+        tryQuietly(() => inViewObserver.disconnect());
+        tryQuietly(() => document.removeEventListener('visibilitychange', onVisibility));
+        tryQuietly(() => container.removeEventListener('pointerdown', onPointerDown));
+        tryQuietly(() => window.removeEventListener('pointermove', onPointerMove));
+        tryQuietly(() => window.removeEventListener('pointerup', onPointerUp));
+        tryQuietly(() => window.removeEventListener('pointercancel', onPointerUp));
+        tryQuietly(() => container.removeEventListener('click', onClickCapture, true));
+        tryQuietly(() => container.removeEventListener('wheel', onWheel));
+        tryQuietly(() => device.removeEventListener('uncapturederror', onUncapturedError));
+        tryQuietly(() => edgeVertexBuffer?.destroy());
+        tryQuietly(() => particleInstanceBuffer?.destroy());
+        tryQuietly(() => edgeParamBuffer?.destroy());
+        tryQuietly(() => quadBuffer.destroy());
+        tryQuietly(() => uniformBuffer.destroy());
+        tryQuietly(() => device.destroy());
+        debugHandles.delete(canvas);
+    }
+
+    // 描画の継続不能を検知したとき、後片付けをして一度だけ .NET へ通知する。
+    // ページ上の警告は出さず console.warn に理由を残す（仕様決定 CF の対象外）。
+    function fail(err) {
+        if (destroyed) return;
+        destroyed = true;
+        running = false;
+        if (rafId) {
+            cancelAnimationFrame(rafId);
+            rafId = 0;
+        }
+        teardown();
+        if (!failed) {
+            failed = true;
+            dotnetRef?.invokeMethodAsync('OnGraphFailed').catch(() => { });
+        }
+        console.warn('flow-graph: render failed, folding to list view', err);
+    }
+
     running = true;
     resize();
     requestFrames();
 
+    // E2E 検証用の canvas → ハンドル登録（Phase 34）。teardown で除去する。
+    debugHandles.set(canvas, {
+        fail: () => fail(new Error('debugFail: injected failure')),
+        advance: s => {
+            if (destroyed) return;
+            startTime -= s * 1000;
+            requestFrames();
+        },
+    });
+
     return {
         update,
-        refit() { fitView(); requestFrames(); },
+        refit() { if (destroyed) return; fitView(); requestFrames(); },
         // ＋・−ボタン: 領域中心アンカーの段階的な拡大縮小（仕様決定 BL）。
-        zoomStep(dir) { zoomTo(view.s * (dir > 0 ? ZOOM_STEP : 1 / ZOOM_STEP)); },
+        zoomStep(dir) { if (destroyed) return; zoomTo(view.s * (dir > 0 ? ZOOM_STEP : 1 / ZOOM_STEP)); },
         dispose() {
+            if (destroyed) return;
             destroyed = true;
             running = false;
             if (rafId) cancelAnimationFrame(rafId);
-            resizeObserver.disconnect();
-            inViewObserver.disconnect();
-            document.removeEventListener('visibilitychange', onVisibility);
-            container.removeEventListener('pointerdown', onPointerDown);
-            window.removeEventListener('pointermove', onPointerMove);
-            window.removeEventListener('pointerup', onPointerUp);
-            window.removeEventListener('pointercancel', onPointerUp);
-            container.removeEventListener('click', onClickCapture, true);
-            container.removeEventListener('wheel', onWheel);
-            edgeVertexBuffer?.destroy();
-            particleInstanceBuffer?.destroy();
-            edgeParamBuffer?.destroy();
-            quadBuffer.destroy();
-            uniformBuffer.destroy();
-            device.destroy();
+            teardown();
         },
     };
+}
+
+// E2E 検証用レジストリ（Phase 34）。canvas → 失敗・時刻操作の内部入口。
+const debugHandles = new WeakMap();
+
+// DevTools・E2E から失敗経路を発火する。未登録・破棄済みなら何もしない。
+export function debugFail(canvas) {
+    debugHandles.get(canvas)?.fail();
+}
+
+// 時刻基準を s 秒だけ過去へずらし、次フレームで時刻リセットを通す。未登録・破棄済みなら何もしない。
+export function debugAdvance(canvas, seconds) {
+    debugHandles.get(canvas)?.advance(seconds);
 }

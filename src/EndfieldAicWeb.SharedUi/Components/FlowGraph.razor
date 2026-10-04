@@ -106,7 +106,7 @@
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/EndfieldAicWeb.SharedUi/js/flow-graph.js");
             _selfRef = DotNetObjectReference.Create(this);
             _escapeSub = await _module.InvokeAsync<IJSObjectReference>("registerEscape", _selfRef);
-            _handle = await _module.InvokeAsync<IJSObjectReference?>("create", _canvas, _layer);
+            _handle = await _module.InvokeAsync<IJSObjectReference?>("create", _canvas, _layer, _selfRef);
             if (_handle is null)
             {
                 if (!_unavailableNotified)
@@ -227,6 +227,31 @@
         if (Maximized)
         {
             await MaximizedChanged.InvokeAsync(false);
+        }
+    }
+
+    /// <summary>描画中の実行時失敗を JS 側から受け取り、初期化失敗と同じ経路でグラフ節を畳む（仕様決定 CJ）。
+    /// JS 側は fail でリソースを解放済みだが、相互運用参照も畳むため dispose を試みる。
+    /// 失敗後のハンドル操作は no-op であり、ここでの呼び出しは無害である。</summary>
+    [JSInvokable]
+    public async Task OnGraphFailed()
+    {
+        if (_handle is not null)
+        {
+            try
+            {
+                await _handle.InvokeVoidAsync("dispose");
+                await _handle.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+            _handle = null;
+        }
+        if (!_unavailableNotified)
+        {
+            _unavailableNotified = true;
+            await OnUnavailable.InvokeAsync();
         }
     }
 
