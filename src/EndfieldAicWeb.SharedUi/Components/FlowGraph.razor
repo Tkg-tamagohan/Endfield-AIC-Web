@@ -51,6 +51,11 @@
     /// <summary>流量の表示フォーマット。表示単位に追従させるため親から渡す。</summary>
     [Parameter] public Func<double, string>? FormatRate { get; set; }
 
+    /// <summary>FormatRate が読む外部状態をまとめたキー（表示単位・期間入力など）。
+    /// 表記が変わりうる値をすべて含める。差分発火はこのキーの変化でも発火させ、
+    /// デリゲートが同一のまま表記だけ変わる経路でノード幅の再計測を抜けないようにする。</summary>
+    [Parameter] public string? FormatKey { get; set; }
+
     /// <summary>WebGPU が使えず描画を諦めたときに親へ通知する。</summary>
     [Parameter] public EventCallback OnUnavailable { get; set; }
 
@@ -103,6 +108,7 @@
     private FlowGraphModel? _appliedModel;
     private bool _appliedVertical;
     private Func<double, string>? _appliedFormatRate;
+    private string? _appliedFormatKey;
 
     private string? WrapStyle =>
         _height is { } h ? $"height: {h.ToString("0", CultureInfo.InvariantCulture)}px" : null;
@@ -114,7 +120,8 @@
         // FormatRate はデリゲートの同一性（対象・メソッド）で比較する。
         if (!ReferenceEquals(Model, _appliedModel)
             || Vertical != _appliedVertical
-            || !Equals(FormatRate, _appliedFormatRate))
+            || !Equals(FormatRate, _appliedFormatRate)
+            || FormatKey != _appliedFormatKey)
         {
             _updatePending = true;
         }
@@ -155,6 +162,7 @@
             _appliedModel = Model;
             _appliedVertical = Vertical;
             _appliedFormatRate = FormatRate;
+            _appliedFormatKey = FormatKey;
             await _handle.InvokeVoidAsync("update", Model, Vertical);
         }
         // DOM への高さ反映のあとでないと fitView が古い領域高を読むため、

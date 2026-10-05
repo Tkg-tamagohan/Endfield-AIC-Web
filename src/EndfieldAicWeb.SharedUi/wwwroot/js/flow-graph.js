@@ -301,6 +301,9 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
     let bufferDpr = Math.min(devicePixelRatio || 1, DPR_MAX);
     // 直前に DOM へ書いた transform 文字列。不変なら書き込みを飛ばす（Phase 38）。
     let lastTransform = '';
+    let transformWrites = 0;
+    // 直前に GPU へ書いた uniform のビュー成分（行列・解像度）。時刻成分は含まない。
+    let lastViewUniforms = null;
     // バッファ再確保の保留。ResizeObserver・DPR 変化で要求サイズを記録し、
     // 安定してから frame() が applyPendingResize で確保する。
     let pendingW = -1;
@@ -328,6 +331,7 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
         const transform = `translate(${view.tx}px, ${view.ty}px) scale(${view.s})`;
         if (transform !== lastTransform) {
             lastTransform = transform;
+            transformWrites++;
             layer.style.transformOrigin = '0 0';
             layer.style.transform = transform;
         }
@@ -345,13 +349,18 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
             startTime = performance.now();
             elapsed = (performance.now() - startTime) / 1000;
         }
-        const uniforms = new Float32Array([
+        // uniform のビュー成分（行列・解像度）は変化時のみ転送する。時刻・静止画フラグは
+        // アニメーション位相に効くため毎フレーム転送する（Phase 38・計画の差分適用）。
+        const viewUniforms = new Float32Array([
             view.s * dpr, view.s * dpr, view.tx * dpr, view.ty * dpr,
             canvas.width, canvas.height,
-            elapsed,
-            reducedMotion ? 1 : 0,
         ]);
-        device.queue.writeBuffer(uniformBuffer, 0, uniforms);
+        if (!lastViewUniforms || !viewUniforms.every((v, i) => v === lastViewUniforms[i])) {
+            lastViewUniforms = viewUniforms;
+            device.queue.writeBuffer(uniformBuffer, 0, viewUniforms);
+        }
+        const tailUniforms = new Float32Array([elapsed, reducedMotion ? 1 : 0]);
+        device.queue.writeBuffer(uniformBuffer, 24, tailUniforms);
     }
 
     function rebuildBindGroup() {
@@ -1010,6 +1019,7 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
     debugHandles.set(canvas, {
         fail: () => fail(new Error('debugFail: injected failure')),
         updateCount: () => updateCalls,
+        transformCount: () => transformWrites,
         advance: s => {
             if (destroyed) return;
             startTime -= s * 1000;
@@ -1048,6 +1058,11 @@ export function debugAdvance(canvas, seconds) {
 // update() の呼出回数（E2E の差分発火検証用・Phase 38）。未登録・破棄済みなら -1。
 export function debugUpdateCount(canvas) {
     return debugHandles.get(canvas)?.updateCount() ?? -1;
+}
+
+// transform の DOM 書込み回数（E2E の差分適用検証用・Phase 38）。未登録・破棄済みなら -1。
+export function debugTransformCount(canvas) {
+    return debugHandles.get(canvas)?.transformCount() ?? -1;
 }
 
 // 現在の canvas バッファの総ピクセル数（E2E の CQ 上限検証用）。
