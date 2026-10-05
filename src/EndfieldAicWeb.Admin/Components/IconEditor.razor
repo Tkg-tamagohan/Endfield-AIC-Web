@@ -76,6 +76,8 @@
             await stream.CopyToAsync(buffer);
             string dataUrl = $"data:{file.ContentType};base64,{Convert.ToBase64String(buffer.ToArray())}";
 
+            // 正規化・APNG 系スクリプトは初回利用時に遅延ロードする（Phase 38）。
+            await JS.InvokeVoidAsync("loadIconTools");
             string normalized = await JS.InvokeAsync<string>("normalizeIconPng", dataUrl);
             byte[] png = Convert.FromBase64String(normalized[(normalized.IndexOf(',') + 1)..]);
             Store.RegisterIcon(Entity, png);

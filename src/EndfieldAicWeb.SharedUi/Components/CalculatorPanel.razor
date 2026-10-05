@@ -64,11 +64,11 @@
         <h2 class="panel-title">採取マップ</h2>
         <select class="input" value="@(_mapId ?? "")" @onchange="OnMapChanged">
             <option value="">未選択（採取無制限）</option>
-            @foreach (GameMap map in MapCandidates)
+            @foreach (GameMap map in _mapCandidates)
             {
                 <option value="@map.Id">@map.Name</option>
             }
-            @if (_mapId is not null && !MapCandidates.Any(map => map.Id == _mapId))
+            @if (_mapId is not null && !_mapCandidates.Any(map => map.Id == _mapId))
             {
                 string mapName = _snapshot!.MapsById.TryGetValue(_mapId, out GameMap? selectedMap)
                     ? selectedMap.Name
@@ -99,9 +99,9 @@
                     <button class="seg @(_unadjusted ? "on" : "")" @onclick="() => SetView(true)">未調整</button>
                 </div>
                 <div class="segmented">
-                    <button class="seg @(_unit == AmountUnit.PerMinute ? "on" : "")" @onclick="() => _unit = AmountUnit.PerMinute">毎分</button>
-                    <button class="seg @(_unit == AmountUnit.PerSecond ? "on" : "")" @onclick="() => _unit = AmountUnit.PerSecond">毎秒</button>
-                    <button class="seg @(_unit == AmountUnit.Period ? "on" : "")" @onclick="() => _unit = AmountUnit.Period">期間</button>
+                    <button class="seg @(_unit == AmountUnit.PerMinute ? "on" : "")" @onclick="() => SetUnit(AmountUnit.PerMinute)">毎分</button>
+                    <button class="seg @(_unit == AmountUnit.PerSecond ? "on" : "")" @onclick="() => SetUnit(AmountUnit.PerSecond)">毎秒</button>
+                    <button class="seg @(_unit == AmountUnit.Period ? "on" : "")" @onclick="() => SetUnit(AmountUnit.Period)">期間</button>
                 </div>
                 @if (_graphSupported && _flowModel is not null)
                 {
@@ -188,7 +188,7 @@
             }
 
             @if (_mapId is not null && _snapshot is not null
-                && MapSelection.IsAvailable(_snapshot, _mapId, ActiveGameEventIds))
+                && MapSelection.IsAvailable(_snapshot, _mapId, _activeGameEventIds))
             {
                 <h2 class="panel-title">採取</h2>
                 @if (_gatherError is not null)
@@ -362,15 +362,19 @@
     {
         string? value = e.Value?.ToString();
         row.Category = string.IsNullOrEmpty(value) ? null : value;
+        row.Options = null;
     }
 
+    // アイテム選択肢は行ごとにキャッシュし、レンダーのたびにフィルタを組み直さない（Phase 38）。
+    // 失効点は OnCategoryChanged・OnItemChanged・行追加・_snapshot の差替時。
     private IReadOnlyList<Item> ItemOptions(TargetRowState row) =>
-        ItemCatalog.OptionsForSelection(_selectableItems, row.Category, row.ItemId, _snapshot!.Items);
+        row.Options ??= ItemCatalog.OptionsForSelection(_selectableItems, row.Category, row.ItemId, _snapshot!.Items);
 
     private void OnItemChanged(TargetRowState row, ChangeEventArgs e)
     {
         string? value = e.Value?.ToString();
         row.ItemId = string.IsNullOrEmpty(value) ? null : value;
+        row.Options = null;
     }
 
     /// <summary>判定時点の日付で既定を評価し直し、自動・期間外の振り分けを更新する。</summary>
@@ -379,6 +383,10 @@
         CalculationInputBuilder.RefreshEventCheckDefaults(_eventChecks, today);
         _autoEventChecks = _eventChecks.Where(c => c.IsActiveByDefault).ToList();
         _outEventChecks = _eventChecks.Where(c => !c.IsActiveByDefault).ToList();
+        // 有効イベントとマップ候補はこの確定点で更新する。Checked の変更は
+        // OnEventToggled → Recalculate → この経路でここへ到達する（Phase 38）。
+        _activeGameEventIds = _eventChecks.Where(c => c.Checked).Select(c => c.Event.Id).ToList();
+        _mapCandidates = _snapshot is null ? [] : MapSelection.ListCandidates(_snapshot, _activeGameEventIds);
     }
 
     private void OnEventToggled(EventCheck check, ChangeEventArgs e)
@@ -411,24 +419,23 @@
         Recalculate();
     }
 
-    private IReadOnlyCollection<string> ActiveGameEventIds =>
-        _eventChecks.Where(c => c.Checked).Select(c => c.Event.Id).ToList();
-
-    private IReadOnlyList<GameMap> MapCandidates =>
-        _snapshot is null ? [] : MapSelection.ListCandidates(_snapshot, ActiveGameEventIds);
+    // 有効イベント・マップ候補・散布機行の索引は RefreshEventViews・再計算で組み立てたキャッシュを使う（Phase 38）。
+    private IReadOnlyCollection<string> _activeGameEventIds = [];
+    private IReadOnlyList<GameMap> _mapCandidates = [];
+    private readonly Dictionary<string, EnvCountState> _envInputsById = new(StringComparer.Ordinal);
 
     private string EnvCountText(string envId) =>
-        _envInputs.FirstOrDefault(r => r.Env.Id == envId)?.CountText ?? "";
+        _envInputsById.TryGetValue(envId, out EnvCountState? r) ? r.CountText : "";
 
     private int EnvMin(string envId) =>
-        _envInputs.FirstOrDefault(r => r.Env.Id == envId)?.Min ?? 0;
+        _envInputsById.TryGetValue(envId, out EnvCountState? r) ? r.Min : 0;
 
     private int EnvMax(string envId) =>
-        _envInputs.FirstOrDefault(r => r.Env.Id == envId)?.Max ?? 0;
+        _envInputsById.TryGetValue(envId, out EnvCountState? r) ? r.Max : 0;
 
     private void OnEnvCountChanged(string envId, ChangeEventArgs e)
     {
-        if (_envInputs.FirstOrDefault(r => r.Env.Id == envId) is { } input)
+        if (_envInputsById.TryGetValue(envId, out EnvCountState? input))
         {
             input.CountText = e.Value?.ToString() ?? "";
             Recalculate();
@@ -452,6 +459,18 @@
         RebuildView();
     }
 
+    // update() の差分発火はモデル参照の変更を見るため、単位切替はビュー再構築で新しい
+    // FlowGraphModel を渡す。流量表記の再レンダーにもこの経路で揃う（Phase 38）。
+    private void SetUnit(AmountUnit unit)
+    {
+        if (unit == _unit)
+        {
+            return;
+        }
+        _unit = unit;
+        RebuildView();
+    }
+
     private void OnGraphExpandChanged(bool expand)
     {
         _graphExpandFacilities = expand;
@@ -461,7 +480,16 @@
     private void Recalculate()
     {
         _inputError = null;
+        MasterDataSnapshot? previous = _snapshot;
         _snapshot = SnapshotSource();
+        if (!ReferenceEquals(previous, _snapshot))
+        {
+            // スナップショットが差し替わったら行の選択肢キャッシュを再計算へ回す（Phase 38）。
+            foreach (TargetRowState row in _targetRows)
+            {
+                row.Options = null;
+            }
+        }
         if (_snapshot is null)
         {
             _ = OnSnapshotRejected.InvokeAsync();
@@ -491,17 +519,13 @@
         }
 
         _gatherError = null;
-        List<string> activeGameEventIds = _eventChecks
-            .Where(c => c.Checked)
-            .Select(c => c.Event.Id)
-            .ToList();
         var context = new ContextFilter
         {
-            ActiveGameEventIds = activeGameEventIds,
+            ActiveGameEventIds = _activeGameEventIds,
             MapId = _mapId,
         };
         List<GatherRateOverride> gatherOverrides = [];
-        if (_mapId is not null && MapSelection.IsAvailable(_snapshot, _mapId, activeGameEventIds))
+        if (_mapId is not null && MapSelection.IsAvailable(_snapshot, _mapId, _activeGameEventIds))
         {
             if (!CalculationInputBuilder.TryParseGatherRates(
                     _gatherRateTexts.Select(kv => new GatherRateInput(
@@ -563,6 +587,11 @@
                 };
             })
             .ToList();
+        _envInputsById.Clear();
+        foreach (EnvCountState state in _envInputs)
+        {
+            _envInputsById[state.Env.Id] = state;
+        }
 
         // 自動値へ戻した行があると表示中の計画は戻す前の台数で計算済みのため、
         // 表示と入力が一致するよう整合後の入力で計算し直す。

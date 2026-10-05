@@ -127,9 +127,39 @@ public sealed class AdminDocumentService
 
     public bool IsLoaded => Document is not null;
 
-    /// <summary>計算プレビュー用スナップショット（未読み込み時は null）。</summary>
-    public MasterDataSnapshot? Snapshot =>
-        Document is null ? null : MasterSnapshotFactory.Create(Document);
+    /// <summary>計算プレビュー用スナップショット（未読み込み時は null）。
+    /// 文書参照と編集回数が同じ間は構築済みを返し、未編集の連続再計算で全索引を組み直さない（Phase 38）。
+    /// メモ化の契約は文書の変更が NotifyChanged 経由で _editCounter を進めることにある。</summary>
+    public MasterDataSnapshot? Snapshot
+    {
+        get
+        {
+            if (Document is not { } doc)
+            {
+                return null;
+            }
+            if (!ReferenceEquals(_snapshotDocument, doc) || _snapshotCounter != _editCounter)
+            {
+                _cachedSnapshot = MasterSnapshotFactory.Create(doc);
+                _snapshotDocument = doc;
+                _snapshotCounter = _editCounter;
+            }
+            return _cachedSnapshot;
+        }
+    }
+
+    // スナップショット・検証結果のメモ化キー（Phase 38）。
+    // 文書参照と _editCounter で同一性を見る。編集は NotifyChanged が _editCounter を進めるため、
+    // キーが同じ間は構築・検証のやり直しを省ける。
+    private MasterDocument? _snapshotDocument;
+    private int _snapshotCounter = -1;
+    private MasterDataSnapshot? _cachedSnapshot;
+    // 検証キーは HasInvalidInput も含める。SetEditorInvalid は _editCounter を進めないため、
+    // 不正入力の追加・解消だけでは検証をやり直せない（ADM-17）。
+    private MasterDocument? _validatedDocument;
+    private int _validatedCounter = -1;
+    private bool _validatedHasInvalid;
+    private IReadOnlyList<MasterValidationError> _cachedValidationErrors = [];
 
     /// <summary>読み込みの世代番号。並走した取得では最後に始まった要求だけが文書を置き換える。</summary>
     private int _loadGeneration;
@@ -327,7 +357,8 @@ public sealed class AdminDocumentService
         Changed?.Invoke();
     }
 
-    /// <summary>文書全体を MasterValidator と同一規則で検証し、結果を保持して返す。</summary>
+    /// <summary>文書全体を MasterValidator と同一規則で検証し、結果を保持して返す。
+    /// 文書参照・編集回数・不正入力の有無が前回と同じなら検証をやり直さず、前回の結果で記録を更新する（Phase 38）。</summary>
     public IReadOnlyList<MasterValidationError> Validate()
     {
         if (Document is null)
@@ -336,22 +367,32 @@ public sealed class AdminDocumentService
             return ValidationErrors;
         }
 
-        var errors = new List<MasterValidationError>();
-        if (HasInvalidInput)
+        if (!ReferenceEquals(_validatedDocument, Document)
+            || _validatedCounter != _editCounter
+            || _validatedHasInvalid != HasInvalidInput)
         {
-            errors.Add(new MasterValidationError(
-                "入力", "", "", "確定されていない不正な入力値（赤枠）があります。修正してから検証・書き出ししてください。"));
+            var errors = new List<MasterValidationError>();
+            if (HasInvalidInput)
+            {
+                errors.Add(new MasterValidationError(
+                    "入力", "", "", "確定されていない不正な入力値（赤枠）があります。修正してから検証・書き出ししてください。"));
+            }
+
+            MasterValidator.ValidateAll(
+                Document.Items,
+                Document.Facilities,
+                Document.Environments,
+                Document.GameEvents,
+                Document.Recipes,
+                Document.Maps,
+                errors);
+            _cachedValidationErrors = errors;
+            _validatedDocument = Document;
+            _validatedCounter = _editCounter;
+            _validatedHasInvalid = HasInvalidInput;
         }
 
-        MasterValidator.ValidateAll(
-            Document.Items,
-            Document.Facilities,
-            Document.Environments,
-            Document.GameEvents,
-            Document.Recipes,
-            Document.Maps,
-            errors);
-        ValidationErrors = errors;
+        ValidationErrors = _cachedValidationErrors;
         ValidationRan = true;
         ValidationStale = false;
         return ValidationErrors;
