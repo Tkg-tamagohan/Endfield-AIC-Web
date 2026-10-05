@@ -292,7 +292,7 @@ internal static class CalculationFixtures
     /// <summary>
     /// F-04 派生: 循環に加えて r-x が i-a を副産する（BYP-07・NCP-07 用）。
     /// r-x の CycleTime 8秒は i-a の実効レート（7.5/分）を r-cyc-a（10/分）より低く保ち、
-    /// 仕様決定 BA・CO の既定選択（出力レートが入力レートより先に効く）でも
+    /// 仕様決定 BA・CP の既定選択（出力レートが入力レートより先に効く）でも
     /// i-a が循環レシピ側に残るようにするための値。
     /// </summary>
     public static MasterDataSnapshot F04WithByproduct()
@@ -366,7 +366,7 @@ internal static class CalculationFixtures
     /// F-10 変形: r-hp は環境ペアのみを持ち、副産物で i-hp を賄う r-side を追加（ENV-16 用）。
     /// i-hp 125/分は 4 秒ペアで 8.33 機分。r-side は i-side 1 サイクルにつき i-hp 5 を副産する。
     /// r-side の実効出力レート（5×60/30=10/分）を r-hp（15/分）より低くして、
-    /// 仕様決定 BA・CO の既定選択でも i-hp の選択ペアが r-side に流れないようにする。
+    /// 仕様決定 BA・CP の既定選択でも i-hp の選択ペアが r-side に流れないようにする。
     /// </summary>
     public static MasterDataSnapshot F10WithByproductRescue() => Snapshot(
         [
@@ -692,7 +692,7 @@ internal static class CalculationFixtures
     /// F-17 混合型に i-x・i-ore・r-px（i-ore×3 → i-x×1 + i-c×1）を追加（NCP-10・NCP-11 用）。
     /// r-px の副産物 i-c が A→C→A の正味減枝の需要を賄い、その枝を死なせる。
     /// i-c の実効出力レートは r-c・r-px とも 15/分で同率のため、入力 3 個で r-px の実効入力レート
-    /// （45/分）を r-c（30/分）より高くし、仕様決定 CO の入力キーでも i-c が r-c 側に残るようにする。
+    /// （45/分）を r-c（30/分）より高くし、仕様決定 CP の入力キーでも i-c が r-c 側に残るようにする。
     /// </summary>
     public static MasterDataSnapshot F17MixedByproduct()
     {
@@ -721,7 +721,7 @@ internal static class CalculationFixtures
     }
 
     /// <summary>
-    /// F-18: 実効出力レートによる既定レシピ選択（仕様決定 BA。実効入力レートキーは CL・CO）。
+    /// F-18: 実効出力レートによる既定レシピ選択（仕様決定 BA。実効入力レートキーは CL・CP）。
     /// 同一 VersionAdded のレシピ対で、Id 昇順と実効レート降順が逆方向に効く命名にする。
     /// env-q5・env-q6 は所属イベント ev-off が無効のコンテキストでペア不適格。
     /// </summary>
@@ -769,7 +769,7 @@ internal static class CalculationFixtures
         gameEvents: [GameEvent("ev-off")]);
 
     /// <summary>
-    /// F-19: 実効入力レートによる既定レシピ選択（仕様決定 CL・CO。SEL-26〜33 用）。
+    /// F-19: 実効入力レートによる既定レシピ選択（仕様決定 CL・CP。SEL-26〜33 用）。
     /// 各 i-inN に VersionAdded 同率のレシピ対をぶつけ、入力キーの位置（出力レートの次）と分換算を検査する。
     /// env-in7 は所属イベント ev-off が無効のコンテキストでペア不適格。
     /// </summary>
@@ -787,7 +787,7 @@ internal static class CalculationFixtures
             Recipe("r-in1-lean", "f-a", 4.0, [("i-ore", 2.0)], [("i-in1", 1.0)]),
             Recipe("r-in1-rich", "f-a", 4.0, [("i-ore", 4.0)], [("i-in1", 1.0)]),
             // i-in2: 入力小・出力低（lean 15/分入力・15/分出力）vs 入力大・出力高
-            // （rich 120/分入力・30/分出力）。CO で出力キーが先に効き rich が既定。
+            // （rich 120/分入力・30/分出力）。CP で出力キーが先に効き rich が既定。
             Recipe("r-in2-lean", "f-a", 4.0, [("i-ore", 1.0)], [("i-in2", 1.0)]),
             Recipe("r-in2-rich", "f-a", 2.0, [("i-ore", 4.0)], [("i-in2", 1.0)]),
             // i-in3: 入力レート同率（20/分）で出力レート差。出力高の high が既定（出力は第 2 キー）。

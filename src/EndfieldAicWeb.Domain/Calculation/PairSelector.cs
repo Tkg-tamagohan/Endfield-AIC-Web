@@ -7,7 +7,7 @@ namespace EndfieldAicWeb.Domain.Calculation;
 /// <summary>
 /// 需要アイテムに対して使用する（レシピ, ペア）の組を 1 件選択する。
 /// レシピはコンテキスト適格候補から VersionAdded 最新・実効出力レート降順・実効入力レート昇順
-/// （同率は Id 昇順）を先に選び、そのレシピの適格ペアから CycleTime 最小を既定とする（仕様決定 F・BA・CL・CO）。
+/// （同率は Id 昇順）を先に選び、そのレシピの適格ペアから CycleTime 最小を既定とする（仕様決定 F・BA・CL・CP）。
 /// 実効入力レートは Inputs 全量の 1 サイクル合計 ÷ 適格ペアの最小 CycleTime × 60 個/分。
 /// 実効出力レートは対象アイテムの 1 サイクル出力量 ÷ 適格ペアの最小 CycleTime × 60 個/分。
 /// 同 CycleTime は FixedConsumption なし/小 → EnvironmentId=null の順（仕様決定 U・BT）。
@@ -138,8 +138,8 @@ public static class PairSelector
     }
 
     /// <summary>
-    /// レシピを VersionAdded 降順（パース不能は最古）・実効出力レート降順・実効入力レート昇順・Id 昇順に並べる（仕様決定 BA・CL・CO）。
-    /// 実効入力レートは出力レート同率の範囲内でしか効かない（CO: 入力同量のレシピ対で遅い側が既定になるのを避けるための改定）。
+    /// レシピを VersionAdded 降順（パース不能は最古）・実効出力レート降順・実効入力レート昇順・Id 昇順に並べる（仕様決定 BA・CL・CP）。
+    /// 実効入力レートは出力レート同率の範囲内でしか効かない（CP: 入力同量のレシピ対で遅い側が既定になるのを避けるための改定）。
     /// </summary>
     private static List<Recipe> OrderCandidates(
         IEnumerable<Recipe> candidates,
@@ -166,7 +166,7 @@ public static class PairSelector
     /// <summary>
     /// 実効入力レート（個/分）。
     /// Inputs 全量の 1 サイクル合計 ÷ 適格ペアの最小 CycleTime × 60。FixedConsumption は数えない。
-    /// 適格ペア 0 件・正の CycleTime なしは +∞（最下位扱い。仕様決定 CL・CO）。
+    /// 適格ペア 0 件・正の CycleTime なしは +∞（最下位扱い。仕様決定 CL・CP）。
     /// </summary>
     private static double EffectiveInputRate(
         Recipe recipe,

@@ -225,7 +225,7 @@ public class DisposalTests
     public void DisposalRecipeSelectionOrder()
     {
         // a は旧版で先に脱落。b・c は同バージョンで、実効処理レート b（15/分）> c（7.5/分）が
-        // 先に効くため b が既定（仕様決定 CO。実効入力レートはその次のキーで、c 7.5/分 < b 15/分は届かない）。
+        // 先に効くため b が既定（仕様決定 CP。実効入力レートはその次のキーで、c 7.5/分 < b 15/分は届かない）。
         MasterDataSnapshot master = F.Snapshot(
             [F.Item("i-ore", "採取素材", TransportKind.Belt, null, true), F.Item("i-p"), F.Item("i-sew")],
             [F.Facility("f-asm"), F.Facility("f-trt")],
@@ -534,7 +534,7 @@ public class DisposalTests
         Assert.DoesNotContain(plan.Surpluses, s => s.ItemId == "i-sew");
     }
 
-    [Fact(DisplayName = "DSP-26: 処理レシピの既定選択は処理レート同率で全入力合算の実効入力レートが小さい方（CL・CO）")]
+    [Fact(DisplayName = "DSP-26: 処理レシピの既定選択は処理レート同率で全入力合算の実効入力レートが小さい方（CL・CP）")]
     public void DisposalSelectionUsesTotalInputRate()
     {
         // 両レシピとも対象 i-sew の処理レートは 15/分で同率のため、第 3 キーの入力レートで決まる。

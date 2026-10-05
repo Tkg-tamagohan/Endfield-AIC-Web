@@ -370,7 +370,7 @@ public class SelectionTests
         Assert.False(candidates[2].IsDefault);
     }
 
-    [Fact(DisplayName = "SEL-26: 同 VersionAdded・同出力レートで入力合計が小さい方が既定（CL・CO）")]
+    [Fact(DisplayName = "SEL-26: 同 VersionAdded・同出力レートで入力合計が小さい方が既定（CL・CP）")]
     public void SmallerInputRateWinsOnVersionAndOutputTie()
     {
         ProductionPlan plan = CalculationFixtures.Run(
@@ -379,7 +379,7 @@ public class SelectionTests
         Assert.Equal("r-in1-lean", Assert.Single(plan.RecipeRuns).RecipeId);
     }
 
-    [Fact(DisplayName = "SEL-27: 入力が多くても出力レートの高い方が既定（CO・出力レートが入力より先）")]
+    [Fact(DisplayName = "SEL-27: 入力が多くても出力レートの高い方が既定（CP・出力レートが入力より先）")]
     public void HigherOutputRateBeatsSmallerInputRate()
     {
         ProductionPlan plan = CalculationFixtures.Run(
@@ -388,7 +388,7 @@ public class SelectionTests
         Assert.Equal("r-in2-rich", Assert.Single(plan.RecipeRuns).RecipeId);
     }
 
-    [Fact(DisplayName = "SEL-28: 入力レート同率では出力レートが高い方が既定（CO・出力レートは第 2 キー）")]
+    [Fact(DisplayName = "SEL-28: 入力レート同率では出力レートが高い方が既定（CP・出力レートは第 2 キー）")]
     public void HigherOutputRateWinsOnInputRateTie()
     {
         ProductionPlan plan = CalculationFixtures.Run(

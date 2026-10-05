@@ -34,7 +34,7 @@ public class IconManifestTests
             _files.TryGetValue(path, out byte[]? bytes) ? bytes : null;
     }
 
-    [Fact(DisplayName = "ICO-01: 正当なマニフェストと一致する実ファイルは Verify エラーなし")]
+    [Fact(DisplayName = "ICP-01: 正当なマニフェストと一致する実ファイルは Verify エラーなし")]
     public void Verify_ValidManifest_NoErrors()
     {
         var provider = new InMemoryIconProvider().Add(IconOrePath, TestJson.IconOreContent);
@@ -44,7 +44,7 @@ public class IconManifestTests
         Assert.Empty(errors);
     }
 
-    [Fact(DisplayName = "ICO-02: Bytes が実ファイルと一致しないと Verify エラー")]
+    [Fact(DisplayName = "ICP-02: Bytes が実ファイルと一致しないと Verify エラー")]
     public void Verify_BytesMismatch_Error()
     {
         IconEntry entry = ValidEntry();
@@ -56,7 +56,7 @@ public class IconManifestTests
         Assert.Contains(errors, e => e.Field == "Bytes");
     }
 
-    [Fact(DisplayName = "ICO-03: Sha256 が実ファイルと一致しないと Verify エラー")]
+    [Fact(DisplayName = "ICP-03: Sha256 が実ファイルと一致しないと Verify エラー")]
     public void Verify_ShaMismatch_Error()
     {
         IconEntry entry = ValidEntry();
@@ -68,7 +68,7 @@ public class IconManifestTests
         Assert.Contains(errors, e => e.Field == "Sha256");
     }
 
-    [Fact(DisplayName = "ICO-04: ファイル欠落は Verify エラー")]
+    [Fact(DisplayName = "ICP-04: ファイル欠落は Verify エラー")]
     public void Verify_MissingFile_Error()
     {
         var provider = new InMemoryIconProvider();
@@ -100,7 +100,7 @@ public class IconManifestTests
         Assert.Contains(errors, e => e.Field == "Sha256");
     }
 
-    [Fact(DisplayName = "ICO-13: CountMatching は実体が一致するエントリだけを数える")]
+    [Fact(DisplayName = "ICP-13: CountMatching は実体が一致するエントリだけを数える")]
     public void CountMatching_CountsOnlyMatchingEntries()
     {
         var provider = new InMemoryIconProvider()
@@ -126,7 +126,7 @@ public class IconManifestTests
         Assert.Equal(1, count);
     }
 
-    [Fact(DisplayName = "ICO-05: 収録キーは照合一致で icons/icon-ore.png を返す")]
+    [Fact(DisplayName = "ICP-05: 収録キーは照合一致で icons/icon-ore.png を返す")]
     public void Resolve_ManifestKey_ReturnsPath()
     {
         var provider = new InMemoryIconProvider().Add(IconOrePath, TestJson.IconOreContent);
@@ -135,7 +135,7 @@ public class IconManifestTests
         Assert.Equal(IconOrePath, resolver.Resolve("icon-ore"));
     }
 
-    [Fact(DisplayName = "ICO-06: 収録キーでも不一致・欠落なら null（フォールバック）")]
+    [Fact(DisplayName = "ICP-06: 収録キーでも不一致・欠落なら null（フォールバック）")]
     public void Resolve_ManifestKeyMismatch_ReturnsNull()
     {
         IconEntry tampered = ValidEntry();
@@ -153,7 +153,7 @@ public class IconManifestTests
         Assert.Null(missing.Resolve("icon-ore"));
     }
 
-    [Fact(DisplayName = "ICO-07: 収録外キーは icons/<Key>.png の存在で解決する")]
+    [Fact(DisplayName = "ICP-07: 収録外キーは icons/<Key>.png の存在で解決する")]
     public void Resolve_UnlistedKey_FallsBackToFileName()
     {
         var provider = new InMemoryIconProvider().Add("icons/icon-extra.png", [0x01, 0x02]);
@@ -162,7 +162,7 @@ public class IconManifestTests
         Assert.Equal("icons/icon-extra.png", resolver.Resolve("icon-extra"));
     }
 
-    [Theory(DisplayName = "ICO-08: 解決不可のキーはすべて null へフォールバック")]
+    [Theory(DisplayName = "ICP-08: 解決不可のキーはすべて null へフォールバック")]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("icon-placeholder")]
@@ -176,7 +176,7 @@ public class IconManifestTests
         Assert.Null(resolver.Resolve(key));
     }
 
-    [Fact(DisplayName = "ICO-09: FileSystemIconProvider 経由で解決・欠落時は null")]
+    [Fact(DisplayName = "ICP-09: FileSystemIconProvider 経由で解決・欠落時は null")]
     public void Resolve_FileSystemProvider()
     {
         string root = Path.Combine(Path.GetTempPath(), $"aic-icons-{Guid.NewGuid():N}");
@@ -197,7 +197,7 @@ public class IconManifestTests
         }
     }
 
-    [Fact(DisplayName = "ICO-11: ルートディレクトリの末尾に区切り文字があっても解決できる")]
+    [Fact(DisplayName = "ICP-11: ルートディレクトリの末尾に区切り文字があっても解決できる")]
     public void FileSystemProvider_TrailingSeparatorRoot_Resolves()
     {
         string root = Path.Combine(Path.GetTempPath(), $"aic-icons-{Guid.NewGuid():N}");
@@ -216,7 +216,7 @@ public class IconManifestTests
         }
     }
 
-    [Fact(DisplayName = "ICO-12: シンボリックリンクによるルート外参照は拒否される")]
+    [Fact(DisplayName = "ICP-12: シンボリックリンクによるルート外参照は拒否される")]
     public void FileSystemProvider_SymlinkEscape_ReturnsNull()
     {
         string root = Path.Combine(Path.GetTempPath(), $"aic-icons-{Guid.NewGuid():N}");
@@ -238,7 +238,7 @@ public class IconManifestTests
         }
     }
 
-    [Theory(DisplayName = "ICO-10: ルート外へ出る相対パスは拒否される")]
+    [Theory(DisplayName = "ICP-10: ルート外へ出る相対パスは拒否される")]
     [InlineData("../secret.txt")]
     [InlineData("icons/../../secret.txt")]
     [InlineData("..\\secret.txt")]
