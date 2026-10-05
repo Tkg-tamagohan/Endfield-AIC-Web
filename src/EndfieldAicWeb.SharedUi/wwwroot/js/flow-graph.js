@@ -527,31 +527,6 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
         return { minX, minY, maxX, maxY };
     }
 
-    // 線分と余白付き矩形の交差（slab 法）。点サンプリングでは検査点の隙間を抜ける
-    // カードを見落とすため、連続区間として判定する。
-    function segHitsRect(x0, y0, x1, y1, r, pad) {
-        const rx0 = r.x - pad, ry0 = r.y - pad, rx1 = r.x + r.w + pad, ry1 = r.y + r.h + pad;
-        if (x0 < rx0 && x1 < rx0) return false;
-        if (x0 > rx1 && x1 > rx1) return false;
-        if (y0 < ry0 && y1 < ry0) return false;
-        if (y0 > ry1 && y1 > ry1) return false;
-        if ((x0 >= rx0 && x0 <= rx1 && y0 >= ry0 && y0 <= ry1) ||
-            (x1 >= rx0 && x1 <= rx1 && y1 >= ry0 && y1 <= ry1)) return true;
-        const dx = x1 - x0, dy = y1 - y0;
-        let t0 = 0, t1 = 1;
-        if (dx !== 0) {
-            let ta = (rx0 - x0) / dx, tb = (rx1 - x0) / dx;
-            if (ta > tb) [ta, tb] = [tb, ta];
-            t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
-        } else if (x0 < rx0 || x0 > rx1) return false;
-        if (dy !== 0) {
-            let ta = (ry0 - y0) / dy, tb = (ry1 - y0) / dy;
-            if (ta > tb) [ta, tb] = [tb, ta];
-            t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
-        } else if (y0 < ry0 || y0 > ry1) return false;
-        return t0 <= t1;
-    }
-
     function edgeGeometry(e, rects, vertical) {
         const a = rects.get(e.fromId);
         const b = rects.get(e.toId);
@@ -564,9 +539,10 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
             const d = Math.max(36, Math.abs(p3[1] - p0[1]) * 0.5);
             let c1x = p0[0], c2x = p3[0];
             if (p3[1] > p0[1]) {
-                // 後退エッジ: 同じ列のノードどうしではループが潰れ、間の行のノードカードをまたぐ。
-                // 曲線の側面への最大到達は制御点距離の約 0.75 倍に留まるため、実際のベジェ曲線を
-                // サンプリングして「間にあるノード矩形をすべて避ける」最小の張り出し量を決める。
+                // 後退エッジ（仕様決定 CO）: 張り出し量は「間のノード矩形をすべて避ける」反復探索ではなく、
+                // 縦スパン内ノード矩形の側面最外縁＋余白へ曲線の水平極値が到達する量を決定論的に求める。
+                // 回避可能な量が存在しない配置では従来の探索が発散して巨大なループを生成していた。
+                // 間のノードカードとの交差はノード背面への通過として許容する。
                 const loY = p0[1], hiY = p3[1];
                 const mids = [];
                 for (const r of rects.values()) {
@@ -574,31 +550,40 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
                     if (r.y + r.h > loY + 4 && r.y < hiY - 4) mids.push(r);
                 }
                 const PAD = 10;
+                const MIN_OFF = Math.max(a.w, b.w) / 2 + 32;
+                // 両制御点を同量ずらしたとき曲線の側面への最大到達は制御点距離の約 0.75 倍に留まる。
+                // 近似のため cubicBounds の実極値で不足分を補正する（外縁への到達まで、上限 8 回）。
+                const K = 0.75;
+                let outerL = Infinity, outerR = -Infinity;
+                for (const r of mids) {
+                    outerL = Math.min(outerL, r.x);
+                    outerR = Math.max(outerR, r.x + r.w);
+                }
+                const edgeL = mids.length ? outerL - PAD : -Infinity;
+                const edgeR = mids.length ? outerR + PAD : Infinity;
                 const offFor = (side) => {
-                    let off = Math.max(a.w, b.w) / 2 + 32;
-                    for (let iter = 0; iter < 10; iter++) {
+                    if (!mids.length) return MIN_OFF;
+                    const edge = side > 0 ? edgeR : edgeL;
+                    const base = side > 0 ? Math.max(p0[0], p3[0]) : Math.min(p0[0], p3[0]);
+                    const gap = side > 0 ? edge - base : base - edge;
+                    let off = Math.max(MIN_OFF, gap / K);
+                    for (let iter = 0; iter < 8; iter++) {
                         const c1 = [p0[0] + side * off, p0[1] - d];
                         const c2 = [p3[0] + side * off, p3[1] + d];
-                        let clear = true;
-                        let prev = p0;
-                        for (let i = 1; i <= 48 && clear; i++) {
-                            const cur = cubic(p0, c1, c2, p3, i / 48);
-                            for (const r of mids) {
-                                if (segHitsRect(prev[0], prev[1], cur[0], cur[1], r, PAD)) {
-                                    clear = false;
-                                    break;
-                                }
-                            }
-                            prev = cur;
-                        }
-                        if (clear) return off;
-                        off = off * 1.6 + 24;
+                        const gb = cubicBounds(p0, c1, c2, p3);
+                        const shortfall = side > 0 ? edge - gb.maxX : gb.minX - edge;
+                        if (shortfall <= 0) break;
+                        off += shortfall / K;
                     }
                     return off;
                 };
                 const offL = offFor(-1);
                 const offR = offFor(1);
-                const side = offR <= offL ? 1 : -1;
+                // 必要張り出し量の小さい側を選び、同量ならソース上辺点に近い外縁側にする。
+                let side;
+                if (offR < offL - 1) side = 1;
+                else if (offL < offR - 1) side = -1;
+                else side = Math.abs(p0[0] - edgeL) <= Math.abs(edgeR - p0[0]) ? -1 : 1;
                 const off = side === 1 ? offR : offL;
                 c1x += side * off;
                 c2x += side * off;
