@@ -1,7 +1,7 @@
 # Phase 38 テスト仕様
 
 **対象フェーズ**: Phase 38（計算ページの描画・再レンダー軽量化）
-**前提ドキュメント**: [implementation-plan-phase38.md](implementation-plan-phase38.md)、[decision-records.md](../decision-records.md)（仕様決定 CP。関連: BC・BK・CK・CM）
+**前提ドキュメント**: [implementation-plan-phase38.md](implementation-plan-phase38.md)、[decision-records.md](../decision-records.md)（仕様決定 CQ。関連: BC・BK・CK・CM）
 **関連ドキュメント**: [test-specification-phase34.md](test-specification-phase34.md)（canvas・失敗退避の先行仕様）、[test-specification-phase36.md](test-specification-phase36.md)（リサイズハンドル・最大化の先行仕様）、[test-specification-phase37.md](test-specification-phase37.md)（MN 採番の先行）
 
 > 本書は Phase 38 の検査項目を ID 付きで管理する。実施結果は PR 本文に表で記録する。
@@ -16,6 +16,7 @@
 | ADM-14 | AdminDocumentService | 文書読み込み後に編集通知なしで `Validate()` と `Snapshot` を連続で呼ぶ | 2 回目以降も結果は同一で、スナップショットは同一インスタンスを返す（検証・構築は再実行されない） |
 | ADM-15 | AdminDocumentService | `NotifyChanged`（編集）を挟んで `Snapshot` を再度取得する | 新しいスナップショットインスタンスが返り、検証も再実行される |
 | ADM-16 | AdminDocumentService | 再読み込み（Document の差替え）を挟んで `Snapshot`・`Validate()` を呼ぶ | 参照同一性が外れて新しい文書の結果へ切替わる。エクスポート判定（`_counterAtExport`・IsDirty）の従来の振る舞いを壊さない |
+| ADM-17 | AdminDocumentService | 検証を通した後に `SetEditorInvalid` で未確定の不正入力を追加し、再度 `Validate()` を呼ぶ。追加・修正・解消の各経過でも試す | 旧い「エラーなし」が再利用されず、不正入力の有無が検証結果へ反映される。`Snapshot` のキャッシュは不正入力では失効しない（失効条件を分ける） |
 
 既存テスト全緑（`dotnet test`）を回帰として確認する。
 
@@ -27,7 +28,7 @@ MN-170・MN-173・MN-174 は CDP 経由のデバッグハンドル・DevTools �
 
 | ID | 確認内容 | 手順 | 期待 |
 |---|---|---|---|
-| MN-166 | 総ピクセル上限の見た目 | 4K または大きなビューポートでグラフを最大化する（DPR エミュレーションでの再現でも可） | エッジ帯・粒子が描画され、ノードの文字・アイコンは鮮明のまま。エッジはやや粗くなっても形状・流量差の見分けが付く |
+| MN-166 | 総ピクセル上限の見た目 | 4K または大きなビューポートでグラフを最大化する（DPR エミュレーションでの再現でも可） | エッジ帯・粒子が描画され、ノードの文字・アイコンは鮮明のまま。エッジはやや粗くなっても形状・流量差の見分けが付く。実バッファの総ピクセル数は 4,194,304 を超えない |
 | MN-167 | 再計算でのグラフ更新 | 計画を出した後に目標や採取量を変えて再計算する | グラフのノード・エッジが新しい計画を反映する |
 | MN-168 | 単位切替での更新 | 「毎分/毎秒/期間」を切替える | ノードの流量表記が切替わる（差分発火で抜けることのない経路） |
 | MN-169 | 縦横・最大化・リスト切替 | 縦横切替・最大化/解除・グラフ/リスト切替を行う | 各切替で表示が正しく更新され、戻したときも崩れない |
@@ -42,8 +43,8 @@ MN-170・MN-173・MN-174 は CDP 経由のデバッグハンドル・DevTools �
 
 ## 3. 受け入れ条件との対応
 
-- MN-166 が総ピクセル上限（仕様決定 CP）の見た目を、MN-170 が差分発火の非発火側を、MN-167〜169 が発火すべき側をカバーする
+- MN-166 が総ピクセル上限（仕様決定 CQ）の見た目を、MN-170 が差分発火の非発火側を、MN-167〜169 が発火すべき側をカバーする
 - MN-171 が JS 追跡への置換と Phase 36（CM）との整合を、MN-172〜174 が `applyView` 差分・再確保遅延・DPR 検知を、MN-175 が Admin メモ化を、MN-176 が遅延ロードをカバーする
-- ADM-14〜16 がメモ化の契約を xUnit で固定し、MN-175 がページ上の挙動不変を確認する
+- ADM-14〜17 がメモ化の契約（未編集での再利用・編集/再読み込み/不正入力での失効）を xUnit で固定し、MN-175 がページ上の挙動不変を確認する。日付をまたいだ再計算で有効イベント・マップ候補が食い違わないことは、計画書 §3-4 の更新点（`RefreshEventViews` 後のキャッシュ更新）でカバーする
 - MN-177 が入力系・選択系の包括的な回帰を担う
 - `dotnet build`・`dotnet test` 全緑と `tools/validate_master.py` 通過を併せて確認する

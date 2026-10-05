@@ -1,12 +1,12 @@
 # Phase 38 実装詳細計画
 
 **対象フェーズ**: Phase 38（計算ページの描画・再レンダー軽量化）
-**前提ドキュメント**: [implementation-plan.md](../implementation-plan.md)、[requirements.md](../requirements.md)、[decision-records.md](../decision-records.md)（仕様決定 CP。関連: BC・BK・CK・CM）
+**前提ドキュメント**: [implementation-plan.md](../implementation-plan.md)、[requirements.md](../requirements.md)、[decision-records.md](../decision-records.md)（仕様決定 CQ。関連: BC・BK・CK・CM）
 **関連ドキュメント**: [test-specification-phase38.md](test-specification-phase38.md)（本 Phase のテスト仕様）
 
 > 本書は Phase 38 の作業項目を、作業者が追加の判断なしに実行できる粒度へ分解したものである。
 > 文書は計画 PR（文書のみ）で先行し、実装・テストは本書に基づく後続の実装 PR で main へマージする（Phase 34〜37 と同じ計画・実装の分割）。
-> Phase 番号は 38 とする（Phase 35〜37 の計画はマージ済みで、実装は並行改修として進行中）。仕様決定は CO の次の採番で CP、手動確認 ID は MN-166 以降を使う（main の現行最大は Phase 37 の MN-165）。xUnit の新規 ID は管理ツール向けの ADM-14 以降を使う（main の現行最大は ADM-13）。
+> Phase 番号は 38 とする（Phase 35〜37 の計画はマージ済みで、実装は並行改修として進行中）。仕様決定は CP の次の採番で CQ（CP は並行作業の PR #97 が採番したため、当初案の CP から改番した）、手動確認 ID は MN-166 以降を使う（main の現行最大は Phase 37 の MN-165）。xUnit の新規 ID は管理ツール向けの ADM-14 以降を使う（main の現行最大は ADM-13）。
 
 ## 1. スコープ
 
@@ -35,13 +35,13 @@ canvas のピクセル数以外にも、次の「変更なしでも全量処理�
 - `AdminDocumentService` で検証結果とスナップショットを編集世代でメモ化し、未編集の連続再計算で全文書検証・再構築を省く
 - 高さハンドルのドラッグ中は JS 側で領域高を追従し、確定時のみ Blazor 側の状態へ反映して pointermove ごとの全面再レンダーを抑える
 - `CalculatorPanel` のレンダー毎の派生リスト・ルックアップを、各対象の変化点で更新するキャッシュへ置き換える
-- `flow-graph.js` の描画負荷を下げる。canvas バッファの総ピクセル上限（仕様決定 CP）、`applyView()` の transform・uniform 書き込みの差分適用、リサイズ時のバッファ再確保の安定化遅延、DPR 変化の検知を行う
+- `flow-graph.js` の描画負荷を下げる。canvas バッファの総ピクセル上限（仕様決定 CQ）、`applyView()` の transform・uniform 書き込みの差分適用、リサイズ時のバッファ再確保の安定化遅延、DPR 変化の検知を行う
 - 管理ツールのエクスポート・アイコン系 JS を、機能の初回利用時に読み込む遅延ロードへ切替える
 - xUnit ADM-14〜 と手動確認 MN-166〜 を実施する
 
 ### やらないこと
 
-- 入力中の再計算抑止（`oninput` から `onchange` への変更）や結果パネルのコンポーネント分割はしない。キー入力ごとの再計算は現行の UX であり、変更には仕様協議が要るため別途扱う
+- 入力中の再レンダー抑制（`oninput` から `onchange` への変更）や結果パネルのコンポーネント分割はしない。`oninput` は打鍵ごとにパネル全体を再レンダーする現行の挙動であり、変更には仕様協議が要るため別途扱う
 - `RebuildView` によるグラフモデルの常時構築は維持する。遅延構築への変更は仕様決定 BC の改定を伴うため対象外とする
 - WGSL シェーダ・粒子シミュレーションのパイプライン自体の最適化はしない。充填コストは総ピクセル上限で抑える方針とする
 - Blazor WASM の AOT・トリミング・配信設定の変更はしない
@@ -53,12 +53,12 @@ canvas のピクセル数以外にも、次の「変更なしでも全量処理�
 |---|---|
 | `src/EndfieldAicWeb.SharedUi/Components/FlowGraph.razor` | `update()` の発火をパラメータ差分検出へ変更し、リサイズドラッグのポインタ追跡を JS 側へ委譲する |
 | `src/EndfieldAicWeb.SharedUi/Components/CalculatorPanel.razor` | 単位切替を `RebuildView()` 経由にし、派生リスト・ルックアップをキャッシュする |
-| `src/EndfieldAicWeb.SharedUi/wwwroot/js/flow-graph.js` | 総ピクセル上限（CP）・transform/uniform の差分書込み・バッファ再確保の遅延・DPR 変化検知・リサイズドラッグの JS 追跡 |
+| `src/EndfieldAicWeb.SharedUi/wwwroot/js/flow-graph.js` | 総ピクセル上限（CQ）・transform/uniform の差分書込み・バッファ再確保の遅延・DPR 変化検知・リサイズドラッグの JS 追跡 |
 | `src/EndfieldAicWeb.Admin/Services/AdminDocumentService.cs` | `Validate()` 結果と `Snapshot` を編集世代でメモ化する |
 | `src/EndfieldAicWeb.Admin/wwwroot/index.html` と同 `js/` | エクスポート・アイコン系スクリプトを遅延ロードへ切替える |
 | 管理ツールのサービス系テスト | ADM-14〜 を追加する |
-| `docs/decision-records.md` | 仕様決定 CP を追加する |
-| `docs/requirements.md` | フローグラフ項に CP の規則を追記する |
+| `docs/decision-records.md` | 仕様決定 CQ を追加する |
+| `docs/requirements.md` | フローグラフ項に CQ の規則を追記する |
 | `docs/implementation-plan.md` | Phase 38 のチェックリスト項目を追加する |
 
 ## 3. 設計の詳細
@@ -79,9 +79,10 @@ canvas のリサイズは ResizeObserver が、最大化の見た目切替は CS
 
 ### 3-2. `AdminDocumentService` の検証・スナップショットのメモ化
 
-`Validate()` の結果と `Snapshot` を、`(Document の参照同一性, _editCounter)` をキーにメモ化する。
+`Validate()` の結果と `Snapshot` をメモ化する。キーは `Snapshot` が `(Document の参照同一性, _editCounter)`、`Validate()` がこれに不正入力の有無（`HasInvalidInput`）を加えたものとする。
 編集ページからの変更通知は `NotifyChanged` が `_editCounter` を増やす現行構造のため、キーに含めるだけで両キャッシュが編集のたびに自然に失効する。
 文書の再読み込み（`Document` の差替え）でも参照同一性が外れて失効するため、`_loadGeneration` を判定へ混ぜる必要はない。
+検証キーに不正入力を含めるのは、`SetEditorInvalid` が `_editCounter` を増やさないためである。キーに含めなければ、検証後に数値欄へ未確定の不正入力が残ったままでも旧い「エラーなし」が再利用され、拒否されるべき入力のままプレビューが開く。スナップショットは文書内容だけに依存するため、キーは編集世代のみでよく、検証キャッシュとは失効条件を分ける。
 
 キャッシュヒット時も `ValidationErrors`・`ValidationRan` などの公開状態は従来どおり更新する（結果の再代入であり、検証処理の再実行ではない）。
 `_counterAtExport`・`_exportedDocument` によるエクスポート判定（IsDirty）には触れない。
@@ -106,24 +107,27 @@ Phase 36（仕様決定 CM・実装進行中）はハンドルに手動/自動�
 
 `CalculatorPanel` でレンダーのたびに組み直している次のものを、各対象の変化点で更新するキャッシュへ置き換える。
 
-- `MapCandidates`（レンダー中に 2 回評価）: マップ一覧・選択の変化点（初期化・マップ変更・イベント系の確定）で再計算して保持する
-- `ActiveGameEventIds` の `ToList()`: イベント行の確定・トグル・初期化で更新する
+- `MapCandidates`（レンダー中に 2 回評価）: マップ一覧・選択の変化点（初期化・マップ変更・イベント系の確定）と、`RefreshEventViews` による `Checked` 更新の後で再計算して保持する
+- `ActiveGameEventIds` の `ToList()`: イベント行の確定・トグル・初期化に加え、`RefreshEventViews` による `Checked` 更新の後でも更新する。`Recalculate` は毎回当日を評価してイベントの既定有効を変え得るため、日付をまたいだ再計算で有効イベントと選べるマップが食い違わないよう、この更新点は外せない
 - `ItemOptions(row)` のフィルタ: 行側に候補リストを持たせ、カテゴリ変更・行追加・初期化で更新する
 - `EnvCountText`・`EnvMin`・`EnvMax` の `FirstOrDefault`: 環境行の確定点で `id → 環境行` の辞書を作り、描画では辞書引きにする
 
 `IsGatherCapReached`・`GatheredRate`・`GatherRatePlaceholder`・`GatherRateDefaultLabel` は `_calcResult`・`Snapshot` への参照引きが本体でアロケーションは小さい。
 同じ方針で揃えられる範囲は揃えるが、状態を増やすほどのものでなければ現状のままとする（暫定解釈）。
 
-### 3-5. canvas 描画の負荷低減（仕様決定 CP）
+### 3-5. canvas 描画の負荷低減（仕様決定 CQ）
 
 `flow-graph.js` に次の変更を入れる。
 
 1. **総ピクセル上限**。`dprFor(cw, ch) = Math.min(DPR_MAX, devicePixelRatio || 1, Math.sqrt(MAX_BUFFER_PIXELS / (cw * ch)))` とし、`canvas.width * canvas.height` が `MAX_BUFFER_PIXELS = 4,194,304`（約 4Mpx）を超えない範囲でバッファを確保する。
+総量制約が効いた（実効比が総量上限でクランプされた）場合は `Math.floor` で寸法を決め、丸め後の実寸法の積が上限を超えないことを保証する（`floor(cw·d) × floor(ch·d) ≤ cw·ch·d² ≤ 上限`）。総量制約が効いていない場合は従来の丸めを維持する。
 4K 最大化（DPR=1・約 830 万 CSS px）では実効比が約 0.71 まで下がり、エッジ帯と粒子がやや粗くなる。
 ノードの文字とアイコンは DOM 描画のため上限の影響を受けない（CK のピクセル比上限はそのまま残り、総量上限はその上に積む形になる）。
-2. **transform・uniform の差分書込み**。`applyView()` で書き込む transform 文字列・transformOrigin・ビュー uniform を直前値と比較し、変化時のみ DOM・GPU へ書き込む。
+2. **transform・uniform の差分書込み**。`applyView()` で書き込む transform 文字列・transformOrigin と、uniform のビュー成分（行列・スケール等）を直前値と比較し、変化時のみ DOM・GPU へ書き込む。
+uniform にはアニメーション時刻も含まれるため、比較対象はビュー成分に限定し、時刻成分の転送は従来どおり毎フレーム行う。
 view が動かない限り毎フレームの style 書込みとスタイル無効化を止める。
-3. **バッファ再確保の遅延**。ResizeObserver コールバックでは要求サイズを保持するだけにし、実際の `canvas.width/height` 再代入は `frame()` で「保持サイズが前フレームから変わっていない」場合にのみ行う。
+3. **バッファ再確保の遅延**。ResizeObserver コールバックでは要求サイズと変化時刻を保持するだけにし、実際の `canvas.width/height` 再代入は `frame()` で「要求サイズが `RESIZE_SETTLE_MS`（実装定数・推奨 50〜100ms）変わっていない」場合にのみ行う。
+フレームより遅い間隔で届く連続リサイズでも、安定を「前フレームと同じ」と判定して再確保が繰り返されることがないよう、静止判定は時間閾値で行う。
 ドラッグ・モニター間移動のような連続したリサイズでは、フレーム毎に行われていたバッファ再確保が、サイズが安定した時点の 1 回に収束する。
 4. **DPR 変化の検知**。`matchMedia("(resolution: <dpr>dppx)")` の change で DPR 変化を検知してリサイズを要求する。
 CSS 寸法が不変でもモニター間移動で DPR が変わった場合にバッファが追従する（従来は変換行列と実解像度がずれてエッジがにじむ可能性があったと推測する）。
