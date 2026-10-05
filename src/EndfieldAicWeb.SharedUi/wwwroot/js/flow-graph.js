@@ -552,7 +552,8 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
                 const PAD = 10;
                 const MIN_OFF = Math.max(a.w, b.w) / 2 + 32;
                 // 両制御点を同量ずらしたとき曲線の側面への最大到達は制御点距離の約 0.75 倍に留まる。
-                // 近似のため cubicBounds の実極値で不足分を補正する（外縁への到達まで、上限 8 回）。
+                // 近似のため cubicBounds の実極値で不足分を補正する（外縁への到達まで、上限 8 回。
+                // 端点の水平距離が大きい配置では補正しきれない残差を残したまま確定しうる）。
                 const K = 0.75;
                 let outerL = Infinity, outerR = -Infinity;
                 for (const r of mids) {
@@ -583,7 +584,7 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
                 let side;
                 if (offR < offL - 1) side = 1;
                 else if (offL < offR - 1) side = -1;
-                else side = Math.abs(p0[0] - edgeL) <= Math.abs(edgeR - p0[0]) ? -1 : 1;
+                else side = !mids.length || Math.abs(p0[0] - edgeL) > Math.abs(edgeR - p0[0]) ? 1 : -1;
                 const off = side === 1 ? offR : offL;
                 c1x += side * off;
                 c2x += side * off;
