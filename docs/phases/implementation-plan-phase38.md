@@ -120,7 +120,7 @@ Phase 36（仕様決定 CM・実装進行中）はハンドルに手動/自動�
 `flow-graph.js` に次の変更を入れる。
 
 1. **総ピクセル上限**。`dprFor(cw, ch) = Math.min(DPR_MAX, devicePixelRatio || 1, Math.sqrt(MAX_BUFFER_PIXELS / (cw * ch)))` とし、`canvas.width * canvas.height` が `MAX_BUFFER_PIXELS = 4,194,304`（約 4Mpx）を超えない範囲でバッファを確保する。
-総量制約が効いた（実効比が総量上限でクランプされた）場合は `Math.floor` で寸法を決め、丸め後の実寸法の積が上限を超えないことを保証する（`floor(cw·d) × floor(ch·d) ≤ cw·ch·d² ≤ 上限`）。総量制約が効いていない場合は従来の丸めを維持する。
+寸法は従来どおり丸めで決めた後、実寸法の積を再検査し、上限を超える場合は両辺を `Math.floor` で決め直す。実効比は常に `sqrt(上限 / CSS 積)` 以下なので、floor 後の積 `floor(cw·d) × floor(ch·d) ≤ cw·ch·d² ≤ 上限` が必ず成立する。この再検査は総量制約が効いた分岐だけでなく両分岐で行い、小数の CSS 寸法や未クランプの DPR で丸め上がりが起きても上限を逸脱しないようにする。
 4K 最大化（DPR=1・約 830 万 CSS px）では実効比が約 0.71 まで下がり、エッジ帯と粒子がやや粗くなる。
 ノードの文字とアイコンは DOM 描画のため上限の影響を受けない（CK のピクセル比上限はそのまま残り、総量上限はその上に積む形になる）。
 2. **transform・uniform の差分書込み**。`applyView()` で書き込む transform 文字列・transformOrigin と、uniform のビュー成分（行列・スケール等）を直前値と比較し、変化時のみ DOM・GPU へ書き込む。
