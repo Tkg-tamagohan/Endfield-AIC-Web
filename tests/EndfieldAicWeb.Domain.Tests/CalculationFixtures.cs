@@ -800,11 +800,12 @@ internal static class CalculationFixtures
             // 入力レート分換算では bulk 60/分 < few 90/分。
             Recipe("r-in5-bulk", "f-a", 4.0, [("i-ore", 4.0)], [("i-in5", 2.0)]),
             Recipe("r-in5-few", "f-a", 2.0, [("i-ore", 3.0)], [("i-in5", 1.0)]),
-            // i-in6: 入力同量・出力同量で z-fc のみ FixedConsumption。FC は入力に数えないため
-            // 全キー同率で Id 昇順まで流れ、a-plain が既定になる命名にした。
-            Recipe("r-in6-z-fc", "f-a", 4.0, [("i-ore", 1.0)], [("i-in6", 1.0)],
+            // i-in6: 入力同量・出力同量で a-fc のみ FixedConsumption。FC は入力に数えないため
+            // 全キー同率で Id 昇順まで流れ、FC 側の a-fc が既定になる命名にした
+            // （FC を入力に数える実装では a-fc が入力レートで負けて z-plain が既定になる）。
+            Recipe("r-in6-a-fc", "f-a", 4.0, [("i-ore", 1.0)], [("i-in6", 1.0)],
                 "1.0.0", null, null, null, ("i-fuel", 30.0)),
-            Recipe("r-in6-a-plain", "f-a", 4.0, [("i-ore", 1.0)], [("i-in6", 1.0)]),
+            Recipe("r-in6-z-plain", "f-a", 4.0, [("i-ore", 1.0)], [("i-in6", 1.0)]),
             // i-in7: dead は不適格ペアのみ（+∞ で最下位扱い）で選ばれない。
             Recipe("r-in7-dead", "f-a", 1.0, [("i-ore", 1.0)], [("i-in7", 1.0)],
                 "1.0.0", null, null, "env-in7"),

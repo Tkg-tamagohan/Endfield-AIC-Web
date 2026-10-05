@@ -420,12 +420,12 @@ public class SelectionTests
     [Fact(DisplayName = "SEL-31: FixedConsumption は入力レートに数えず全キー同率で Id 昇順（CL）")]
     public void FixedConsumptionIsNotCountedInInputRate()
     {
-        // 入力同量・出力同量で FC を数える実装なら z-fc が負けずに残るが、正しくは全キー同率で
-        // Id 昇順まで流れて a-plain が既定になる。
+        // 入力同量・出力同量で FC を持つ側（a-fc）が Id 昇順で先に来る命名にした。FC を入力に
+        // 数える実装では a-fc の入力レートが高くなり z-plain が選ばれるため、この期待で回帰を検出できる。
         ProductionPlan plan = CalculationFixtures.Run(
             CalculationFixtures.F19(), [("i-in6", 60.0)]);
 
-        Assert.Equal("r-in6-a-plain", Assert.Single(plan.RecipeRuns).RecipeId);
+        Assert.Equal("r-in6-a-fc", Assert.Single(plan.RecipeRuns).RecipeId);
     }
 
     [Fact(DisplayName = "SEL-32: 適格ペア 0 件のレシピは選ばれない（CL・回帰）")]
