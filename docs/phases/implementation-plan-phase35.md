@@ -75,9 +75,8 @@ CL 計画時は実効入力レートを第 2 キー（`VersionAdded` の直後�
 
 ## 5. チェックリスト
 
-- [x] `PairSelector.OrderCandidates` に実効入力レート昇順を第 3 キーとして追加し、XML コメントを更新する
-- [x] `DisposalSelector` の順位にも同じキーを適用し、XML コメントを更新する
-- [x] SEL-26 以降・DSP-26 以降を追加し、`dotnet build`・`dotnet test` 全緑を確認する
-- [x] `tools/validate_master.py` 通過を確認する
-- [ ] MN-145 以降の手動確認を実施する
+- [ ] `PairSelector.OrderCandidates` に実効入力レート昇順を第 3 キーとして追加し、XML コメントを更新する
+- [ ] `DisposalSelector` の順位にも同じキーを適用し、XML コメントを更新する
+- [ ] SEL-26 以降・DSP-26 以降を追加し、`dotnet build`・`dotnet test` 全緑を確認する
+- [ ] `tools/validate_master.py` 通過を確認する
 - [ ] 手動確認 MN-145 以降を実施する
