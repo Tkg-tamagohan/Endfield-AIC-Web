@@ -1,7 +1,7 @@
 # Phase 35 テスト仕様
 
-**対象フェーズ**: Phase 35（既定レシピ選択の入力効率キー：実効入力レートの第 2 キー化）
-**前提ドキュメント**: [implementation-plan-phase35.md](implementation-plan-phase35.md)、[requirements.md](../requirements.md) §4.1-2・§4.8、[decision-records.md](../decision-records.md)（仕様決定 CL。関連: F・U・BA・BT・CB）
+**対象フェーズ**: Phase 35（既定レシピ選択の入力効率キー：実効入力レートの追加。キー位置は仕様決定 CO で第 3 キー）
+**前提ドキュメント**: [implementation-plan-phase35.md](implementation-plan-phase35.md)、[requirements.md](../requirements.md) §4.1-2・§4.8、[decision-records.md](../decision-records.md)（仕様決定 CL・CO。関連: F・U・BA・BT・CB）
 **関連ドキュメント**: [test-specification-phase34.md](test-specification-phase34.md)（MN 採番の先行）
 
 > 本書は Phase 35 の検査項目を ID 付きで管理する。実施結果は PR 本文に表で記録する。
@@ -14,14 +14,14 @@
 | ID | 確認内容 | 期待 |
 |---|---|---|
 | SEL-26 | 同 `VersionAdded`・同実効出力レートで入力合計が異なる 2 レシピ | 実効入力レートの小さい側が既定（重息壌ガス型） |
-| SEL-27 | 入力レート小・出力レート低のレシピ vs 入力レート大・出力レート高のレシピ（同 `VersionAdded`） | 入力キーが先に効き、入力の少ない側が既定（第 2 キーの優先度確認） |
-| SEL-28 | 同 `VersionAdded`・同入力レートで出力レートが異なる | 出力レートの高い側が既定（第 3 キーの維持） |
+| SEL-27 | 入力レート小・出力レート低のレシピ vs 入力レート大・出力レート高のレシピ（同 `VersionAdded`） | 出力キーが先に効き、出力レートの高い側が既定（CO のキー順確認） |
+| SEL-28 | 同 `VersionAdded`・同入力レートで出力レートが異なる | 出力レートの高い側が既定（第 2 キー） |
 | SEL-29 | 旧バージョンで入力が少ないレシピ vs 新バージョンで入力が多いレシピ | `VersionAdded` が第一キーのままで新版が既定（F の維持） |
 | SEL-30 | 競合レシピの最小 `CycleTime` が異なる | 入力レートが分換算で比較される（サイクル合計個数が多くても分換算で小さい側が勝つ） |
-| SEL-31 | 入力合計が同じで `FixedConsumption` を持つペアを含むレシピが競合 | `FixedConsumption` を入力に含めないため入力レートは同率になり、後続キーへ流れる |
+| SEL-31 | 入力・出力とも同量で `FixedConsumption` を持つ側が `Id` 昇順で先頭の競合 | `FixedConsumption` を入力に含めないため全キー同率になり `Id` 昇順の FC 側が既定（FC 算入の回帰を検出できる命名） |
 | SEL-32 | 適格ペア 0 件のレシピと適格ペアありのレシピの競合 | 0 件側は最下位扱いで選ばれない（回帰） |
 | SEL-33 | ペア候補列挙（`ListCandidates`） | 新しい順序に追随し、`IsDefault` が新規則の先頭ペアに立つ |
-| DSP-26 | 複数の処理レシピを持つ対象アイテムで入力合計が異なる | 全入力合計（対象アイテム＋補助入力）の実効入力レート最小が選ばれる |
+| DSP-26 | 実効処理レートが同率で入力合計が異なる処理レシピの競合 | 全入力合計（対象アイテム＋補助入力）の実効入力レート最小が選ばれる |
 
 ## 2. 手動確認項目（ブラウザプレビュー）
 
