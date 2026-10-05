@@ -5,15 +5,17 @@ namespace EndfieldAicWeb.Domain.Calculation;
 
 /// <summary>
 /// 処理対象アイテムに対して使用する処理レシピ（出力なしレシピ）とペアの組を 1 件選択する
-/// （仕様決定 CB）。<see cref="PairSelector"/> と同じ適格判定を使うが、選択キーは
-/// 対象アイテムの実効処理レート（1 サイクルの対象入力量 ÷ 適格ペアの最小 CycleTime ×60）。
+/// （仕様決定 CB）。<see cref="PairSelector"/> と同じ適格判定を使い、選択キーも同型
+/// （VersionAdded → 実効処理レート → 実効入力レート。仕様決定 CL・CP）だが、実効入力レートは
+/// 対象アイテムと補助入力を含む全入力で、実効処理レートは対象アイテムの 1 サイクル入力量で算る
+/// （いずれも適格ペアの最小 CycleTime で分換算）。
 /// 選択は需要アイテムの産出レシピ選択（Selection）とは別系で行い、そちらには登録しない。
 /// </summary>
 internal static class DisposalSelector
 {
     /// <summary>
     /// itemId を入力に持つ出力なしレシピのうちコンテキスト上 eligible なものから 1 組を選ぶ。
-    /// レシピ順位は VersionAdded 最新 → 実効処理レート最大 → Id 昇順。
+    /// レシピ順位は VersionAdded 最新 → 実効処理レート最大 → 実効入力レート最小（全入力合算）→ Id 昇順。
     /// ペア順位は既定選択規則（U・BT）に従う。候補が 0 件なら null。
     /// </summary>
     internal static PairSelector.Selection? Select(
@@ -34,10 +36,12 @@ internal static class DisposalSelector
             .Select(r => (
                 Recipe: r,
                 Version: ParseVersionOrOldest(r.Id, r.VersionAdded, master, warnings),
+                InputRate: EffectiveInputRate(r, master, context),
                 Rate: EffectiveDisposalRate(r, itemId, master, context)))
             .OrderByDescending(t => t.Version is not null)
             .ThenByDescending(t => t.Version)
             .ThenByDescending(t => t.Rate)
+            .ThenBy(t => t.InputRate)
             .ThenBy(t => t.Recipe.Id, StringComparer.Ordinal)
             .Select(t => t.Recipe)
             .ToList();
@@ -55,6 +59,26 @@ internal static class DisposalSelector
     }
 
     /// <summary>
+    /// 実効入力レート（個/分）。対象アイテムと補助入力を含む全入力の 1 サイクル合計 ÷ 適格ペアの
+    /// 最小 CycleTime × 60。FixedConsumption は数えない。適格ペア 0 件・正の CycleTime なしは
+    /// +∞（最下位扱い。仕様決定 CL）。
+    /// </summary>
+    private static double EffectiveInputRate(
+        Recipe recipe,
+        MasterDataSnapshot master,
+        ContextFilter context)
+    {
+        double minCycle = PairSelector.MinEligibleCycleTime(recipe, master, context);
+        if (!double.IsFinite(minCycle))
+        {
+            return double.PositiveInfinity;
+        }
+
+        double inputQty = recipe.Inputs.Sum(i => i.Quantity);
+        return inputQty / minCycle * 60;
+    }
+
+    /// <summary>
     /// 対象アイテムの実効処理レート（個/分）。
     /// 1 サイクルの対象入力量合計 ÷ 適格ペアの最小 CycleTime ×60。適格ペア 0 件は 0。
     /// </summary>
@@ -64,14 +88,7 @@ internal static class DisposalSelector
         MasterDataSnapshot master,
         ContextFilter context)
     {
-        double minCycle = double.PositiveInfinity;
-        foreach (RecipeFacility pair in recipe.Facilities)
-        {
-            if (pair.CycleTime > 0 && pair.CycleTime < minCycle && IsPairEligible(pair, master, context))
-            {
-                minCycle = pair.CycleTime;
-            }
-        }
+        double minCycle = PairSelector.MinEligibleCycleTime(recipe, master, context);
 
         if (!double.IsFinite(minCycle))
         {
@@ -101,24 +118,6 @@ internal static class DisposalSelector
             WarningCode.InvalidVersionString,
             $"レシピ {display.Recipe(recipeId)} の VersionAdded {versionText} は semver としてパースできないため、最古として扱います。"));
         return null;
-    }
-
-    private static bool IsPairEligible(
-        RecipeFacility pair,
-        MasterDataSnapshot master,
-        ContextFilter context)
-    {
-        if (pair.EnvironmentId is null)
-        {
-            return true;
-        }
-
-        if (!master.EnvironmentsById.TryGetValue(pair.EnvironmentId, out Models.Environment? environment))
-        {
-            return false;
-        }
-
-        return IsEventEligible(environment.GameEventId, context);
     }
 
     private static bool IsEventEligible(string? gameEventId, ContextFilter context)
