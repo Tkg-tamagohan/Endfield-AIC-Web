@@ -370,7 +370,7 @@ public class SelectionTests
         Assert.False(candidates[2].IsDefault);
     }
 
-    [Fact(DisplayName = "SEL-26: 同 VersionAdded・同出力レートで入力合計が小さい方が既定（CL）")]
+    [Fact(DisplayName = "SEL-26: 同 VersionAdded・同出力レートで入力合計が小さい方が既定（CL・CM）")]
     public void SmallerInputRateWinsOnVersionAndOutputTie()
     {
         ProductionPlan plan = CalculationFixtures.Run(
@@ -379,16 +379,16 @@ public class SelectionTests
         Assert.Equal("r-in1-lean", Assert.Single(plan.RecipeRuns).RecipeId);
     }
 
-    [Fact(DisplayName = "SEL-27: 入力レートの小さい方は出力レートが低くても既定（CL・第 2 キーの優先度）")]
-    public void SmallerInputRateBeatsHigherOutputRate()
+    [Fact(DisplayName = "SEL-27: 入力が多くても出力レートの高い方が既定（CM・出力レートが入力より先）")]
+    public void HigherOutputRateBeatsSmallerInputRate()
     {
         ProductionPlan plan = CalculationFixtures.Run(
             CalculationFixtures.F19(), [("i-in2", 60.0)]);
 
-        Assert.Equal("r-in2-lean", Assert.Single(plan.RecipeRuns).RecipeId);
+        Assert.Equal("r-in2-rich", Assert.Single(plan.RecipeRuns).RecipeId);
     }
 
-    [Fact(DisplayName = "SEL-28: 入力レート同率では出力レートが高い方が既定（CL・第 3 キーの維持）")]
+    [Fact(DisplayName = "SEL-28: 入力レート同率では出力レートが高い方が既定（CM・出力レートは第 2 キー）")]
     public void HigherOutputRateWinsOnInputRateTie()
     {
         ProductionPlan plan = CalculationFixtures.Run(
@@ -409,21 +409,23 @@ public class SelectionTests
     [Fact(DisplayName = "SEL-30: 入力レートは分換算で比較される（CL・サイクル合計の多い方が勝ちうる）")]
     public void InputRateIsComparedPerMinute()
     {
-        // 1 サイクル合計は bulk 4 個 > few 3 個だが、分換算では bulk 60/分 < few 90/分で bulk が既定。
+        // 出力レートは同率（30/分）。1 サイクル合計は bulk 4 個 > few 3 個だが、
+        // 分換算では bulk 60/分 < few 90/分で bulk が既定。
         ProductionPlan plan = CalculationFixtures.Run(
             CalculationFixtures.F19(), [("i-in5", 60.0)]);
 
         Assert.Equal("r-in5-bulk", Assert.Single(plan.RecipeRuns).RecipeId);
     }
 
-    [Fact(DisplayName = "SEL-31: FixedConsumption は入力レートに数えず同率となり出力レートで決まる（CL）")]
+    [Fact(DisplayName = "SEL-31: FixedConsumption は入力レートに数えず全キー同率で Id 昇順（CL）")]
     public void FixedConsumptionIsNotCountedInInputRate()
     {
-        // 入力同量で入力レート同率。FC を数える実装なら z-fc が負ける。Id 昇順なら a-plain が先になる。
+        // 入力同量・出力同量で FC を数える実装なら z-fc が負けずに残るが、正しくは全キー同率で
+        // Id 昇順まで流れて a-plain が既定になる。
         ProductionPlan plan = CalculationFixtures.Run(
             CalculationFixtures.F19(), [("i-in6", 60.0)]);
 
-        Assert.Equal("r-in6-z-fc", Assert.Single(plan.RecipeRuns).RecipeId);
+        Assert.Equal("r-in6-a-plain", Assert.Single(plan.RecipeRuns).RecipeId);
     }
 
     [Fact(DisplayName = "SEL-32: 適格ペア 0 件のレシピは選ばれない（CL・回帰）")]

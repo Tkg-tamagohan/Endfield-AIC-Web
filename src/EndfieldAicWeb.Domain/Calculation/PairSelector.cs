@@ -6,8 +6,8 @@ namespace EndfieldAicWeb.Domain.Calculation;
 
 /// <summary>
 /// 需要アイテムに対して使用する（レシピ, ペア）の組を 1 件選択する。
-/// レシピはコンテキスト適格候補から VersionAdded 最新・実効入力レート昇順・実効出力レート降順
-/// （同率は Id 昇順）を先に選び、そのレシピの適格ペアから CycleTime 最小を既定とする（仕様決定 F・BA・CL）。
+/// レシピはコンテキスト適格候補から VersionAdded 最新・実効出力レート降順・実効入力レート昇順
+/// （同率は Id 昇順）を先に選び、そのレシピの適格ペアから CycleTime 最小を既定とする（仕様決定 F・BA・CL・CM）。
 /// 実効入力レートは Inputs 全量の 1 サイクル合計 ÷ 適格ペアの最小 CycleTime × 60 個/分。
 /// 実効出力レートは対象アイテムの 1 サイクル出力量 ÷ 適格ペアの最小 CycleTime × 60 個/分。
 /// 同 CycleTime は FixedConsumption なし/小 → EnvironmentId=null の順（仕様決定 U・BT）。
@@ -75,7 +75,7 @@ public static class PairSelector
 
     /// <summary>
     /// itemId を出力する適格レシピ × 適格ペアの全候補を列挙する。
-    /// レシピは Select と同じ順序（VersionAdded 降順・実効入力レート昇順・実効出力レート降順・Id 昇順）、ペアは既定選択規則の順序（U・BT）。
+    /// レシピは Select と同じ順序（VersionAdded 降順・実効出力レート降順・実効入力レート昇順・Id 昇順）、ペアは既定選択規則の順序（U・BT）。
     /// 既定ペアには IsDefault を立てる。UI のペア代替選択の候補表示に使う。
     /// バージョン文字列の警告は破棄する（計算実行時に Warnings として報告済みのため）。
     /// </summary>
@@ -138,7 +138,8 @@ public static class PairSelector
     }
 
     /// <summary>
-    /// レシピを VersionAdded 降順（パース不能は最古）・実効入力レート昇順・実効出力レート降順・Id 昇順に並べる（仕様決定 BA・CL）。
+    /// レシピを VersionAdded 降順（パース不能は最古）・実効出力レート降順・実効入力レート昇順・Id 昇順に並べる（仕様決定 BA・CL・CM）。
+    /// 実効入力レートは出力レート同率の範囲内でしか効かない（CM: 入力同量のレシピ対で遅い側が既定になるのを避けるための改定）。
     /// </summary>
     private static List<Recipe> OrderCandidates(
         IEnumerable<Recipe> candidates,
@@ -155,8 +156,8 @@ public static class PairSelector
                 Rate: EffectiveRate(r, itemId, master, context)))
             .OrderByDescending(t => t.Version is not null)
             .ThenByDescending(t => t.Version)
-            .ThenBy(t => t.InputRate)
             .ThenByDescending(t => t.Rate)
+            .ThenBy(t => t.InputRate)
             .ThenBy(t => t.Recipe.Id, StringComparer.Ordinal)
             .Select(t => t.Recipe)
             .ToList();
@@ -165,7 +166,7 @@ public static class PairSelector
     /// <summary>
     /// 実効入力レート（個/分）。
     /// Inputs 全量の 1 サイクル合計 ÷ 適格ペアの最小 CycleTime × 60。FixedConsumption は数えない。
-    /// 適格ペア 0 件・正の CycleTime なしは +∞（最下位扱い。仕様決定 CL）。
+    /// 適格ペア 0 件・正の CycleTime なしは +∞（最下位扱い。仕様決定 CL・CM）。
     /// </summary>
     private static double EffectiveInputRate(
         Recipe recipe,
