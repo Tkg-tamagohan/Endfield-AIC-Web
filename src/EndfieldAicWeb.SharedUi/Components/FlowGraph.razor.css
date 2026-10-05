@@ -3,12 +3,20 @@
 .flow-toolbar {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
     margin: 10px 0 0;
 }
 
 .flow-maxbtn {
     margin-left: auto;
+}
+
+/* ツールバー内の台数分表示チェック（仕様決定 CN）。共有 .check にツールバー用の余白を足す。 */
+.flow-toolbar .check {
+    padding: 4px 0;
+    font-size: 13px;
+    white-space: nowrap;
 }
 
 .flow-graph-wrap {
