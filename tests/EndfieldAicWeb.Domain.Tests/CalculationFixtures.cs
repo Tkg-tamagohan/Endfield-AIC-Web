@@ -291,8 +291,8 @@ internal static class CalculationFixtures
 
     /// <summary>
     /// F-04 派生: 循環に加えて r-x が i-a を副産する（BYP-07・NCP-07 用）。
-    /// r-x の CycleTime 8秒は i-a の実効レート（7.5/分）を r-cyc-a（10/分）より低く保ち、
-    /// 仕様決定 BA の既定選択でも i-a が循環レシピ側に残るようにするための値。
+    /// r-x の入力 2 個・CycleTime 8 秒は実効入力レート（15/分）を r-cyc-a（10/分）より高く保ち、
+    /// 仕様決定 CL の既定選択でも i-a が循環レシピ側に残るようにするための値。
     /// </summary>
     public static MasterDataSnapshot F04WithByproduct()
     {
@@ -300,7 +300,7 @@ internal static class CalculationFixtures
         return Snapshot(
             [.. base_.Items, Item("i-x"), Item("i-ore", "採取素材", TransportKind.Belt, null, true)],
             [.. base_.Facilities, Facility("f-x")],
-            [.. base_.Recipes, Recipe("r-x", "f-x", 8.0, [("i-ore", 1.0)], [("i-x", 1.0), ("i-a", 1.0)])]);
+            [.. base_.Recipes, Recipe("r-x", "f-x", 8.0, [("i-ore", 2.0)], [("i-x", 1.0), ("i-a", 1.0)])]);
     }
 
     /// <summary>F-05: 副産物（r-m が i-p + i-q×2 を生産）。</summary>
@@ -364,8 +364,8 @@ internal static class CalculationFixtures
     /// <summary>
     /// F-10 変形: r-hp は環境ペアのみを持ち、副産物で i-hp を賄う r-side を追加（ENV-16 用）。
     /// i-hp 125/分は 4 秒ペアで 8.33 機分。r-side は i-side 1 サイクルにつき i-hp 5 を副産する。
-    /// r-side の実効出力レート（5×60/30=10/分）を r-hp（15/分）より低くして、
-    /// i-hp の選択ペアが r-side に流れないようにする。
+    /// r-side の入力を 8 個にして実効入力レート（16/分）を r-hp（15/分）より高くし、
+    /// 仕様決定 CL の既定選択でも i-hp の選択ペアが r-side に流れないようにする。
     /// </summary>
     public static MasterDataSnapshot F10WithByproductRescue() => Snapshot(
         [
@@ -378,7 +378,7 @@ internal static class CalculationFixtures
             Recipe("r-hp", [Pair("r-hp", "f-asm", 4.0, "env-gas")],
                 [("i-ore", 1.0)], [("i-hp", 1.0)]),
             Recipe("r-side", "f-sid", 30.0,
-                [("i-ore", 1.0)], [("i-side", 1.0), ("i-hp", 5.0)]),
+                [("i-ore", 8.0)], [("i-side", 1.0), ("i-hp", 5.0)]),
         ],
         [Env("env-gas", "f-disp", "i-gas", 360.0)]);
 
@@ -688,8 +688,10 @@ internal static class CalculationFixtures
         ]);
 
     /// <summary>
-    /// F-17 混合型に i-x・i-ore・r-px（i-ore×1 → i-x×1 + i-c×1）を追加（NCP-10 用）。
+    /// F-17 混合型に i-x・i-ore・r-px（i-ore×3 → i-x×1 + i-c×1）を追加（NCP-10・NCP-11 用）。
     /// r-px の副産物 i-c が A→C→A の正味減枝の需要を賄い、その枝を死なせる。
+    /// 入力 3 個で実効入力レート 45/分（r-c は i-a×2 で 30/分）にし、
+    /// 仕様決定 CL の既定選択でも i-c が r-c 側に残るようにする。
     /// </summary>
     public static MasterDataSnapshot F17MixedByproduct()
     {
@@ -698,7 +700,7 @@ internal static class CalculationFixtures
             [.. base_.Items, Item("i-x"), Item("i-ore", "採取素材", TransportKind.Belt, null, true)],
             [.. base_.Facilities, Facility("f-x")],
             [.. base_.Recipes,
-                Recipe("r-px", "f-x", 4.0, [("i-ore", 1.0)], [("i-x", 1.0), ("i-c", 1.0)])]);
+                Recipe("r-px", "f-x", 4.0, [("i-ore", 3.0)], [("i-x", 1.0), ("i-c", 1.0)])]);
     }
 
     /// <summary>F-17 派生: r-grow のペアに i-water 固定消費 6/分を追加。</summary>
@@ -718,8 +720,10 @@ internal static class CalculationFixtures
     }
 
     /// <summary>
-    /// F-18: 実効出力レートによる既定レシピ選択（仕様決定 BA）。
+    /// F-18: 実効出力レートによる既定レシピ選択（仕様決定 BA。実効入力レートキーは CL）。
     /// 同一 VersionAdded のレシピ対で、Id 昇順と実効レート降順が逆方向に効く命名にする。
+    /// 第 2 キーの実効入力レート（CL）が先に効くため、出力レート比較を意図するレシピ対は
+    /// 入力レートが同率か意図する側が小さくなるよう個数を調整してある。
     /// env-q5・env-q6 は所属イベント ev-off が無効のコンテキストでペア不適格。
     /// </summary>
     public static MasterDataSnapshot F18() => Snapshot(
@@ -733,21 +737,28 @@ internal static class CalculationFixtures
         [
             Recipe("r-q1-lean", "f-a", 3.0, [("i-ore", 1.0)], [("i-q1", 1.0)]),
             Recipe("r-q1-rich", "f-a", 3.0, [("i-ore", 1.0)], [("i-q1", 2.0)]),
-            Recipe("r-q2-a-slow", "f-a", 6.0, [("i-ore", 1.0)], [("i-q2", 1.0)]),
+            // a-slow は入力 2 個で実効入力レートが b-fast と同率（20/分）になり、
+            // 出力レート差が効く形にするための値（仕様決定 CL での SEL-15 維持）。
+            Recipe("r-q2-a-slow", "f-a", 6.0, [("i-ore", 2.0)], [("i-q2", 1.0)]),
             Recipe("r-q2-b-fast", "f-a", 3.0, [("i-ore", 1.0)], [("i-q2", 1.0)]),
             Recipe("r-q3-a", "f-a", 6.0, [("i-ore", 1.0)], [("i-q3", 1.0)]),
             Recipe("r-q3-b", "f-a", 6.0, [("i-ore", 1.0)], [("i-q3", 1.0)]),
-            Recipe("r-q4-alt", "f-a", 5.0, [("i-ore", 1.0)], [("i-q4", 1.0)]),
+            // alt は入力 3 個で実効入力レート 36/分となり multi（30/分）に負ける
+            // （CL で入力キーが先に効く形にするための値）。
+            Recipe("r-q4-alt", "f-a", 5.0, [("i-ore", 3.0)], [("i-q4", 1.0)]),
             Recipe("r-q4-multi", [
                     Pair("r-q4-multi", "f-a", 6.0),
                     Pair("r-q4-multi", "f-b", 2.0),
                 ],
                 [("i-ore", 1.0)], [("i-q4", 1.0)]),
+            // 入力 3 個で適格ペア最小 8 秒の実効入力レートは 22.5/分となり r-q5-alt（15/分）に負ける
+            // （CL で入力キーが先に効く形にするための値）。不適格な 1 秒ペアを分母に取らないかは
+            // 出力レート側の比較で検査される。
             Recipe("r-q5", [
                     Pair("r-q5", "f-a", 1.0, "env-q5"),
                     Pair("r-q5", "f-a", 8.0),
                 ],
-                [("i-ore", 1.0)], [("i-q5", 1.0)]),
+                [("i-ore", 3.0)], [("i-q5", 1.0)]),
             Recipe("r-q5-alt", "f-a", 4.0, [("i-ore", 1.0)], [("i-q5", 1.0)]),
             Recipe("r-q6-env", "f-a", 1.0,
                 [("i-ore", 1.0)], [("i-q6", 1.0)], "1.0.0", null, null, "env-q6"),
@@ -763,5 +774,49 @@ internal static class CalculationFixtures
             Env("env-q5", "f-disp", "i-gas", 60.0, "ev-off"),
             Env("env-q6", "f-disp", "i-gas", 60.0, "ev-off"),
         ],
+        gameEvents: [GameEvent("ev-off")]);
+
+    /// <summary>
+    /// F-19: 実効入力レートによる既定レシピ選択（仕様決定 CL。SEL-26〜33 用）。
+    /// 各 i-inN に VersionAdded 同率のレシピ対をぶつけ、入力キーの位置と分換算を検査する。
+    /// env-in7 は所属イベント ev-off が無効のコンテキストでペア不適格。
+    /// </summary>
+    public static MasterDataSnapshot F19() => Snapshot(
+        [
+            Item("i-in1"), Item("i-in2"), Item("i-in3"), Item("i-in4"),
+            Item("i-in5"), Item("i-in6"), Item("i-in7"),
+            Item("i-ore", "採取素材", TransportKind.Belt, null, true),
+            Item("i-gas", "採取素材", TransportKind.Pipe, null, true),
+            Item("i-fuel", "採取素材", TransportKind.Belt, null, true),
+        ],
+        [Facility("f-a"), Facility("f-disp")],
+        [
+            // i-in1: 出力同率・入力 2 対 4（重息壌ガス型）。入力小の lean が既定。
+            Recipe("r-in1-lean", "f-a", 4.0, [("i-ore", 2.0)], [("i-in1", 1.0)]),
+            Recipe("r-in1-rich", "f-a", 4.0, [("i-ore", 4.0)], [("i-in1", 1.0)]),
+            // i-in2: 入力小・出力低（lean 15/分入力・15/分出力）vs 入力大・出力高
+            // （rich 120/分入力・30/分出力）。入力キーが先に効き lean が既定。
+            Recipe("r-in2-lean", "f-a", 4.0, [("i-ore", 1.0)], [("i-in2", 1.0)]),
+            Recipe("r-in2-rich", "f-a", 2.0, [("i-ore", 4.0)], [("i-in2", 1.0)]),
+            // i-in3: 入力レート同率（20/分）で出力レート差。出力高の high が既定（第 3 キー）。
+            Recipe("r-in3-low", "f-a", 3.0, [("i-ore", 1.0)], [("i-in3", 1.0)]),
+            Recipe("r-in3-high", "f-a", 3.0, [("i-ore", 1.0)], [("i-in3", 2.0)]),
+            // i-in4: 旧版・入力小 vs 新版・入力大。VersionAdded が第一キーのまま新版が既定。
+            Recipe("r-in4-old", "f-a", 4.0, [("i-ore", 1.0)], [("i-in4", 1.0)], "1.0.0"),
+            Recipe("r-in4-new", "f-a", 4.0, [("i-ore", 8.0)], [("i-in4", 1.0)], "2.0.0"),
+            // i-in5: 1 サイクル合計は bulk（4 個）が多いが分換算では bulk 60/分 < few 90/分。
+            Recipe("r-in5-bulk", "f-a", 4.0, [("i-ore", 4.0)], [("i-in5", 1.0)]),
+            Recipe("r-in5-few", "f-a", 2.0, [("i-ore", 3.0)], [("i-in5", 1.0)]),
+            // i-in6: 入力同量で z-fc のみ FixedConsumption。FC は入力に数えず同率になるため
+            // 出力レートで決まる（Id 昇順では a-plain が先になる命名にして判別できるようにする）。
+            Recipe("r-in6-z-fc", "f-a", 4.0, [("i-ore", 1.0)], [("i-in6", 2.0)],
+                "1.0.0", null, null, null, ("i-fuel", 30.0)),
+            Recipe("r-in6-a-plain", "f-a", 4.0, [("i-ore", 1.0)], [("i-in6", 1.0)]),
+            // i-in7: dead は不適格ペアのみ（+∞ で最下位扱い）で選ばれない。
+            Recipe("r-in7-dead", "f-a", 1.0, [("i-ore", 1.0)], [("i-in7", 1.0)],
+                "1.0.0", null, null, "env-in7"),
+            Recipe("r-in7-live", "f-a", 4.0, [("i-ore", 1.0)], [("i-in7", 1.0)]),
+        ],
+        environments: [Env("env-in7", "f-disp", "i-gas", 60.0, "ev-off")],
         gameEvents: [GameEvent("ev-off")]);
 }

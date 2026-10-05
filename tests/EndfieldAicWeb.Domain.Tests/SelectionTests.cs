@@ -369,4 +369,82 @@ public class SelectionTests
         Assert.Equal("f-c", candidates[2].Pair.FacilityId);
         Assert.False(candidates[2].IsDefault);
     }
+
+    [Fact(DisplayName = "SEL-26: 同 VersionAdded・同出力レートで入力合計が小さい方が既定（CL）")]
+    public void SmallerInputRateWinsOnVersionAndOutputTie()
+    {
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F19(), [("i-in1", 60.0)]);
+
+        Assert.Equal("r-in1-lean", Assert.Single(plan.RecipeRuns).RecipeId);
+    }
+
+    [Fact(DisplayName = "SEL-27: 入力レートの小さい方は出力レートが低くても既定（CL・第 2 キーの優先度）")]
+    public void SmallerInputRateBeatsHigherOutputRate()
+    {
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F19(), [("i-in2", 60.0)]);
+
+        Assert.Equal("r-in2-lean", Assert.Single(plan.RecipeRuns).RecipeId);
+    }
+
+    [Fact(DisplayName = "SEL-28: 入力レート同率では出力レートが高い方が既定（CL・第 3 キーの維持）")]
+    public void HigherOutputRateWinsOnInputRateTie()
+    {
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F19(), [("i-in3", 60.0)]);
+
+        Assert.Equal("r-in3-high", Assert.Single(plan.RecipeRuns).RecipeId);
+    }
+
+    [Fact(DisplayName = "SEL-29: 入力が少なくても旧版は新版に負ける（CL・VersionAdded 第一キーの維持）")]
+    public void VersionAddedStillBeatsSmallerInputs()
+    {
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F19(), [("i-in4", 60.0)]);
+
+        Assert.Equal("r-in4-new", Assert.Single(plan.RecipeRuns).RecipeId);
+    }
+
+    [Fact(DisplayName = "SEL-30: 入力レートは分換算で比較される（CL・サイクル合計の多い方が勝ちうる）")]
+    public void InputRateIsComparedPerMinute()
+    {
+        // 1 サイクル合計は bulk 4 個 > few 3 個だが、分換算では bulk 60/分 < few 90/分で bulk が既定。
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F19(), [("i-in5", 60.0)]);
+
+        Assert.Equal("r-in5-bulk", Assert.Single(plan.RecipeRuns).RecipeId);
+    }
+
+    [Fact(DisplayName = "SEL-31: FixedConsumption は入力レートに数えず同率となり出力レートで決まる（CL）")]
+    public void FixedConsumptionIsNotCountedInInputRate()
+    {
+        // 入力同量で入力レート同率。FC を数える実装なら z-fc が負ける。Id 昇順なら a-plain が先になる。
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F19(), [("i-in6", 60.0)]);
+
+        Assert.Equal("r-in6-z-fc", Assert.Single(plan.RecipeRuns).RecipeId);
+    }
+
+    [Fact(DisplayName = "SEL-32: 適格ペア 0 件のレシピは選ばれない（CL・回帰）")]
+    public void NoEligiblePairRecipeIsNotSelected()
+    {
+        ProductionPlan plan = CalculationFixtures.Run(
+            CalculationFixtures.F19(), [("i-in7", 60.0)]);
+
+        Assert.Equal("r-in7-live", Assert.Single(plan.RecipeRuns).RecipeId);
+    }
+
+    [Fact(DisplayName = "SEL-33: ListCandidates の候補順と IsDefault が入力レート順に一致（CL）")]
+    public void CandidateListFollowsInputRateOrdering()
+    {
+        var candidates = PairSelector.ListCandidates(
+            "i-in1", CalculationFixtures.F19(), new ContextFilter());
+
+        Assert.Equal(2, candidates.Count);
+        Assert.Equal("r-in1-lean", candidates[0].Recipe.Id);
+        Assert.True(candidates[0].IsDefault);
+        Assert.Equal("r-in1-rich", candidates[1].Recipe.Id);
+        Assert.False(candidates[1].IsDefault);
+    }
 }

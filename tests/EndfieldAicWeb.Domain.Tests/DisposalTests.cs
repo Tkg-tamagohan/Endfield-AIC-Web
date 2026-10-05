@@ -221,11 +221,11 @@ public class DisposalTests
         Assert.DoesNotContain(plan.Warnings, w => w.Code == WarningCode.ConvergenceNotReached);
     }
 
-    [Fact(DisplayName = "DSP-11: 処理レシピの既定選択（バージョン最新→実効処理レート）")]
+    [Fact(DisplayName = "DSP-11: 処理レシピの既定選択（バージョン最新→実効入力レート→実効処理レート）")]
     public void DisposalRecipeSelectionOrder()
     {
-        // r-disp-b と r-disp-c はともに 2.0.0 で最新。実効処理レートは
-        // b 1/4×60=15 > c 1/8×60=7.5 で b が選ばれる（a は旧版で先に脱落）。
+        // a は旧版で先に脱落。b・c は同バージョンで、実効入力レートは c（1/8×60=7.5/分）< b（15/分）
+        // のため c が既定（仕様決定 CL。後続の実効処理レートは b 15/分 > c 7.5/分だが先には効かない）。
         MasterDataSnapshot master = F.Snapshot(
             [F.Item("i-ore", "採取素材", TransportKind.Belt, null, true), F.Item("i-p"), F.Item("i-sew")],
             [F.Facility("f-asm"), F.Facility("f-trt")],
@@ -238,8 +238,8 @@ public class DisposalTests
 
         ProductionPlan plan = F.Run(master, [("i-p", 30.0)]);
 
-        Assert.Single(plan.RecipeRuns, r => r.RecipeId == "r-disp-b");
-        Assert.DoesNotContain(plan.RecipeRuns, r => r.RecipeId == "r-disp-a" || r.RecipeId == "r-disp-c");
+        Assert.Single(plan.RecipeRuns, r => r.RecipeId == "r-disp-c");
+        Assert.DoesNotContain(plan.RecipeRuns, r => r.RecipeId == "r-disp-a" || r.RecipeId == "r-disp-b");
     }
 
     [Fact(DisplayName = "DSP-12: 処理ペアの既定選択（CycleTime 最小）")]
@@ -532,5 +532,28 @@ public class DisposalTests
         ItemRequirement aux = Assert.Single(plan.ItemRequirements, r => r.ItemId == "i-aux");
         Assert.Equal(10.0, aux.RequiredPerMinute, 6);
         Assert.DoesNotContain(plan.Surpluses, s => s.ItemId == "i-sew");
+    }
+
+    [Fact(DisplayName = "DSP-26: 処理レシピの既定選択は全入力合算の実効入力レートが小さい方（CL）")]
+    public void DisposalSelectionUsesTotalInputRate()
+    {
+        // 両レシピとも対象 i-sew の処理レートは 15/分で同率。入力キーは全入力合算なので
+        // r-disp-aux（i-sew+i-aux×2 で 45/分）は r-disp-plain（i-sew のみ 15/分）に負ける。
+        // 補助入力を数えない実装なら入力レート同率となり Id 昇順で r-disp-aux が先になる命名にした。
+        MasterDataSnapshot master = F.Snapshot(
+            [F.Item("i-ore", "採取素材", TransportKind.Belt, null, true),
+             F.Item("i-aux", "採取素材", TransportKind.Belt, null, true),
+             F.Item("i-p"), F.Item("i-sew")],
+            [F.Facility("f-asm"), F.Facility("f-trt")],
+            [
+                F.Recipe("r-m", "f-asm", 4.0, [("i-ore", 1.0)], [("i-p", 1.0), ("i-sew", 1.0)]),
+                F.Recipe("r-disp-aux", "f-trt", 4.0, [("i-sew", 1.0), ("i-aux", 2.0)], []),
+                F.Recipe("r-disp-plain", "f-trt", 4.0, [("i-sew", 1.0)], []),
+            ]);
+
+        ProductionPlan plan = F.Run(master, [("i-p", 30.0)]);
+
+        Assert.Single(plan.RecipeRuns, r => r.RecipeId == "r-disp-plain");
+        Assert.DoesNotContain(plan.RecipeRuns, r => r.RecipeId == "r-disp-aux");
     }
 }
