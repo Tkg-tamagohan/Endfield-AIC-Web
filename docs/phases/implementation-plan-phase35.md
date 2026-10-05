@@ -79,4 +79,4 @@ CL 計画時は実効入力レートを第 2 キー（`VersionAdded` の直後�
 - [ ] `DisposalSelector` の順位にも同じキーを適用し、XML コメントを更新する
 - [ ] SEL-26 以降・DSP-26 以降を追加し、`dotnet build`・`dotnet test` 全緑を確認する
 - [ ] `tools/validate_master.py` 通過を確認する
-- [x] 手動確認 MN-145 以降を実施する
+- [ ] 手動確認 MN-145 以降を実施する（実装 PR #95 のコミット 0092251 で実施済み・全項目合格。実装 PR のマージ後に [x] へ更新）
