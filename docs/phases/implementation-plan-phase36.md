@@ -5,7 +5,7 @@
 **関連ドキュメント**: [test-specification-phase36.md](test-specification-phase36.md)（本 Phase のテスト仕様）
 
 > 本書は Phase 36 の作業項目を、作業者が追加の判断なしに実行できる粒度へ分解したものである。
-> 文書・実装・テストは 1 つの PR にまとめて main へマージする。
+> 文書は計画 PR（文書のみ）で先行し、実装・テストは本書に基づく後続の実装 PR で main へマージする（Phase 34・35 と同じ計画・実装の分割）。
 > Phase 番号は 36 とする（Phase 35 は PR #93 が計画中のため空き番号を避けた）。仕様決定は CL の次の採番で CM・CN、手動確認 ID は MN-148 以降を使う（PR #93 が MN-145〜147 を使用）。
 
 ## 1. スコープ
@@ -22,7 +22,7 @@
 ### やること
 
 - 描画領域の高さを、グラフ世界矩形（ノード群と縦表示の後退エッジ側面ループ張り出し込み）の高さがズーム 1.0 で収まる値へ自動で拡張する（仕様決定 CM）
-- 下限を既定値（420px・モバイル幅 300px）、上限をビューポート高さとする。縦・横表示の双方へ適用する
+- 下限を既定値（420px・モバイル幅 300px）、上限をビューポート高さとする。ビューポートが下限を下回る画面では下限を優先する。縦・横表示の双方へ適用する
 - 領域高の自動適用ごとに `refit` を呼びフィットを掛け直し、等倍で全内容が見える表示へ戻す
 - 手動リサイズのドラッグ確定で手動モードへ移行して自動拡張を停止し、リサイズハンドルのダブルクリックで手動指定を解除して自動へ復帰する
 - 最大化中は自動拡張を休止し、復帰時に再評価する
@@ -41,7 +41,7 @@
 
 | ファイル | 変更 |
 |---|---|
-| `src/EndfieldAicWeb.SharedUi/wwwroot/js/flow-graph.js` | `update()` の末尾で、世界矩形の高さから要求領域高を算出し `dotnetRef.invokeMethodAsync('OnContentHeight', h)` で通知する。算出は `Math.min(Math.max(世界矩形高, minGraphHeight()), window.innerHeight)` とし、整数化は `Math.ceil` とする。ResizeObserver のコールバックでも直近の世界矩形高から再通知し、ビューポート高・モバイル閾値の変化を追従させる |
+| `src/EndfieldAicWeb.SharedUi/wwwroot/js/flow-graph.js` | `update()` の末尾で、世界矩形の高さから要求領域高を算出し `dotnetRef.invokeMethodAsync('OnContentHeight', h)` で通知する。算出は `Math.min(Math.max(世界矩形高, minGraphHeight()), Math.max(minGraphHeight(), window.innerHeight))` とし、整数化は `Math.ceil` とする（上限が下限を下回る画面では下限を優先する）。ResizeObserver のコールバックでも直近の世界矩形高から再通知し、ビューポート高・モバイル閾値の変化を追従させる |
 | `src/EndfieldAicWeb.SharedUi/Components/FlowGraph.razor` | `[JSInvokable] OnContentHeight` を追加し、自動モード・非最大化のとき実効高さへ適用して `_refitPending` を立てる。`OnAfterRenderAsync` で `_refitPending` 時に `refit` を呼ぶ。実効高さは `Height ?? _autoHeight`（両方 null なら CSS 既定）とする。`.flow-resize` に `@ondblclick` を追加して `HeightChanged(null)` を発火し自動へ復帰する。リサイズの `HeightChanged` は高さが実際に変わったときだけ発火する。`ExpandFacilities`・`ExpandFacilitiesChanged` パラメータを追加しツールバーへチェックを描く |
 | `src/EndfieldAicWeb.SharedUi/Components/FlowGraph.razor.css` | ツールバー内チェック（`.check` 相当）の余白を調整する |
 | `src/EndfieldAicWeb.SharedUi/Components/CalculatorPanel.razor` | 結果ツールバーの「設備を台数分表示」チェックを削除し、`FlowGraph` へ `ExpandFacilities`・`ExpandFacilitiesChanged` を渡す。変更時に `_graphExpandFacilities` 更新と `RebuildView()` を呼ぶ |
@@ -57,9 +57,10 @@
 `update()` はレイアウトのたびに世界矩形（`worldBounds`）を確定しており、等倍で全内容を収める領域高はその高さに等しい。
 `Math.ceil` で整数化するのは、`canvas.clientHeight` が要求値をわずかに下回ると `fitView` の拡大率が 1.0 未満へ落ちるためである。
 
-通知値は `Math.min(Math.max(世界矩形高, minGraphHeight()), window.innerHeight)` とする。
+通知値は `Math.min(Math.max(世界矩形高, minGraphHeight()), Math.max(minGraphHeight(), window.innerHeight))` とする。
 下限は `minGraphHeight()` が返す既定値（幅 780px 以下で 300px、それ以外で 420px）で、手動リサイズの下限と同じ関数を使って二重管理を避ける。
 上限は `window.innerHeight` で、最大化オーバレイが領域へ与える実効高さとほぼ等しい。
+ビューポートが下限を下回る画面（例: 高さ 400px 未満）では下限を優先し領域は既定値を維持する。既存 CSS の `min-height`（420px・モバイル 300px）がインラインの高さ指定より常に優先されるため、上限優先にすると通知値と実効高さが食い違うからである。
 上限を超える内容を持つ計画では領域は上限で止まり、縮小フィット・パン・最大化といった従来の見方へ戻る。
 
 `FlowGraph` 側は次の状態を持つ。
@@ -106,6 +107,7 @@ CalculatorPanel は結果ツールバーのチェックを削除し、FlowGraph 
 
 - 深い計画で領域が既定値を超えて自動で伸び、ズーム 1.0 前後で全ノードが読めるサイズで表示される
 - 内容がビューポート高さを超える計画では領域は上限で止まり、従来どおり縮小フィットで表示される
+- ビューポート高さが既定値（420px・モバイル幅 300px）を下回る画面では、領域は既定値を維持して下限を下回らない
 - ハンドルドラッグで高さを変えると手動モードへ移り、以後の再計算・ビューポート変化で高さが自動で変わらない
 - ハンドルのダブルクリックで自動モードへ戻り、内容に合わせた高さへ再適用される
 - 小さいグラフでは 420px（モバイル幅 300px）を下回らない
