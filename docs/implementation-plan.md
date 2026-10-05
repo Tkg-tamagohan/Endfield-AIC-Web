@@ -379,6 +379,13 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 - [x] `dotnet test` 全緑を確認し、ブラウザで手動確認（失敗注入・時刻リセット・DPR エミュレーション）を実施する
 - **受け入れ条件**: 描画失敗時にグラフが凍結せずリスト表示へ戻り、長時間表示でも粒子の位相精度が劣化しない。詳細は `phases/implementation-plan-phase34.md` と `phases/test-specification-phase34.md`。
 
+### Phase 35: 既定レシピ選択の入力効率キー（PR: 実効入力レートの第 2 キー化）
+
+- [ ] 需要アイテムの既定レシピ選択に実効入力レート昇順を第 2 キーとして挿入する（`VersionAdded` → 実効入力レート → 実効出力レート → `Id`、仕様決定 CL）。入力合計は `Inputs` 全量で `FixedConsumption` を含めず、適格ペア 0 件は最下位とする
+- [ ] 処理レシピ選択（仕様決定 CB）にも同じキーを同型適用する。ペア候補列挙の順序も選択規則へ追随させる
+- [ ] `dotnet test` 全緑を確認し、ブラウザで手動確認（重息壌ガス既定の 02 化・候補列挙順・炭塊回帰）を実施する
+- **受け入れ条件**: 同 `VersionAdded` のレシピ競合で入力の少ない側が既定になり、同梱マスタでは重息壌ガスの既定が `recipe-heavyXiragen02` になる。詳細は `phases/implementation-plan-phase35.md` と `phases/test-specification-phase35.md`。
+
 
 ## 5. 実装メモ・規約
 
