@@ -11,6 +11,13 @@
     margin-left: auto;
 }
 
+/* ツールバー内の台数分表示チェック（仕様決定 CN）。共有 .check にツールバー用の余白を足す。 */
+.flow-toolbar .check {
+    padding: 4px 0;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
 .flow-graph-wrap {
     position: relative;
     height: 420px;

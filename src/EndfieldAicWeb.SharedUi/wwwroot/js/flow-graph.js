@@ -131,6 +131,16 @@ export function minGraphHeight() {
     return window.innerWidth <= 780 ? 300 : 420;
 }
 
+// 内容がズーム 1.0 で収まる領域高を Blazor 側へ通知する（仕様決定 CM）。
+// 領域高の決定権は Blazor 側にあり、ここでは要求値を渡すだけとする。
+// 下限は手動リサイズと同じ既定値（minGraphHeight）、上限はビューポート高さ。
+// ビューポートが下限を下回る画面では下限を優先する。既存 CSS の min-height が
+// インラインの高さ指定より常に優先されるため、上限優先にすると通知値と実効高さが食い違う。
+function contentHeight(worldH) {
+    const minH = minGraphHeight();
+    return Math.ceil(Math.min(Math.max(worldH, minH), Math.max(minH, window.innerHeight)));
+}
+
 // ノード DOM クリックからリスト行へのスクロール＋強調。
 // 最大化オーバレイの復帰処理と競合しないよう、描画フレーム後にスクロールする。
 export function scrollToRef(refId) {
@@ -465,7 +475,9 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
     container.addEventListener('click', onClickCapture, true);
     container.addEventListener('wheel', onWheel, { passive: false });
 
-    const resizeObserver = new ResizeObserver(() => { resize(); requestFrames(); });
+    // 領域の実寸変化（自動高さの適用・ビューポート高やモバイル閾値の変化）でも
+    // 直近の世界矩形高から要求領域高を再通知する（仕様決定 CM）。
+    const resizeObserver = new ResizeObserver(() => { resize(); notifyContentHeight(); requestFrames(); });
     resizeObserver.observe(canvas);
     const inViewObserver = new IntersectionObserver(entries => {
         inView = entries[0]?.isIntersecting !== false;
@@ -623,6 +635,12 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
             const r = rects.get(n.id);
             return `${n.id}:${n.rank}:${n.order}:${r ? r.w : 0}x${r ? r.h : 0}`;
         }).join('|');
+    }
+
+    // 直近の世界矩形高から要求領域高を算出し Blazor 側へ通知する（仕様決定 CM）。
+    // 世界矩形はノード群と縦表示の後退エッジ側面ループ張り出しを含む（フィット対象と同じ境界）。
+    function notifyContentHeight() {
+        dotnetRef?.invokeMethodAsync('OnContentHeight', contentHeight(worldBounds.h)).catch(() => { });
     }
 
     function update(model, vertical) {
@@ -830,6 +848,7 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
         if (particleInstanceBuffer) device.queue.writeBuffer(particleInstanceBuffer, 0, instanceData);
 
         requestFrames();
+        notifyContentHeight();
     }
 
     function brighten(c) {
