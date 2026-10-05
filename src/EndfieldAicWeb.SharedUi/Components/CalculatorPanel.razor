@@ -110,10 +110,6 @@
                         <button class="seg @(!_graphOpen ? "on" : "")" @onclick="() => _graphOpen = false">リスト</button>
                     </div>
                 }
-                @if (_graphSupported && _graphOpen && _flowModel is not null)
-                {
-                    <label class="check"><input type="checkbox" checked="@_graphExpandFacilities" @onchange="OnGraphExpandChanged" /> 設備を台数分表示</label>
-                }
                 @if (_unit == AmountUnit.Period)
                 {
                     <span class="period-inputs">
@@ -141,7 +137,8 @@
             {
                 <h2 class="panel-title">生産フロー</h2>
                 <FlowGraph Model="_flowModel" FormatRate="FormatGraphRate" OnUnavailable="OnGraphUnavailable"
-                           @bind-Vertical="_graphVertical" @bind-Height="_graphHeight" @bind-Maximized="_graphMaximized" />
+                           @bind-Vertical="_graphVertical" @bind-Height="_graphHeight" @bind-Maximized="_graphMaximized"
+                           ExpandFacilities="_graphExpandFacilities" ExpandFacilitiesChanged="OnGraphExpandChanged" />
             }
 
             <h2 class="panel-title">素材</h2>
@@ -455,9 +452,9 @@
         RebuildView();
     }
 
-    private void OnGraphExpandChanged(ChangeEventArgs e)
+    private void OnGraphExpandChanged(bool expand)
     {
-        _graphExpandFacilities = e.Value is true;
+        _graphExpandFacilities = expand;
         RebuildView();
     }
 
