@@ -478,6 +478,10 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
     // 領域の実寸変化（自動高さの適用・ビューポート高やモバイル閾値の変化）でも
     // 直近の世界矩形高から要求領域高を再通知する（仕様決定 CM）。
     const resizeObserver = new ResizeObserver(() => { resize(); notifyContentHeight(); requestFrames(); });
+    // ビューポート高だけの変化では canvas の寸法が変わらず ResizeObserver が発火しないため、
+    // 上限=ビューポート高へ追従させる window 側の resize でも再通知する（仕様決定 CM）。
+    const onWindowResize = () => notifyContentHeight();
+    window.addEventListener('resize', onWindowResize);
     resizeObserver.observe(canvas);
     const inViewObserver = new IntersectionObserver(entries => {
         inView = entries[0]?.isIntersecting !== false;
@@ -872,6 +876,7 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
         tryQuietly(() => window.removeEventListener('pointercancel', onPointerUp));
         tryQuietly(() => container.removeEventListener('click', onClickCapture, true));
         tryQuietly(() => container.removeEventListener('wheel', onWheel));
+        tryQuietly(() => window.removeEventListener('resize', onWindowResize));
         tryQuietly(() => device.removeEventListener('uncapturederror', onUncapturedError));
         tryQuietly(() => edgeVertexBuffer?.destroy());
         tryQuietly(() => particleInstanceBuffer?.destroy());
