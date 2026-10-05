@@ -284,6 +284,8 @@
 
         try
         {
+            // ダウンロード系スクリプトは初回利用時に遅延ロードする（Phase 38）。
+            await JS.InvokeVoidAsync("loadDownloadTools");
             await JS.InvokeVoidAsync(
                 "downloadBlobFile", "master-export.zip", Convert.ToBase64String(outcome.ZipBytes!), "application/zip");
             Store.MarkExported();

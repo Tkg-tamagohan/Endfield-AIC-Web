@@ -1,5 +1,7 @@
 using EndfieldAicWeb.Admin.Services;
+using EndfieldAicWeb.Domain.Calculation;
 using EndfieldAicWeb.Domain.Models;
+using EndfieldAicWeb.Domain.Validation;
 using EndfieldAicWeb.Infrastructure.Transfer;
 
 namespace EndfieldAicWeb.Admin.Tests;
@@ -98,5 +100,80 @@ public class AdminDocumentServiceTests
         service.MarkExported();
 
         Assert.False(service.IsDirty);
+    }
+
+    [Fact(DisplayName = "ADM-14: 未編集の間は Validate と Snapshot が前回結果・同一インスタンスを再利用する（Phase 38）")]
+    public void Memoization_ReusesResultsUntilEdited()
+    {
+        var service = new AdminDocumentService(new HttpClient());
+        Assert.True(service.LoadJson(MinimalJson(), "test"), service.LoadFailure);
+
+        IReadOnlyList<MasterValidationError> firstErrors = service.Validate();
+        MasterDataSnapshot? firstSnapshot = service.Snapshot;
+
+        Assert.Same(firstErrors, service.Validate());
+        Assert.Same(firstErrors, service.ValidationErrors);
+        Assert.NotNull(firstSnapshot);
+        Assert.Same(firstSnapshot, service.Snapshot);
+        Assert.True(service.ValidationRan);
+        Assert.False(service.ValidationStale);
+    }
+
+    [Fact(DisplayName = "ADM-15: NotifyChanged を挟むと検証・スナップショットは再構築される（Phase 38）")]
+    public void NotifyChanged_RebuildsSnapshotAndValidation()
+    {
+        var service = new AdminDocumentService(new HttpClient());
+        Assert.True(service.LoadJson(MinimalJson(), "test"), service.LoadFailure);
+        IReadOnlyList<MasterValidationError> firstErrors = service.Validate();
+        MasterDataSnapshot? firstSnapshot = service.Snapshot;
+
+        service.NotifyChanged();
+        Assert.True(service.ValidationStale);
+
+        Assert.NotSame(firstSnapshot, service.Snapshot);
+        Assert.NotSame(firstErrors, service.Validate());
+        Assert.False(service.ValidationStale);
+        Assert.True(service.ValidationRan);
+    }
+
+    [Fact(DisplayName = "ADM-16: 文書の読み替えで検証・スナップショットは新文書へ切替わる（Phase 38）")]
+    public void Reload_SwitchesSnapshotAndValidation()
+    {
+        var service = new AdminDocumentService(new HttpClient());
+        Assert.True(service.LoadJson(MinimalJson(), "a"), service.LoadFailure);
+        IReadOnlyList<MasterValidationError> firstErrors = service.Validate();
+        MasterDataSnapshot? firstSnapshot = service.Snapshot;
+
+        // 同じ構造でも文書インスタンスが違えばキャッシュは効かない。
+        Assert.True(service.LoadJson(MinimalJson(), "b"), service.LoadFailure);
+
+        Assert.NotSame(firstSnapshot, service.Snapshot);
+        Assert.NotSame(firstErrors, service.Validate());
+    }
+
+    [Fact(DisplayName = "ADM-17: 未確定の不正入力の追加・解消で検証結果が追従し、スナップショットは再利用される（Phase 38）")]
+    public void InvalidInput_AffectsValidationWithoutRebuildingSnapshot()
+    {
+        var service = new AdminDocumentService(new HttpClient());
+        Assert.True(service.LoadJson(MinimalJson(), "test"), service.LoadFailure);
+
+        int baseErrorCount = service.Validate().Count;
+        MasterDataSnapshot? snapshot = service.Snapshot;
+        var owner = new object();
+
+        // 不正入力の登録は _editCounter を進めないが、検証結果には反映される。
+        service.SetEditorInvalid(owner, "field", "abc");
+        IReadOnlyList<MasterValidationError> invalidErrors = service.Validate();
+        Assert.Equal(baseErrorCount + 1, invalidErrors.Count);
+        Assert.Contains(invalidErrors, e => e.EntityKind == "入力");
+        Assert.False(service.ValidationStale);
+
+        // 登録状態のまま再検証しても結果は安定する。
+        Assert.Equal(baseErrorCount + 1, service.Validate().Count);
+
+        // 解消すると元の結果へ戻る。どの経路でもスナップショットは同一インスタンス。
+        service.SetEditorInvalid(owner, "field", null);
+        Assert.Equal(baseErrorCount, service.Validate().Count);
+        Assert.Same(snapshot, service.Snapshot);
     }
 }

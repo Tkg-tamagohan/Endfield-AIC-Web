@@ -23,11 +23,31 @@ const PARTICLE_SATURATE_PER_MINUTE = 30;
 // u.time は f32 で書かれるため、量子化誤差が位相へ蓄積しないよう時刻基準をリセットする閾値（秒）。
 const TIME_WRAP_S = 1024;
 
-// canvas バッファのピクセル比上限（仕様決定 CK）。resize と applyView で同じ値を使う。
+// canvas バッファのピクセル比上限（仕様決定 CK）と総ピクセル上限（仕様決定 CQ）。
+// CQ は CK のさらに上に積む総量上限で、大画面・高 DPR の組合せでも充填コストとバッファメモリを有界にする。
 const DPR_MAX = 2;
-function effDpr() {
-    return Math.min(devicePixelRatio || 1, DPR_MAX);
+const MAX_BUFFER_PIXELS = 4194304;
+// CSS 寸法から実効ピクセル比を求める。DPR・DPR_MAX に加えて総ピクセル上限を超えない比まで下げる。
+function dprFor(cw, ch) {
+    const base = Math.min(devicePixelRatio || 1, DPR_MAX);
+    if (!(cw > 0) || !(ch > 0)) return base;
+    return Math.min(base, Math.sqrt(MAX_BUFFER_PIXELS / (cw * ch)));
 }
+// CSS 寸法に対するバッファ寸法と実効ピクセル比を求める。丸め後の実寸法の積が上限を超える
+// 場合は両辺を floor で決め直す（dpr ≤ sqrt(上限 / CSS 積) なので floor 後の積は必ず上限以下）。
+function bufferSize(cw, ch) {
+    const dpr = dprFor(cw, ch);
+    let w = Math.max(1, Math.round(cw * dpr));
+    let h = Math.max(1, Math.round(ch * dpr));
+    if (w * h > MAX_BUFFER_PIXELS) {
+        w = Math.max(1, Math.floor(cw * dpr));
+        h = Math.max(1, Math.floor(ch * dpr));
+    }
+    return { w, h, dpr };
+}
+// リサイズ要求からバッファ再確保までの静止時間（ms）。連続したリサイズイベントのたびに
+// GPU バッファを作り直さないよう、サイズが安定してから 1 回だけ確保する（Phase 38）。
+const RESIZE_SETTLE_MS = 80;
 
 // FlowGraphEdgeKind の enum 序数に対応する描画色（RGBA、app.css の変数と同色）。
 const EDGE_COLORS = [
@@ -124,6 +144,32 @@ export function setScrollLock(on) {
 // リサイズハンドルのドラッグを指先・ペンでも継続させるためポインターを捕捉する（仕様決定 BK）。
 export function capturePointer(el, pointerId) {
     el.setPointerCapture(pointerId);
+}
+
+// 高さドラッグ中の領域高追従を JS 側で行う（Phase 38）。
+// pointermove ごとの Blazor 再レンダーを止めるため、ドラッグ中は wrap の style.height だけを更新し、
+// 確定（pointerup/cancel）時の高さだけを dotnetRef へ通知する。モード遷移の判定は C# 側の確定処理が担う。
+export function trackResizeDrag(wrapEl, pointerId, startY, startH, minH, dotnetRef) {
+    let cur = startH;
+    function onMove(e) {
+        if (e.pointerId !== pointerId) return;
+        cur = Math.max(minH, startH + (e.clientY - startY));
+        wrapEl.style.height = `${Math.round(cur)}px`;
+    }
+    function onEnd(e) {
+        if (e.pointerId !== pointerId) return;
+        cleanup();
+        dotnetRef?.invokeMethodAsync('OnResizeCommitted', cur).catch(() => { });
+    }
+    function cleanup() {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onEnd);
+        window.removeEventListener('pointercancel', onEnd);
+    }
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onEnd);
+    window.addEventListener('pointercancel', onEnd);
+    return { dispose: cleanup };
 }
 
 // 領域高さの下限（既定値）。CSS のメディアクエリ（780px 以下で 300px）と同じ閾値を使う（仕様決定 BK）。
@@ -251,6 +297,20 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
     let bindGroup = null;
     let destroyed = false;
     let failed = false;
+    // バッファ確保に使った実効ピクセル比（総量上限で下がりうる）。applyView の変換行列はこの値を使う。
+    let bufferDpr = Math.min(devicePixelRatio || 1, DPR_MAX);
+    // 直前に DOM へ書いた transform 文字列。不変なら書き込みを飛ばす（Phase 38）。
+    let lastTransform = '';
+    let transformWrites = 0;
+    // 直前に GPU へ書いた uniform のビュー成分（行列・解像度）。時刻成分は含まない。
+    let lastViewUniforms = null;
+    // バッファ再確保の保留。ResizeObserver・DPR 変化で要求サイズを記録し、
+    // 安定してから frame() が applyPendingResize で確保する。
+    let pendingW = -1;
+    let pendingH = -1;
+    let pendingAt = 0;
+    // update() の呼出回数（E2E で差分発火を検証するカウンタ）。
+    let updateCalls = 0;
     // 時刻リセットで位相を畳み込むため、インスタンスバッファの生データと各粒子のエッジ速度を保持する。
     let instanceData = null;
     let instanceSpeeds = null;
@@ -266,9 +326,16 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     function applyView() {
-        layer.style.transformOrigin = '0 0';
-        layer.style.transform = `translate(${view.tx}px, ${view.ty}px) scale(${view.s})`;
-        const dpr = effDpr();
+        // view（行列成分）が不変なら transform の DOM 書込みを飛ばす。
+        // 静止時に毎フレーム走っていた style 無効化を止める（Phase 38）。
+        const transform = `translate(${view.tx}px, ${view.ty}px) scale(${view.s})`;
+        if (transform !== lastTransform) {
+            lastTransform = transform;
+            transformWrites++;
+            layer.style.transformOrigin = '0 0';
+            layer.style.transform = transform;
+        }
+        const dpr = bufferDpr;
         let elapsed = (performance.now() - startTime) / 1000;
         // 動き抑制の静止画モードでは u.time を使わず位相をそのまま描くため、畳み込みは行わない。
         // 行うと次回の単発描画で粒子が現在位置から動いて見えてしまう。
@@ -282,13 +349,18 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
             startTime = performance.now();
             elapsed = (performance.now() - startTime) / 1000;
         }
-        const uniforms = new Float32Array([
+        // uniform のビュー成分（行列・解像度）は変化時のみ転送する。時刻・静止画フラグは
+        // アニメーション位相に効くため毎フレーム転送する（Phase 38・計画の差分適用）。
+        const viewUniforms = new Float32Array([
             view.s * dpr, view.s * dpr, view.tx * dpr, view.ty * dpr,
             canvas.width, canvas.height,
-            elapsed,
-            reducedMotion ? 1 : 0,
         ]);
-        device.queue.writeBuffer(uniformBuffer, 0, uniforms);
+        if (!lastViewUniforms || !viewUniforms.every((v, i) => v === lastViewUniforms[i])) {
+            lastViewUniforms = viewUniforms;
+            device.queue.writeBuffer(uniformBuffer, 0, viewUniforms);
+        }
+        const tailUniforms = new Float32Array([elapsed, reducedMotion ? 1 : 0]);
+        device.queue.writeBuffer(uniformBuffer, 24, tailUniforms);
     }
 
     function rebuildBindGroup() {
@@ -308,6 +380,7 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
         if (destroyed) return;
         rafId = 0;
         if (!(running && visible && inView)) return;
+        applyPendingResize(performance.now());
         // getCurrentTexture や submit の実行時例外はデバイスロストの兆候であり、
         // rAF を再登録せずに fail へ渡してリスト表示へ退避する（仕様決定 CJ）。
         try {
@@ -338,24 +411,68 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
             return;
         }
         // 動き抑制時は静止画のため、状態変化ごとの単発描画にする。
-        if (!reducedMotion) rafId = requestAnimationFrame(frame);
+        // ただし再確保の保留がある間は静止判定のためフレームを継続する。
+        if (!reducedMotion || pendingW >= 0) rafId = requestAnimationFrame(frame);
     }
 
     function requestFrames() {
         if (!rafId) rafId = requestAnimationFrame(frame);
     }
 
-    function resize() {
-        const dpr = effDpr();
-        const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
-        const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
-        if (canvas.width === w && canvas.height === h) return;
-        canvas.width = w;
-        canvas.height = h;
+    // 要求サイズを即時確保する。初期化と fitView（サイズ確定が前提の計算）で使う。
+    function resizeNow() {
+        const size = bufferSize(canvas.clientWidth || 1, canvas.clientHeight || 1);
+        if (canvas.width !== size.w || canvas.height !== size.h) {
+            canvas.width = size.w;
+            canvas.height = size.h;
+        }
+        bufferDpr = size.dpr;
+        pendingW = -1;
+        pendingH = -1;
+    }
+
+    // ResizeObserver・DPR 変化からの再確保要求。要求サイズと変化時刻だけを保持し、
+    // 実際のバッファ再確保は frame() 側で静止を確認してから行う。
+    // force=true は CSS 寸法が不変でも再確保が要る経路（DPR 変化）で使う。
+    function requestResize(force = false) {
+        const cw = canvas.clientWidth || 0;
+        const ch = canvas.clientHeight || 0;
+        if (!force && pendingW === cw && pendingH === ch) return;
+        pendingW = cw;
+        pendingH = ch;
+        pendingAt = performance.now();
+    }
+
+    // frame() から呼ぶ。要求サイズが RESIZE_SETTLE_MS 変わっていないときだけ再確保する。
+    // フレームより遅い間隔で届く連続リサイズで繰り返し再確保しないよう、静止判定は時間で行う。
+    function applyPendingResize(now) {
+        if (pendingW < 0 || now - pendingAt < RESIZE_SETTLE_MS) return;
+        const size = bufferSize(pendingW || 1, pendingH || 1);
+        if (canvas.width !== size.w || canvas.height !== size.h) {
+            canvas.width = size.w;
+            canvas.height = size.h;
+        }
+        bufferDpr = size.dpr;
+        pendingW = -1;
+        pendingH = -1;
+    }
+
+    // DPR 変化（CSS 寸法が不変でもモニター間移動等で実効比が変わる）を検知する。
+    // MediaQueryList の change は一度きりのため、発火ごとに現在値で再登録する。
+    let dprQuery = null;
+    function onDprChange() {
+        watchDpr();
+        requestResize(true);
+        requestFrames();
+    }
+    function watchDpr() {
+        dprQuery?.removeEventListener('change', onDprChange);
+        dprQuery = matchMedia(`(resolution: ${devicePixelRatio || 1}dppx)`);
+        dprQuery.addEventListener('change', onDprChange);
     }
 
     function fitView() {
-        resize();
+        resizeNow();
         const cw = canvas.clientWidth || 1;
         const ch = canvas.clientHeight || 1;
         if (worldBounds.w <= 0 || worldBounds.h <= 0) {
@@ -477,7 +594,7 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
 
     // 領域の実寸変化（自動高さの適用・ビューポート高やモバイル閾値の変化）でも
     // 直近の世界矩形高から要求領域高を再通知する（仕様決定 CM）。
-    const resizeObserver = new ResizeObserver(() => { resize(); notifyContentHeight(); requestFrames(); });
+    const resizeObserver = new ResizeObserver(() => { requestResize(); notifyContentHeight(); requestFrames(); });
     // ビューポート高だけの変化では canvas の寸法が変わらず ResizeObserver が発火しないため、
     // 上限=ビューポート高へ追従させる window 側の resize でも再通知する（仕様決定 CM）。
     const onWindowResize = () => notifyContentHeight();
@@ -493,6 +610,7 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
         if (visible) requestFrames();
     };
     document.addEventListener('visibilitychange', onVisibility);
+    watchDpr();
 
     // ---- 実行時失敗の検知（仕様決定 CJ）----
     // dispose 内の device.destroy() が発火する reason 'destroyed' は destroyed フラグで除外する。
@@ -635,6 +753,7 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
 
     function update(model, vertical) {
         if (destroyed) return;
+        updateCalls++;
         const nodes = model?.nodes ?? [];
         const edgeList = model?.edges ?? [];
         const maxRate = Math.max(model?.maxRatePerMinute ?? 0, 1e-9);
@@ -863,6 +982,7 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
         tryQuietly(() => container.removeEventListener('click', onClickCapture, true));
         tryQuietly(() => container.removeEventListener('wheel', onWheel));
         tryQuietly(() => window.removeEventListener('resize', onWindowResize));
+        tryQuietly(() => dprQuery?.removeEventListener('change', onDprChange));
         tryQuietly(() => device.removeEventListener('uncapturederror', onUncapturedError));
         tryQuietly(() => edgeVertexBuffer?.destroy());
         tryQuietly(() => particleInstanceBuffer?.destroy());
@@ -892,12 +1012,14 @@ function makeHandle(canvas, layer, device, context, format, dotnetRef) {
     }
 
     running = true;
-    resize();
+    resizeNow();
     requestFrames();
 
     // E2E 検証用の canvas → ハンドル登録（Phase 34）。teardown で除去する。
     debugHandles.set(canvas, {
         fail: () => fail(new Error('debugFail: injected failure')),
+        updateCount: () => updateCalls,
+        transformCount: () => transformWrites,
         advance: s => {
             if (destroyed) return;
             startTime -= s * 1000;
@@ -931,4 +1053,19 @@ export function debugFail(canvas) {
 // 時刻基準を s 秒だけ過去へずらし、次フレームで時刻リセットを通す。未登録・破棄済みなら何もしない。
 export function debugAdvance(canvas, seconds) {
     debugHandles.get(canvas)?.advance(seconds);
+}
+
+// update() の呼出回数（E2E の差分発火検証用・Phase 38）。未登録・破棄済みなら -1。
+export function debugUpdateCount(canvas) {
+    return debugHandles.get(canvas)?.updateCount() ?? -1;
+}
+
+// transform の DOM 書込み回数（E2E の差分適用検証用・Phase 38）。未登録・破棄済みなら -1。
+export function debugTransformCount(canvas) {
+    return debugHandles.get(canvas)?.transformCount() ?? -1;
+}
+
+// 現在の canvas バッファの総ピクセル数（E2E の CQ 上限検証用）。
+export function debugBufferPixels(canvas) {
+    return canvas ? canvas.width * canvas.height : -1;
 }

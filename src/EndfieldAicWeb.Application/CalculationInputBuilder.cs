@@ -15,6 +15,9 @@ public sealed class TargetRowState
     public string? ItemId;
     public string RateText = "30";
     public string? Category;
+
+    /// <summary>アイテム選択肢のキャッシュ。UI が変化点（カテゴリ変更・行追加・スナップショット差替）で null へ戻す。</summary>
+    public IReadOnlyList<Item>? Options;
 }
 
 /// <summary>散布機台数 1 行の入力値（環境 Id・表示名・台数文字列・入力範囲の下限と上限）。</summary>
