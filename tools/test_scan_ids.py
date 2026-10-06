@@ -90,13 +90,13 @@ class TestFormatId(unittest.TestCase):
 
 
 class TestExtractMaxClaims(unittest.TestCase):
-    PHASE40_MEMO = (
+    P40_MEMO = (
         "> ID 採番: xUnit は FG-63 以降（main の現行最大は FG-62）。"
         "手動確認は MN-182 以降（main の現行最大は MN-181）。push 前に main で再確認する。"
     )
 
     def test_memo_line(self):
-        claims = scan_ids.extract_max_claims(self.PHASE40_MEMO)
+        claims = scan_ids.extract_max_claims(self.P40_MEMO)
         self.assertEqual(
             [(kind, key, val) for _ln, kind, key, val in claims],
             [("test", "FG", 62), ("test", "MN", 181)],
@@ -175,6 +175,14 @@ class TestMeasureOnFixtureTree(unittest.TestCase):
         result = scan_ids.measure_test_ids(self.root)
         self.assertEqual(result["FG"]["max"], 3)
 
+    def test_claim_segments_not_measured(self):
+        # 「現行最大は」の記録値は使用・登録ではないため実測に含めない
+        (self.root / "docs" / "phases" / "test-specification-phase3.md").write_text(
+            "| FG-02 |\n> 現行最大は FG-99\n", encoding="utf-8"
+        )
+        result = scan_ids.measure_test_ids(self.root)
+        self.assertEqual(result["FG"]["max"], 3)
+
 
 class TestParsePrDiff(unittest.TestCase):
     DIFF = """diff --git a/docs/phases/test-specification-phase41.md b/docs/phases/test-specification-phase41.md
@@ -182,11 +190,21 @@ new file mode 100644
 +++ b/docs/phases/test-specification-phase41.md
 @@ -0,0 +1,4 @@
 +### Phase 41: タイトル
++| ID | 内容 | 期待 |
 +| FG-70 | 内容 |
 +| MN-200 | 手動 |
 +| CT | 仕様決定 | 内容 |
++Phase 50 で再検討する
++（main の現行最大は FG-99）
++仕様決定は CS の次の採番で CU・CV
++仕様決定 CW・CX は CS の次の採番であり
++仕様決定 ID は CY〜DA で採番する
  unchanged context line
 -removed | FG-99 | old |
+diff --git a/docs/decision-records.md b/docs/decision-records.md
++++ b/docs/decision-records.md
+@@ -10,0 +10,2 @@
++| CT | 内容 | 決定 |
 """
 
     def test_added_lines_only(self):
@@ -195,10 +213,22 @@ new file mode 100644
         self.assertEqual(usage["test_ids"]["MN"], [200])
         self.assertNotIn(99, usage["test_ids"].get("FG", []))
 
-    def test_phase_and_decision(self):
+    def test_phase_reservation_sources(self):
         usage = scan_ids.parse_pr_diff(self.DIFF)
+        # ファイル名 + 新規見出し行のみ。本文の「Phase 50 で再検討」は予約しない
         self.assertEqual(usage["phases"], [41])
-        self.assertEqual(usage["decisions"], ["CT"])
+
+    def test_decision_reservations(self):
+        usage = scan_ids.parse_pr_diff(self.DIFF)
+        # decision-records.md の表行（CT）と散文予約（CU・CV・CW・CX・CY〜DA）
+        # テスト仕様書の表ヘッダ `| ID |` や表中の CT 行は予約にしない
+        self.assertEqual(
+            usage["decisions"],
+            ["CT", "CU", "CV", "CW", "CX", "CY", "CZ", "DA"],
+        )
+
+    def test_table_header_id_not_decision(self):
+        self.assertNotIn("ID", scan_ids.parse_pr_diff(self.DIFF)["decisions"])
 
 
 class TestRunCheck(unittest.TestCase):
@@ -229,6 +259,13 @@ class TestRunCheck(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("記録値 FG-62 / 実測 FG-67", out)
         self.assertIn("記録値 MN-181 / 実測 MN-183", out)
+
+    def test_stale_high_claim_fails(self):
+        # 実測を超える水増し記録値もズレとして検出する（自己正当化しない）
+        (self.root / "docs" / "high.md").write_text("> 現行最大は FG-99\n", encoding="utf-8")
+        code, out = self.run_check("docs/high.md")
+        self.assertEqual(code, 1)
+        self.assertIn("記録値 FG-99 / 実測 FG-67", out)
 
     def test_consistent(self):
         (self.root / "docs" / "ok.md").write_text("> 現行最大は FG-67\n", encoding="utf-8")

@@ -39,15 +39,31 @@ PHASE_FILENAME = re.compile(r"phase(\d+)")
 DECISION_CELL = re.compile(r"^\|\s*([A-Z]{1,3})\s*\|", re.MULTILINE)
 
 # 「現行最大は …」の記録値。`Phase N の` は帰属表現なので採番クレームからは除く。
+# クレーム節は実測からも除く: 記録値は ID の使用・登録ではないため、
+# 実測に含めると「現行最大は FG-99」のような水増し記述が自己正当化してしまう。
 MAX_CLAIM_SEGMENT = re.compile(r"現行最大は?([^\n。）)]*)")
 MAX_CLAIM_PHASE_ATTR = re.compile(r"Phase\s*\d+\s*の")
 MAX_CLAIM_PHASE = re.compile(r"Phase\s*(\d+)")
 MAX_CLAIM_ID = re.compile(r"([A-Z]{2,5})-(\d{1,3})")
 
-# オープン PR 差分の走査用（+ 行のみ。+++ ヘッダは除く）
+# オープン PR 差分の走査用
+# - Phase は `+++`/diff --git ヘッダのファイル名と、追加された見出し行のみから拾う。
+#   本文の「Phase 50 で再検討」のような他 Phase 言及は割当ではないため拾わない
+# - 仕様決定は decision-records.md ハンク内の追加表行と、
+#   計画書の散文予約（次の採番で・列挙・範囲の 3 系統）から拾う。
+#   他ファイルの `| ID |` 表ヘッダを誤検出しないようファイルを限定する
 PR_PHASE_NAME = re.compile(r"phase(\d+)")
-PR_PHASE_TEXT = re.compile(r"Phase\s+(\d+)")
+PR_PHASE_HEADING = re.compile(r"^\+\s*#{1,6}\s*Phase\s+(\d+)", re.MULTILINE)
 PR_DECISION_ROW = re.compile(r"^\+\s*\|\s*([A-Z]{1,3})\s*\|", re.MULTILINE)
+PR_DECISION_NEXT = re.compile(
+    r"仕様決定[^\n。]*?次の採番で\s*([A-Z]{1,3}(?:\s*・\s*[A-Z]{1,3})*)"
+)
+PR_DECISION_ENUM = re.compile(
+    r"仕様決定\s+([A-Z]{1,3}(?:\s*・\s*[A-Z]{1,3})*)\s*は"
+)
+PR_DECISION_RANGE = re.compile(
+    r"仕様決定(?:\s*ID)?\s*は\s*([A-Z]{1,3})\s*〜\s*([A-Z]{1,3})"
+)
 
 
 def iter_scan_files(root: Path):
@@ -90,6 +106,7 @@ def measure_test_ids(root: Path) -> dict:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             continue
+        text = MAX_CLAIM_SEGMENT.sub("", text)
         for prefix, num in iter_test_ids(text):
             entry = result.get(prefix)
             if entry is None:
@@ -128,15 +145,16 @@ def letter_index(letters: str) -> int:
 
 def next_letters(letters: str) -> str:
     """英字連番の次候補（Z→AA、AZ→BA、CS→CT）。"""
-    chars = list(letters)
-    i = len(chars) - 1
-    while i >= 0 and chars[i] == "Z":
-        chars[i] = "A"
-        i -= 1
-    if i < 0:
-        return "A" + "".join(chars)
-    chars[i] = chr(ord(chars[i]) + 1)
-    return "".join(chars)
+    return letters_at(letter_index(letters) + 1)
+
+
+def letters_at(index: int) -> str:
+    """英字連番の順序値からの逆変換（1→A、26→Z、27→AA、52→AZ）。"""
+    chars = []
+    while index > 0:
+        index, rem = divmod(index - 1, 26)
+        chars.append(chr(ord("A") + rem))
+    return "".join(reversed(chars))
 
 
 def measure_decision(root: Path):
@@ -175,21 +193,41 @@ def extract_max_claims(text: str):
 def parse_pr_diff(diff_text: str) -> dict:
     """PR 差分の追加行からテスト ID・Phase 番号・仕様決定 ID の使用分を拾う。"""
     added_lines = []
+    decision_added_lines = []
     phase_nums: set[int] = set()
+    current_file = None
     for line in diff_text.splitlines():
-        if line.startswith("diff --git") or line.startswith("+++"):
+        if line.startswith("diff --git"):
+            current_file = None
+            for m in PR_PHASE_NAME.finditer(line):
+                phase_nums.add(int(m.group(1)))
+            continue
+        if line.startswith("+++"):
+            current_file = line[4:].strip()
             for m in PR_PHASE_NAME.finditer(line):
                 phase_nums.add(int(m.group(1)))
             continue
         if line.startswith("+"):
             added_lines.append(line)
-    added = "\n".join(added_lines)
+            if current_file and current_file.endswith("decision-records.md"):
+                decision_added_lines.append(line)
+    added = MAX_CLAIM_SEGMENT.sub("", "\n".join(added_lines))
     test_ids: dict[str, set[int]] = {}
     for prefix, num in iter_test_ids(added):
         test_ids.setdefault(prefix, set()).add(num)
-    for m in PR_PHASE_TEXT.finditer(added):
+    for m in PR_PHASE_HEADING.finditer(added):
         phase_nums.add(int(m.group(1)))
-    decisions = set(PR_DECISION_ROW.findall(added))
+    decisions = set(PR_DECISION_ROW.findall("\n".join(decision_added_lines)))
+    for m in PR_DECISION_NEXT.finditer(added):
+        decisions.update(re.split(r"\s*・\s*", m.group(1)))
+    for m in PR_DECISION_ENUM.finditer(added):
+        # 「仕様決定 ID は」の ID は見出し語なので除く（決定記号として使われるのは遠い将来）
+        decisions.update(d for d in re.split(r"\s*・\s*", m.group(1)) if d != "ID")
+    for m in PR_DECISION_RANGE.finditer(added):
+        lo, hi = letter_index(m.group(1)), letter_index(m.group(2))
+        if lo <= hi and hi - lo <= 25:
+            for i in range(lo, hi + 1):
+                decisions.add(letters_at(i))
     return {
         "test_ids": {p: sorted(ns) for p, ns in sorted(test_ids.items())},
         "phases": sorted(phase_nums),
