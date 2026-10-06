@@ -904,66 +904,305 @@ public static class FlowGraphModelBuilder
         var rank = nodes.Keys.ToDictionary(
             id => id, id => maxLayer - layer[id], StringComparer.Ordinal);
 
-        // ランク内順序: 初回は Id 昇順、以降は先行ノード位置の平均（バリセンター）で並べ替える。
+        // ランク内順序（仕様決定 CR）: 初回は Id 昇順。上流側（先行ノード位置）と
+        // 下流側（後続ノード位置）のバリセンター掃引を交互に行い、掃引で確定した
+        // 各順序候補の交差数を計測して最小の順序を採用する。バリセンターは加重平均で、
+        // 目標アイテムへの出力エッジに支配的重みを付ける。同率は Id 昇順（従来どおり）。
         var nodesByRank = nodes.Keys
             .GroupBy(id => rank[id])
             .ToDictionary(g => g.Key, g => g.OrderBy(id => id, StringComparer.Ordinal).ToList());
         var order = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (List<string> ids in nodesByRank.Values)
+
+        void RefreshOrder()
         {
-            for (int i = 0; i < ids.Count; i++)
-            {
-                order[ids[i]] = i;
-            }
-        }
-
-        // バリセンターの先行ノード集合: エッジ由来の preds に、環境供給設備の
-        // 仮想先行ノード（最小層を取った利用設備）を加える（仕様決定 BM の行内順規則）。
-        List<string> BarycenterPreds(string id) =>
-            virtualPreds.TryGetValue(id, out List<string>? extra)
-                ? [.. preds[id], .. extra]
-                : preds[id];
-
-        var barycenterPreds = nodes.Keys.ToDictionary(
-            id => id,
-            id => (IReadOnlyList<string>)BarycenterPreds(id),
-            StringComparer.Ordinal);
-
-        for (int pass = 0; pass < 4; pass++)
-        {
-            var barycenter = nodes.Keys.ToDictionary(
-                id => id,
-                id => barycenterPreds[id].Count > 0
-                    ? barycenterPreds[id].Average(p => rank[p] * 1_000_000.0 + order[p])
-                    : rank[id] * 1_000_000.0 + order[id],
-                StringComparer.Ordinal);
             foreach (List<string> ids in nodesByRank.Values)
             {
-                ids.Sort((a, b) =>
-                {
-                    int cmp = barycenter[a].CompareTo(barycenter[b]);
-                    return cmp != 0 ? cmp : StringComparer.Ordinal.Compare(a, b);
-                });
-                // 環境供給設備はバリセンターの値ではなく、ソート後に最小層を取った
-                // 利用設備の直後へ挿入し直す（仕様決定 BM の隣接規則）。キー比較では
-                // 無関係なノードが間に割り込みうるため、隣接は挿入で保証する。
-                // 利用設備が同じランクにいない場合は行末へ退避する（通常は起きない
-                // 防御的経路）。
-                foreach (string provider in ids.Where(envFixed.ContainsKey).ToList())
-                {
-                    ids.Remove(provider);
-                    int userIdx = virtualPreds.TryGetValue(provider, out List<string>? users)
-                        ? users.Select(u => ids.IndexOf(u)).Where(i => i >= 0).DefaultIfEmpty(-1).Min()
-                        : -1;
-                    ids.Insert(userIdx >= 0 ? userIdx + 1 : ids.Count, provider);
-                }
-
                 for (int i = 0; i < ids.Count; i++)
                 {
                     order[ids[i]] = i;
                 }
             }
         }
+
+        RefreshOrder();
+
+        // 順序付けに使う描画エッジ（両端ノードが存在するものだけ層割りと同じ前提で残す）。
+        var drawnEdges = edges
+            .Where(e => nodes.ContainsKey(e.FromId) && nodes.ContainsKey(e.ToId))
+            .ToList();
+
+        // 各ノードに接続する描画エッジ数（そのエッジ自身を含む度）。目標出力エッジの
+        // 重みは両端点の度の大きい方で、両端点の加重平均において他の全隣接エッジ
+        // （重み 1・度−1 本）の合計を必ず上回る最小の整数になる（仕様決定 CR）。
+        var degree = nodes.Keys.ToDictionary(id => id, _ => 0, StringComparer.Ordinal);
+        foreach (FlowGraphEdge edge in drawnEdges)
+        {
+            degree[edge.FromId]++;
+            degree[edge.ToId]++;
+        }
+
+        int EdgeWeight(FlowGraphEdge edge) =>
+            edge.Kind == FlowGraphEdgeKind.RecipeOutput && nodes[edge.ToId].IsTarget
+                ? Math.Max(degree[edge.FromId], degree[edge.ToId])
+                : 1;
+
+        // 上流側の隣接集合は従来どおり preds に環境供給設備の仮想先行（最小層を取った
+        // 利用設備、仕様決定 BM）を重み 1 で加える。下流側は終端宛を含む全描画
+        // エッジの宛先を使う（層割りで除外した終端宛エッジも描画対象のため順序付け
+        // に含める）。
+        var upNeighbors = nodes.Keys.ToDictionary(
+            id => id, _ => new List<(string Id, double Weight)>(), StringComparer.Ordinal);
+        var downNeighbors = nodes.Keys.ToDictionary(
+            id => id, _ => new List<(string Id, double Weight)>(), StringComparer.Ordinal);
+        foreach (FlowGraphEdge edge in drawnEdges)
+        {
+            double w = EdgeWeight(edge);
+            upNeighbors[edge.ToId].Add((edge.FromId, w));
+            downNeighbors[edge.FromId].Add((edge.ToId, w));
+        }
+
+        foreach ((string id, List<string> extra) in virtualPreds)
+        {
+            foreach (string p in extra)
+            {
+                upNeighbors[id].Add((p, 1.0));
+            }
+        }
+
+        // 位置のキーは従来どおり rank * 1_000_000 + order の大域位置を両方向で共用する。
+        double Position(string id) => rank[id] * 1_000_000.0 + order[id];
+
+        // 環境供給設備はバリセンターの値ではなく、ソート後に最小層を取った
+        // 利用設備の直後へ挿入し直す（仕様決定 BM の隣接規則）。キー比較では
+        // 無関係なノードが間に割り込みうるため、隣接は挿入で保証する。
+        // 利用設備が同じランクにいない場合は行末へ退避する（通常は起きない
+        // 防御的経路）。同じ利用設備を共有する供給設備が複数あるときは、
+        // ソート後の相対順を保ったまま連続して挿入する（暫定解釈。逐次
+        // userIdx+1 への挿入は供給設備同士の順序を毎パス反転させて掃引を
+        // 振動させるため）。
+        void InsertDispensers(List<string> ids)
+        {
+            var insertCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (string provider in ids.Where(envFixed.ContainsKey).ToList())
+            {
+                ids.Remove(provider);
+                int userIdx = virtualPreds.TryGetValue(provider, out List<string>? users)
+                    ? users.Select(u => ids.IndexOf(u)).Where(i => i >= 0).DefaultIfEmpty(-1).Min()
+                    : -1;
+                if (userIdx < 0)
+                {
+                    ids.Insert(ids.Count, provider);
+                    continue;
+                }
+
+                string user = users!.First(u => ids.IndexOf(u) == userIdx);
+                insertCounts.TryGetValue(user, out int count);
+                ids.Insert(userIdx + 1 + count, provider);
+                insertCounts[user] = count + 1;
+            }
+
+            for (int i = 0; i < ids.Count; i++)
+            {
+                order[ids[i]] = i;
+            }
+        }
+
+        // 1 パスの掃引: 隣接ノード位置の加重平均をキーに各ランクをソートし、ソート後に
+        // BM の隣接挿入（環境供給設備を最小層利用設備の直後へ移す規則）を適用して
+        // order を更新する。バリセンターはソート前の order に対して一括で計算する。
+        // weighted=false のとき全隣接を重み 1 とする（従来方式の再現用）。
+        void RunPass(bool downstream, bool weighted)
+        {
+            var key = nodes.Keys.ToDictionary(
+                id => id,
+                id =>
+                {
+                    List<(string Id, double Weight)> neighbors =
+                        (downstream ? downNeighbors : upNeighbors)[id];
+                    if (neighbors.Count == 0)
+                    {
+                        // その方向に隣接ノードを持たないノードは現在位置を維持する
+                        // （従来の退縮規則を両方向に適用）。
+                        return Position(id);
+                    }
+
+                    double sum = 0;
+                    double weightSum = 0;
+                    foreach ((string n, double w) in neighbors)
+                    {
+                        double ww = weighted ? w : 1.0;
+                        sum += ww * Position(n);
+                        weightSum += ww;
+                    }
+
+                    return sum / weightSum;
+                },
+                StringComparer.Ordinal);
+            foreach (List<string> ids in nodesByRank.Values)
+            {
+                ids.Sort((a, b) =>
+                {
+                    int cmp = key[a].CompareTo(key[b]);
+                    return cmp != 0 ? cmp : StringComparer.Ordinal.Compare(a, b);
+                });
+                InsertDispensers(ids);
+            }
+        }
+
+        // 順序位置: 端点ノードがランク r にあればその order、なければ両端点の
+        // (rank, order) の線形補間（仕様決定 CR）。後退エッジ（rank が小さい側へ
+        // 戻る辺）も両端点の大小で補間が決まるため同じ式で扱う。
+        double OrderAtRank(FlowGraphEdge edge, int r)
+        {
+            int rF = rank[edge.FromId];
+            int rT = rank[edge.ToId];
+            if (rF == rT)
+            {
+                return order[edge.FromId];
+            }
+
+            double t = (r - rF) / (double)(rT - rF);
+            return order[edge.FromId] + (order[edge.ToId] - order[edge.FromId]) * t;
+        }
+
+        // 交差数: ランク境界 k|k+1 を跨ぐエッジをその境界における区間として扱い、
+        // 両端の順序位置の差の符号が厳密に逆転する（積が負）区間対を全境界で合計する。
+        // 端点を共有する区間対は共有位置で差が 0 になるため積は負にならず、
+        // 交差として数えられない。
+        int CountCrossings()
+        {
+            if (drawnEdges.Count == 0 || nodesByRank.Count == 0)
+            {
+                return 0;
+            }
+
+            int maxRank = nodesByRank.Keys.Max();
+            int total = 0;
+            for (int k = 0; k < maxRank; k++)
+            {
+                var spans = new List<(double AtK, double AtK1)>();
+                foreach (FlowGraphEdge edge in drawnEdges)
+                {
+                    int lo = Math.Min(rank[edge.FromId], rank[edge.ToId]);
+                    int hi = Math.Max(rank[edge.FromId], rank[edge.ToId]);
+                    if (lo <= k && hi >= k + 1)
+                    {
+                        spans.Add((OrderAtRank(edge, k), OrderAtRank(edge, k + 1)));
+                    }
+                }
+
+                for (int i = 0; i < spans.Count; i++)
+                {
+                    for (int j = i + 1; j < spans.Count; j++)
+                    {
+                        double dK = spans[i].AtK - spans[j].AtK;
+                        double dK1 = spans[i].AtK1 - spans[j].AtK1;
+                        if (dK * dK1 < 0)
+                        {
+                            total++;
+                        }
+                    }
+                }
+            }
+
+            return total;
+        }
+
+        // 第 2 キー: 加重対象の目標出力エッジについて、両端ノードの大域位置差の
+        // 絶対値の合計（仕様決定 CR）。加重で目標隣接側へ寄った候補が交差数最小に
+        // 並んだとき、順序番号差が最小の候補として採用される。
+        double TargetOutputGap()
+        {
+            double sum = 0;
+            foreach (FlowGraphEdge edge in drawnEdges)
+            {
+                if (edge.Kind == FlowGraphEdgeKind.RecipeOutput && nodes[edge.ToId].IsTarget)
+                {
+                    sum += Math.Abs(Position(edge.FromId) - Position(edge.ToId));
+                }
+            }
+
+            return sum;
+        }
+
+        var bestByRank = new Dictionary<int, List<string>>();
+        int bestCrossings = -1;
+        double bestGap = -1;
+
+        Dictionary<int, List<string>> SnapshotOrder() => nodesByRank.ToDictionary(
+            kv => kv.Key, kv => new List<string>(kv.Value));
+
+        // 現在の順序を候補として評価する。採用は交差数最小・同数は第 2 キー最小・
+        // 同量は先に評価した候補を維持する。
+        void EvaluateCandidate()
+        {
+            int crossings = CountCrossings();
+            double gap = TargetOutputGap();
+            if (bestCrossings < 0 || crossings < bestCrossings
+                || (crossings == bestCrossings && gap < bestGap))
+            {
+                bestCrossings = crossings;
+                bestGap = gap;
+                bestByRank = SnapshotOrder();
+            }
+        }
+
+        // 初期順序はランク内の Id 昇順（仕様決定 CR）。BM の隣接挿入は各パスの
+        // ソート後に適用するため、初期順序そのものには含めない。
+        Dictionary<int, List<string>> initialByRank = SnapshotOrder();
+
+        // 従来方式（上流側のみ・重みなしのバリセンター掃引と BM 隣接挿入を固定
+        // 4 パスで行った順序）を最初の候補として評価する。交差数と順序番号差が
+        // 完全に並んだときは従来の配置が維持される（仕様決定 CR）。
+        for (int pass = 0; pass < 4; pass++)
+        {
+            RunPass(downstream: false, weighted: false);
+        }
+
+        EvaluateCandidate();
+
+        // 初期順序に BM の隣接挿入を適用した配置も候補に加える（暫定解釈。
+        // 挿入前の Id 昇順そのものは環境供給設備の隣接規則を満たさないため、
+        // 採用候補は隣接を保証した側とする。従来方式の直後に評価するため、
+        // 完全同点では従来の配置が維持される）。
+        nodesByRank = initialByRank.ToDictionary(kv => kv.Key, kv => new List<string>(kv.Value));
+        RefreshOrder();
+        foreach (List<string> ids in nodesByRank.Values)
+        {
+            InsertDispensers(ids);
+        }
+
+        EvaluateCandidate();
+
+        // 双方向掃引は従来方式の評価とは別に、初期順序（ランク内 Id 昇順）から
+        // やり直す。
+        nodesByRank = initialByRank.ToDictionary(kv => kv.Key, kv => new List<string>(kv.Value));
+        RefreshOrder();
+
+        // 上流側から始めて一往復（上流・下流の 2 パス）ずつ掃引し、各パス後に
+        // 順序を候補として評価する。直近の一往復で全ランクの順序が不変になった
+        // 時点、または上限パス数に達した時点で打ち切る（上限は暫定解釈の 12）。
+        const int MaxSweepPasses = 12;
+        for (int pass = 0; pass < MaxSweepPasses; pass += 2)
+        {
+            Dictionary<int, List<string>> roundStart = SnapshotOrder();
+            RunPass(downstream: false, weighted: true);
+            EvaluateCandidate();
+            RunPass(downstream: true, weighted: true);
+            EvaluateCandidate();
+            bool unchanged = roundStart.Count == nodesByRank.Count
+                && roundStart.All(kv =>
+                    nodesByRank.TryGetValue(kv.Key, out List<string>? ids)
+                    && ids.SequenceEqual(kv.Value));
+            if (unchanged)
+            {
+                break;
+            }
+        }
+
+        // 最良候補を採用して order を確定する。
+        nodesByRank = bestByRank;
+        RefreshOrder();
 
         return (rank, order);
     }
