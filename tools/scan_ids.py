@@ -143,12 +143,22 @@ def measure_id_events(root: Path) -> dict[str, str]:
 
     解析は check_test_ids.extract_doc_ids をそのまま共有する: 「廃止」を含む見出しの
     節内の表行は廃止イベント、それ以外の登録行は登録イベントとし、文書順で最後の
-    イベントが現行状態になる。デコード不能な文書は案内用途のため飛ばす
-    （照合側の check_test_ids 本体は従来どおり例外を送出する）。
+    イベントが現行状態になる。デコード不能な帳簿があれば ValueError を送出する:
+    帳簿の一部を欠いた状態では登録・廃止の現行状態が変わり得るため、不完全な
+    実測から次候補案内を出さない（fail-closed。check_test_ids の例外送出と同じ方針）。
     """
-    registered, abandoned, active = check_test_ids.extract_doc_ids(
-        root, skip_undecodable=True
-    )
+    undecodable = []
+    for path in sorted(
+        root.glob(check_test_ids.DOCS_GLOB), key=check_test_ids.doc_sort_key
+    ):
+        try:
+            path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            undecodable.append(path)
+    if undecodable:
+        names = ", ".join(p.relative_to(root).as_posix() for p in undecodable)
+        raise ValueError(f"帳簿を UTF-8 でデコードできません: {names}")
+    registered, abandoned, active = check_test_ids.extract_doc_ids(root)
     return {
         test_id: "register" if test_id in active else "retire"
         for test_id in sorted(set(registered) | abandoned)
@@ -545,7 +555,11 @@ def main(argv=None) -> int:
     parser.add_argument("--json", action="store_true", help="機械向け JSON 出力")
     args = parser.parse_args(argv)
 
-    report = build_report(ROOT)
+    try:
+        report = build_report(ROOT)
+    except ValueError as e:
+        print(f"エラー: {e}", file=sys.stderr)
+        return 2
     reservations = None
     pr_warning = None
     if args.with_prs:

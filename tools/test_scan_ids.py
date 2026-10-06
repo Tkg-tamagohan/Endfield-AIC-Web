@@ -8,7 +8,7 @@ import io
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -375,7 +375,11 @@ class TestMainCheckExitCode(unittest.TestCase):
 
     def run_main(self, *argv):
         buf = io.StringIO()
-        with mock.patch.object(scan_ids, "ROOT", self.root), redirect_stdout(buf):
+        with (
+            mock.patch.object(scan_ids, "ROOT", self.root),
+            redirect_stdout(buf),
+            redirect_stderr(io.StringIO()),
+        ):
             return scan_ids.main(list(argv))
 
     def test_mismatch_exit_1(self):
@@ -386,6 +390,14 @@ class TestMainCheckExitCode(unittest.TestCase):
 
     def test_missing_exit_2(self):
         self.assertEqual(self.run_main("--check", "docs/none.md"), 2)
+
+    def test_undecodable_ledger_exit_2(self):
+        # 帳簿がデコード不能なら実測自体を作らず exit 2（fail-closed）
+        (self.root / "docs" / "phases").mkdir()
+        bad = self.root / "docs" / "phases" / "test-specification-phase1.md"
+        bad.write_bytes(b"\xff| FG-99 | x |")
+        self.assertEqual(self.run_main(), 2)
+        self.assertEqual(self.run_main("--check", "docs/ok.md"), 2)
 
 
 class TestRetiredPrefixes(unittest.TestCase):
@@ -465,16 +477,17 @@ class TestRetiredPrefixes(unittest.TestCase):
         self.assertEqual(events["ABC-1"], "register")
         self.assertEqual(scan_ids.retired_prefixes(events), {})
 
-    def test_undecodable_doc_is_skipped(self):
-        # UTF-8 で読めない帳簿は飛ばし、他文書の ID は拾い続ける（スキャン中断しない）
+    def test_undecodable_doc_fails_closed(self):
+        # UTF-8 で読めない帳簿があるときは不完全な実測から案内せず例外で報告する
         self.write_spec(
             "test-specification-phase1.md",
             "| ID | 内容 |\n|---|---|\n| ABC-01 | a |\n",
         )
         bad = self.root / "docs" / "phases" / "test-specification-phase9.md"
         bad.write_bytes(b"\xff| FG-99 | x |")
-        events = scan_ids.measure_id_events(self.root)
-        self.assertEqual(events, {"ABC-1": "register"})
+        with self.assertRaises(ValueError) as ctx:
+            scan_ids.measure_id_events(self.root)
+        self.assertIn("test-specification-phase9.md", str(ctx.exception))
 
     def test_report_marks_retired_and_drops_next(self):
         self.write_spec(
