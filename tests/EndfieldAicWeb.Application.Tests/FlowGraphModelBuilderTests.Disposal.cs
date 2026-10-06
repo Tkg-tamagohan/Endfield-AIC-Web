@@ -51,6 +51,7 @@ public partial class FlowGraphModelBuilderTests
         Assert.Equal(30, disposal.PerMinute, 6);
     }
 
+    // DSP-27: 処理ランと再利用消費は同じアイテムノードに同居する。
     [Fact]
     public void DisposalCoexistsWithProductionConsumption()
     {
@@ -152,6 +153,7 @@ public partial class FlowGraphModelBuilderTests
         Assert.DoesNotContain(model.Nodes, n => n.Id.StartsWith("facunit:f-trt", StringComparison.Ordinal));
     }
 
+    // DSP-28: 兼用設備の台数分表示は占有スロットのユニットのみを出し、処理ランはユニット割当対象外。
     [Fact]
     public void ExpandedUnitsShowOnlyOccupiedSlotsOnSharedFacility()
     {
