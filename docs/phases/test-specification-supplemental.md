@@ -8,7 +8,7 @@
 
 ## 1. テスト ID の運用ルール
 
-- Phase 外の作業で追加するテスト ID は本書へ登録する。
+- Phase 外の作業（Devin Review 対応を含む）で追加するテスト ID は本書へ登録する。
 - コード側マーカーの新規追加は `[Fact(DisplayName = "ID: …")]` 形式を推奨する（`dotnet test` の出力に ID が出る）。既存の `PREFIXNN_` メソッド名や `// ID:` コメント形式は許容する。
 - 既存 ID の派生ケースは `-NNb` 形式（OPT-03b など）で採番してよい。
 - 新規採番は既存の Phase 文書および本書の ID と重複しない接頭辞・番号を使う。EVT・EXP のようにすでに重複している ID は注記で区別するに留め、改番は行わない。
@@ -35,6 +35,19 @@ Phase 仕様書の既存 prefix を継ぐ続番を §2-1、Phase 外で新設さ
 | ADM-10 | マニフェストと一致しない zip 内画像は未取得扱いでエクスポートを拒否する | 同上 | 同上 |
 | ADM-11 | JSON 読み込みでは温存ストアを新マニフェストで再照合する | 同上 | 同上 |
 | ADM-12 | null バージョンのエクスポートは必須違反で拒否され、文書を汚さない | 同上 | PR #13。同上 |
+| DSP-23 | 非有効イベント所属の余剰は処理対象にならない | tests/EndfieldAicWeb.Domain.Tests/DisposalTests.cs | PR #88 の Devin Review 対応。phase32 §DSP の続番 |
+| DSP-24 | 計算目標のアイテムは処理対象にならず補助入力として需要計上 | 同上 | 同上 |
+| DSP-25 | 非有効イベント所属の処理入力は未充足と警告 | 同上 | PR #88 の Devin Review 対応（2 ラウンド目）。同上 |
+| FG-55 | 未調整ビューで表示量が 0 の処理はアイテムを紫化しない | tests/EndfieldAicWeb.Application.Tests/FlowGraphModelBuilderTests.cs | PR #88 の Devin Review 対応。phase32 §FG の続番 |
+| RCP-13 | 提案未計算の仮採番は最初の提案で置き換わる | tests/EndfieldAicWeb.Application.Tests/RecipeAutoFillTests.cs | PR #86 の Devin Review 対応。phase29 §RCP の続番 |
+| VAL-34 | null 許容参照値の空文字列は null に正規化される | tests/EndfieldAicWeb.Infrastructure.Tests/MasterJsonLoaderTests.cs | PR #85 の Devin Review 対応。VAL の続番 |
+| ADM-09 | 読み込み時正規化があった文書は IsDirty になる（CH） | tests/EndfieldAicWeb.Admin.Tests/AdminDocumentServiceTests.cs | PR #90（仕様決定 CH・CI）。アイコン系 ADM-09 とは同番号の別対象 |
+| ADM-10 | 読み込み時正規化がない文書は IsDirty にならない（CH） | 同上 | 同上 |
+| ADM-11 | 同一文書のエクスポート完了でダーティが落ちる（CH の解除経路） | 同上 | 同上 |
+| ADM-12 | エクスポート開始後に別文書を読み込んでも完了記録は新文書のダーティを上書きしない | 同上 | PR #90 のレビュー対応。同上 |
+| ADM-13 | エクスポート開始後に失敗した読み込みを挟んでも完了記録はダーティを落とす | 同上 | PR #90 のレビュー対応。同上 |
+
+ADM-09〜12 はアイコン系（AdminIconTests.cs、本表の既存行）と文書ダーティ管理系（AdminDocumentServiceTests.cs、仕様決定 CH・CI）で同番号の別対象である。ADM-14〜17（[test-specification-phase38.md](test-specification-phase38.md) §ADM）はダーティ管理系の続番である。
 
 ### 2-2. Phase 外で新設された prefix
 

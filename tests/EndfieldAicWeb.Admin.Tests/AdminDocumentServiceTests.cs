@@ -8,7 +8,7 @@ namespace EndfieldAicWeb.Admin.Tests;
 
 /// <summary>
 /// 管理ツールの文書読み込み状態（LoadNotes・IsDirty）の検証テスト。
-/// ADM-09〜13 は Devin Review 対応で追加した回帰テスト（仕様決定 CH）。
+/// ADM-09〜11 は仕様決定 CH 自体（読み込み時正規化と解除経路）の検証、ADM-12・13 は Devin Review 対応で追加した回帰テスト。
 /// </summary>
 public class AdminDocumentServiceTests
 {
