@@ -20,3 +20,4 @@ jobs:
           python-version: '3.12'
       - run: pip install 'jsonschema[format]==4.25.1'
       - run: python tools/validate_master.py
+      - run: python tools/check_test_ids.py

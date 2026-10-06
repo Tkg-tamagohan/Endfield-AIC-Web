@@ -1,0 +1,26 @@
+# テスト ID 照合（tools/check_test_ids.py）の除外・許容規約。
+#
+# 1 行 1 件で「種別: 対象  # 理由」と書く。対象は ID の列挙で、
+# `NN〜MM` の範囲や `・`・`/` ・空白の区切りが使える（`FG-13/15/16/26` 等）。
+# `#` 以降は理由の注記。
+#
+# 種別:
+#   docs-only-prefix  その接頭辞はすべて文書側のみの項目として許容（手動確認系）
+#   docs-only         指定 ID の「文書のみ存在」を許容（廃止・移管済みなど）
+#   collision         指定 ID の複数ファイル実在（同番号の別対象）を許容
+#   rereg-prefix      その接頭辞の複数文書への再掲を許容
+#
+# コード側に新しい ID を追加したら、このファイルではなく追補書 §2 への登録を検討する。
+# 例外の追加は「文書のみ・衝突が正常」と説明できる場合に限る。
+
+docs-only-prefix: MN  # 手動確認項目はコード側の実体を持たない（追補書 §1 で Phase 内スコープ運用）
+docs-only-prefix: CIV  # validate_master.py と BundledMasterDataTests で常時担保（phase7 注記）
+docs-only-prefix: MUI  # 手動 UI 確認項目（phase10 §MUI）
+docs-only: FIL-01〜04  # phase4 末尾の廃止注記。ItemSearchTests は Phase 22-2 で削除済み
+docs-only: FIL-06〜07  # phase19 の廃止注記。同上（FIL-05 は ItemDeselectTests に現存する同番号の別対象）
+docs-only: FG-02・FG-31  # phase25 で FG-45・FG-38 へ統合書き換え
+docs-only: REN-03  # CIV-05 と validate_master.py へ担保移譲（phase9 注記）
+collision: ADM-09〜12  # アイコン系（AdminIconTests.cs）と文書ダーティ管理系（AdminDocumentServiceTests.cs）の同番号別対象（追補書 §2-1 注記）
+collision: EVT-01〜05  # イベント限定アイテム系（EventItemTests.cs）と自動有効化系（EventAutoActivationTests.cs）の同番号別対象（追補書 §1 の注記運用）
+collision: EXP-01〜05  # 展開系（ExpansionTests.cs）とアイコンエクスポート計画系（IconPipelineTests.cs）の同番号別対象（同上）
+rereg-prefix: MN  # Phase 内スコープのため複数の Phase 文書へ再掲される（追補書 §1）

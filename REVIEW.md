@@ -72,7 +72,7 @@
 - 計算結果の警告は `PlanAssert.HasWarning(plan, WarningCode.X)`、警告なしは `Assert.Empty(plan.Warnings)` や `Assert.DoesNotContain` で検査するのが既存の形である。
 - ペア選択や既定レシピの順位キーを変える変更では、同一出力アイテムを持つレシピが 2 件以上あるフィクスチャ全件で既定が反転しないかを監査する。副産物レシピが本筋の既定を奪う反転の実績がある。
 - 仕様決定 ID などの全域置換は base64 埋め込みのフィクスチャ（`IconManifestTests` や `ApngFixture` など）を壊すため、置換が文書とコメントに限定されているか。
-- レビュー指摘への修正には回帰テストを ID 採番で添える。
+- レビュー指摘への修正には回帰テストを ID 採番で添える。採番した ID は追補書（`docs/phases/test-specification-supplemental.md`）§2 へ同じ PR で登録する。
 
 ## 6. 再指摘しない項目
 
