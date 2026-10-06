@@ -14,6 +14,7 @@ Blazor WebAssembly ＋ Cloudflare Pages で構成し、Cloudflare 無料枠内�
 - [実装計画](docs/implementation-plan.md): フェーズ別タスクと進捗の管理
 - [残課題](docs/remaining-issues.md): レビューで先送りした構造上の課題
 - [Phase 別文書](docs/phases/): 各 Phase の実装詳細計画とテスト仕様（実装済みの作業記録。Phase 1・5 の一部は未作成）
+- [レビュー観点](REVIEW.md): PR の AI レビュー観点（AI レビューア向け）
 
 ## 開発
 
