@@ -1007,13 +1007,12 @@ public static class FlowGraphModelBuilder
             }
         }
 
-        // 1 パスの掃引: 隣接ノード位置の加重平均をキーに各ランクをソートし、ソート後に
-        // BM の隣接挿入（環境供給設備を最小層利用設備の直後へ移す規則）を適用して
-        // order を更新する。バリセンターはソート前の order に対して一括で計算する。
-        // weighted=false のとき全隣接を重み 1 とする（従来方式の再現用）。
-        void RunPass(bool downstream, bool weighted)
-        {
-            var key = nodes.Keys.ToDictionary(
+        // パス方向の隣接位置の加重平均をバリセンターキーとして計算する。
+        // その方向に隣接ノードを持たないノードは現在位置を維持する
+        // （従来の退縮規則を両方向に適用）。weighted=false のとき全隣接を
+        // 重み 1 とする（従来方式の再現用）。
+        Dictionary<string, double> BarycenterKey(bool downstream, bool weighted) =>
+            nodes.Keys.ToDictionary(
                 id => id,
                 id =>
                 {
@@ -1021,8 +1020,6 @@ public static class FlowGraphModelBuilder
                         (downstream ? downNeighbors : upNeighbors)[id];
                     if (neighbors.Count == 0)
                     {
-                        // その方向に隣接ノードを持たないノードは現在位置を維持する
-                        // （従来の退縮規則を両方向に適用）。
                         return Position(id);
                     }
 
@@ -1038,11 +1035,29 @@ public static class FlowGraphModelBuilder
                     return sum / weightSum;
                 },
                 StringComparer.Ordinal);
+
+        // 1 パスの掃引: 隣接ノード位置の加重平均をキーに各ランクをソートし、ソート後に
+        // BM の隣接挿入（環境供給設備を最小層利用設備の直後へ移す規則）を適用して
+        // order を更新する。バリセンターはソート前の order に対して一括で計算する。
+        // weighted=false のとき全隣接を重み 1 とする（従来方式の再現用）。
+        // reverseTiebreak=true のとき方向キーの同率を、Id 昇順の前に逆方向の
+        // バリセンターキー（逆方向に隣接を持たないノードは現位置）で再比較する
+        // （仕様決定 CS）。従来方式の評価パスは false のまま比較規則を維持する。
+        void RunPass(bool downstream, bool weighted, bool reverseTiebreak)
+        {
+            var key = BarycenterKey(downstream, weighted);
+            Dictionary<string, double>? reverseKey =
+                reverseTiebreak ? BarycenterKey(!downstream, weighted) : null;
             foreach (List<string> ids in nodesByRank.Values)
             {
                 ids.Sort((a, b) =>
                 {
                     int cmp = key[a].CompareTo(key[b]);
+                    if (cmp == 0 && reverseKey is not null)
+                    {
+                        cmp = reverseKey[a].CompareTo(reverseKey[b]);
+                    }
+
                     return cmp != 0 ? cmp : StringComparer.Ordinal.Compare(a, b);
                 });
                 InsertDispensers(ids);
@@ -1155,10 +1170,12 @@ public static class FlowGraphModelBuilder
 
         // 従来方式（上流側のみ・重みなしのバリセンター掃引と BM 隣接挿入を固定
         // 4 パスで行った順序）を最初の候補として評価する。交差数と順序番号差が
-        // 完全に並んだときは従来の配置が維持される（仕様決定 CR）。
+        // 完全に並んだときは従来の配置が維持される（仕様決定 CR）。逆方向
+        // タイブレークは双方向掃引だけに適用し、従来方式側は改訂前の比較規則
+        // （方向キーのみ、同率は Id 昇順）のままにする（仕様決定 CS）。
         for (int pass = 0; pass < 4; pass++)
         {
-            RunPass(downstream: false, weighted: false);
+            RunPass(downstream: false, weighted: false, reverseTiebreak: false);
         }
 
         EvaluateCandidate();
@@ -1188,9 +1205,9 @@ public static class FlowGraphModelBuilder
         for (int pass = 0; pass < MaxSweepPasses; pass += 2)
         {
             Dictionary<int, List<string>> roundStart = SnapshotOrder();
-            RunPass(downstream: false, weighted: true);
+            RunPass(downstream: false, weighted: true, reverseTiebreak: true);
             EvaluateCandidate();
-            RunPass(downstream: true, weighted: true);
+            RunPass(downstream: true, weighted: true, reverseTiebreak: true);
             EvaluateCandidate();
             bool unchanged = roundStart.Count == nodesByRank.Count
                 && roundStart.All(kv =>
@@ -1205,6 +1222,44 @@ public static class FlowGraphModelBuilder
         // 最良候補を採用して order を確定する。
         nodesByRank = bestByRank;
         RefreshOrder();
+
+        // 隣接ペア入替の後処理（仕様決定 CS）: 全ランクを昇順に 1 巡し、ランク内の
+        // 隣接ペア（位置 i, i+1）の入替を左から順に試す。いずれかのノードが環境
+        // 供給設備（envFixed）であるペアは試行せず、入替ごとに BM の隣接挿入を
+        // 再適用して order を更新し、全体の交差数が採用交差数より厳密に減るとき
+        // だけ受理する。受理・非受理に関わらず i+1 へ進み、全ランクの走査が
+        // 終わった時点で打ち切る（反復はしない）。受理判定は交差数のみで行い、
+        // CR の第 2 キー（順序番号差）は見ない（暫定解釈）。
+        int adoptedCrossings = bestCrossings;
+        foreach (int r in nodesByRank.Keys.OrderBy(k => k))
+        {
+            List<string> ids = nodesByRank[r];
+            for (int i = 0; i + 1 < ids.Count; i++)
+            {
+                if (envFixed.ContainsKey(ids[i]) || envFixed.ContainsKey(ids[i + 1]))
+                {
+                    continue;
+                }
+
+                var before = new List<string>(ids);
+                (ids[i], ids[i + 1]) = (ids[i + 1], ids[i]);
+                InsertDispensers(ids);
+                int crossings = CountCrossings();
+                if (crossings < adoptedCrossings)
+                {
+                    adoptedCrossings = crossings;
+                }
+                else
+                {
+                    ids.Clear();
+                    ids.AddRange(before);
+                    for (int k = 0; k < ids.Count; k++)
+                    {
+                        order[ids[k]] = k;
+                    }
+                }
+            }
+        }
 
         return (rank, order);
     }
