@@ -6,10 +6,17 @@
 docs/phases/ のファイル名の Phase 番号、docs/decision-records.md 表第 1 列の仕様決定 ID。
 読み取り専用で、リポジトリを変更しない。
 
-- 既定: 接頭辞ごとの現行最大と次候補、Phase・仕様決定の次候補、採番メモ雛形を出力
+廃止系列の判定は check_test_ids と同じ規則で行う: docs/phases/test-specification-*.md
+を文書順（phaseN は番号順、追補書などは最後）に読み、「廃止」を含む見出しの節内の
+表行を廃止イベント、それ以外の登録行を登録イベントとし、各 ID の最後のイベントが
+現行状態になる。帳簿上で登録状態の ID を持たない接頭辞は系列ごと廃止と判定し、
+一覧では廃止注記つきで表示して次候補案内から外す。
+
+- 既定: 接頭辞ごとの現行最大と次候補（廃止系列は廃止注記）、Phase・仕様決定の次候補、採番メモ雛形を出力
 - --check <file>: ファイル内の「現行最大は X-NN」記述を実測と照合し、ズレを報告
 - --with-prs: gh でオープン PR の差分を走査し、使用済み ID を予約候補として列挙
-  （gh 未導入・未認証時は警告して main のみの結果へ退避）
+  （gh 未導入・未認証時は警告して main のみの結果へ退避。tools/test_*.py の
+  見本 ID は実予約として数えない）
 - --json: 機械向け出力
 
 Python 標準ライブラリのみ。依存追加・blueprint 変更は不要。
@@ -21,6 +28,14 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+# check_test_ids と廃止イベント解析を共有するため、同じ tools/ から import する。
+# スクリプト実行（python3 tools/scan_ids.py）では tools/ が sys.path に入るが、
+# tools.scan_ids のようなパッケージ経路の import でも解決できるよう保険をかける。
+_TOOLS_DIR = Path(__file__).resolve().parent
+if str(_TOOLS_DIR) not in sys.path:
+    sys.path.insert(0, str(_TOOLS_DIR))
+import check_test_ids  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 SKIP_DIR_NAMES = {"obj", "bin", ".git"}
@@ -52,6 +67,9 @@ MAX_CLAIM_ID = re.compile(r"([A-Z]{2,5})-(\d{1,3})")
 # - 仕様決定は decision-records.md ハンク内の追加表行と、
 #   計画書の散文予約（次の採番で・列挙・範囲の 3 系統）から拾う。
 #   他ファイルの `| ID |` 表ヘッダを誤検出しないようファイルを限定する
+# - tools/test_*.py（このツール自身のテストなど）は見本 ID の diff 文字列を持つため
+#   追加行の走査対象から外す（実予約として数えると誤検出になる）
+PR_DIFF_SKIP = re.compile(r"(?:^|/)tools/test_[^/]*\.py$")
 PR_PHASE_NAME = re.compile(r"phase(\d+)")
 PR_PHASE_HEADING = re.compile(r"^\+\s*#{1,6}\s*Phase\s+(\d+)", re.MULTILINE)
 PR_DECISION_ROW = re.compile(r"^\+\s*\|\s*([A-Z]{1,3})\s*\|", re.MULTILINE)
@@ -117,6 +135,66 @@ def measure_test_ids(root: Path) -> dict:
             elif num == entry["max"] and entry["file"] is None:
                 entry["file"] = rel
     return result
+
+
+def measure_id_events(root: Path) -> dict[str, str]:
+    """帳簿（docs/phases/test-specification-*.md）の登録・廃止イベントを文書順にたどり、
+    各 ID の現行状態（"register" / "retire"）を返す。
+
+    判定規則は check_test_ids.extract_doc_ids と同一: 「廃止」を含む見出しの節内の
+    表行は廃止イベント、それ以外の登録行は登録イベントとし、文書順で最後の
+    イベントが現行状態になる。文書順も check_test_ids.doc_sort_key を共用する。
+    """
+    last_event: dict[str, str] = {}
+    paths = sorted(
+        root.glob(check_test_ids.DOCS_GLOB),
+        key=check_test_ids.doc_sort_key,
+    )
+    for path in paths:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        in_abandoned = False
+        for line in text.splitlines():
+            heading = re.match(r"^#{1,6}\s*(.*)", line)
+            if heading:
+                in_abandoned = "廃止" in heading.group(1)
+                continue
+            if not line.lstrip().startswith("|"):
+                continue
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if not cells or not re.match(rf"^{check_test_ids.PREFIX}-\d", cells[0]):
+                continue
+            for test_id in check_test_ids.expand_id_field(cells[0]):
+                last_event[test_id] = "retire" if in_abandoned else "register"
+    return last_event
+
+
+def retired_prefixes(last_event: dict[str, str]) -> dict[str, list[str]]:
+    """系列ごと廃止された接頭辞を返す（{接頭辞: 廃止状態の ID 一覧}）。
+
+    帳簿イベントのある ID がすべて廃止状態で、登録状態の ID を持たない接頭辞を
+    系列ごと廃止と判定する（一部だけ廃止の系列は存続扱い）。
+    帳簿イベントのない ID はこの判定に関与しない。
+    """
+    active = {
+        test_id.split("-", 1)[0]
+        for test_id, kind in last_event.items()
+        if kind == "register"
+    }
+    retired: dict[str, list[str]] = {}
+    for test_id, kind in last_event.items():
+        if kind != "retire":
+            continue
+        prefix = test_id.split("-", 1)[0]
+        retired.setdefault(prefix, []).append(test_id)
+
+    def id_sort_key(test_id: str):
+        m = re.match(r"^([A-Z]+)-(\d+)(b?)$", test_id)
+        return (test_id, 0, "") if not m else (m.group(1), int(m.group(2)), m.group(3))
+
+    return {p: sorted(ids, key=id_sort_key) for p, ids in retired.items() if p not in active}
 
 
 def measure_phase(root: Path) -> int:
@@ -208,6 +286,9 @@ def parse_pr_diff(diff_text: str) -> dict:
                 phase_nums.add(int(m.group(1)))
             continue
         if line.startswith("+"):
+            path = current_file[2:] if current_file and current_file.startswith("b/") else current_file
+            if path and PR_DIFF_SKIP.search(path):
+                continue
             added_lines.append(line)
             if current_file and current_file.endswith("decision-records.md"):
                 decision_added_lines.append(line)
@@ -304,18 +385,44 @@ def build_report(root: Path) -> dict:
     phase_max = measure_phase(root)
     decision_max = measure_decision(root)
     decision_next = next_letters(decision_max) if decision_max else None
-    memo = (
-        f"> ID 採番: xUnit は {format_id('FG', test_ids.get('FG', {}).get('max', 0) + 1)} 以降"
-        f"（main の現行最大は {format_id('FG', test_ids.get('FG', {}).get('max', 0))}）。"
-        f"手動確認は {format_id('MN', test_ids.get('MN', {}).get('max', 0) + 1)} 以降"
-        f"（main の現行最大は {format_id('MN', test_ids.get('MN', {}).get('max', 0))}）。"
-        "push 前に main で再確認する。"
+    retired = retired_prefixes(measure_id_events(root))
+
+    def next_candidate(prefix: str):
+        """接頭辞の次候補表記。系列ごと廃止済みなら None（採番案内に出さない）。"""
+        if prefix in retired:
+            return None
+        return format_id(prefix, test_ids.get(prefix, {}).get("max", 0) + 1)
+
+    memo_parts = []
+    if next_candidate("FG") is not None:
+        memo_parts.append(
+            f"xUnit は {next_candidate('FG')} 以降"
+            f"（main の現行最大は {format_id('FG', test_ids.get('FG', {}).get('max', 0))}）"
+        )
+    if next_candidate("MN") is not None:
+        memo_parts.append(
+            f"手動確認は {next_candidate('MN')} 以降"
+            f"（main の現行最大は {format_id('MN', test_ids.get('MN', {}).get('max', 0))}）"
+        )
+    memo = "> ID 採番: " + (
+        "。".join(memo_parts) + "。push 前に main で再確認する。"
+        if memo_parts
+        else "採番可能な系列はありません（FG・MN とも系列ごと廃止）。"
+    )
+    plan_use_parts = []
+    if next_candidate("FG") is not None:
+        plan_use_parts.append(f"xUnit は {next_candidate('FG')} 以降")
+    if next_candidate("MN") is not None:
+        plan_use_parts.append(f"手動確認は {next_candidate('MN')} 以降")
+    plan_use = (
+        "、".join(plan_use_parts) + "を使う"
+        if plan_use_parts
+        else "採番可能な系列はありません（FG・MN とも系列ごと廃止）"
     )
     plan_memo = (
         f"> Phase 番号は {phase_max + 1} とする（main の現行最大は Phase {phase_max}）。"
         f"仕様決定は {decision_max} の次の採番で {decision_next}、"
-        f"xUnit は {format_id('FG', test_ids.get('FG', {}).get('max', 0) + 1)} 以降、"
-        f"手動確認は {format_id('MN', test_ids.get('MN', {}).get('max', 0) + 1)} 以降を使う"
+        f"{plan_use}"
         f"（main の現行最大は {format_id('FG', test_ids.get('FG', {}).get('max', 0))}・"
         f"{format_id('MN', test_ids.get('MN', {}).get('max', 0))}。"
         "並行セッションの採番衝突に注意して push 前に main を再確認する）。"
@@ -325,13 +432,15 @@ def build_report(root: Path) -> dict:
             p: {
                 "max": e["max"],
                 "max_formatted": format_id(p, e["max"]),
-                "next": format_id(p, e["max"] + 1),
+                "next": None if p in retired else format_id(p, e["max"] + 1),
                 "latest_file": e["file"],
+                "retired": p in retired,
             }
             for p, e in sorted(test_ids.items())
         },
         "phase": {"max": phase_max, "next": phase_max + 1},
         "decision": {"max": decision_max, "next": decision_next},
+        "retired_prefixes": {p: ids for p, ids in sorted(retired.items())},
         "memo_test_spec": memo,
         "memo_impl_plan": plan_memo,
     }
@@ -342,7 +451,10 @@ def print_report(report: dict, reservations, pr_warning):
     print(f"テスト ID（{len(ids)} 接頭辞）")
     width = max((len(p) for p in ids), default=6)
     for prefix, e in ids.items():
-        print(f"  {prefix:<{width}}  現行最大 {e['max_formatted']:<8}  次候補 {e['next']:<8}  最新の出現: {e['latest_file']}")
+        if e["retired"]:
+            print(f"  {prefix:<{width}}  現行最大 {e['max_formatted']:<8}  系列ごと廃止（次候補なし）  最新の出現: {e['latest_file']}")
+        else:
+            print(f"  {prefix:<{width}}  現行最大 {e['max_formatted']:<8}  次候補 {e['next']:<8}  最新の出現: {e['latest_file']}")
     print()
     print(f"Phase 番号: 現行最大 {report['phase']['max']} → 次候補 {report['phase']['next']}")
     print(f"仕様決定 ID: 現行最大 {report['decision']['max']} → 次候補 {report['decision']['next']}")
@@ -377,8 +489,11 @@ def print_report(report: dict, reservations, pr_warning):
             print("予約を考慮した実効次候補:")
             for prefix, e in sorted(merged["test_ids"].items()):
                 main_max = ids.get(prefix, {}).get("max", 0)
-                effective = format_id(prefix, max(main_max, e["max"]) + 1)
                 prs = "・".join(f"#{n}" for n in e["prs"])
+                if ids.get(prefix, {}).get("retired"):
+                    print(f"  {prefix}: main {format_id(prefix, main_max)} / PR {format_id(prefix, e['max'])}（{prs}）→ 系列ごと廃止済み（次候補なし）")
+                    continue
+                effective = format_id(prefix, max(main_max, e["max"]) + 1)
                 print(f"  {prefix}: main {format_id(prefix, main_max)} / PR {format_id(prefix, e['max'])}（{prs}）→ 実効次候補 {effective}")
             if merged["phases"]:
                 n = max(merged["phases"])
