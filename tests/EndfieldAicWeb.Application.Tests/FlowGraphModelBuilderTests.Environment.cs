@@ -225,7 +225,7 @@ public partial class FlowGraphModelBuilderTests
         Assert.Equal(Node(model, "item:i-gas").Rank + 1, Node(model, "fac:f-disp").Rank);
     }
 
-    // FG-43: ��ンも回す兼用設備は出力を持つため本規則の対象外で、従来どおりの層割り（BM）。
+    // FG-43: ランも回す兼用設備は出力を持つため本規則の対象外で、従来どおりの層割り（BM）。
     [Fact]
     public void DualUseFacilityFollowsNormalLayering()
     {

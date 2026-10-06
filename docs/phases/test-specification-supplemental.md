@@ -14,6 +14,8 @@
 - 新規採番は既存の Phase 文書および本書の ID と重複しない接頭辞・番号を使う。EVT・EXP のようにすでに重複している ID は注記で区別するに留め、改番は行わない。
 - MN 番号は Phase 内スコープである。phase4・6・7・8 はそれぞれ MN-01 から採番しており、同一番号が Phase ごとに別内容を指す（Phase 12 以降は連番運用）。
 - 採番前の現行最大・次候補の確認は `tools/scan_ids.py` で機械化できる（`--with-prs` でオープン PR の使用分も列挙）。
+- 採番メモの記録値は採番時点のスナップショットとして残し、後から書き換えない。`scan_ids.py --check` は新しい計画書・仕様書の作成時点での確認に使う。
+- グループコメント（範囲一覧・クラス要約）のみが根拠の ID は個別テストの削除を検出できない。`tools/check_test_ids.py` はこの検出限界を I2 として情報化する。
 
 ## 2. 登録項目
 
@@ -47,6 +49,8 @@ Phase 仕様書の既存 prefix を継ぐ続番を §2-1、Phase 外で新設さ
 | ADM-11 | 同一文書のエクスポート完了でダーティが落ちる（CH の解除経路） | 同上 | 同上 |
 | ADM-12 | エクスポート開始後に別文書を読み込んでも完了記録は新文書のダーティを上書きしない | 同上 | PR #90 のレビュー対応。同上 |
 | ADM-13 | エクスポート開始後に失敗した読み込みを挟んでも完了記録はダーティを落とす | 同上 | PR #90 のレビュー対応。同上 |
+| DSP-27 | 処理ランと再利用消費は同じアイテムノードに同居する | tests/EndfieldAicWeb.Application.Tests/FlowGraphModelBuilderTests.Disposal.cs | phase32 帰属・W3 解消 |
+| DSP-28 | 兼用設備の台数分表示は占有スロットのユニットのみを出し、処理ランはユニット割当対象外 | 同上 | phase32 帰属・W3 解消 |
 
 ADM-09〜12 はアイコン系（AdminIconTests.cs、本表の既存行）と文書ダーティ管理系（AdminDocumentServiceTests.cs、仕様決定 CH・CI）で同番号の別対象である。ADM-14〜17（[test-specification-phase38.md](test-specification-phase38.md) §ADM）はダーティ管理系の続番である。
 

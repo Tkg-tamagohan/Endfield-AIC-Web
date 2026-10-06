@@ -25,19 +25,25 @@
 
 | ID | 内容 | 期待 |
 |---|---|---|
-| TRN-01 | ベルト超過は警告（Phase 17 の仕様決定 AN で判定基準をユニット入力へ改訂。新期待は [test-specification-phase17.md](test-specification-phase17.md) §2 を参照） | 設備 1 ユニットへの入力流量がベルト容量を超えるアイテム → `TransportCapacityExceeded`（[test-specification-phase2.md](test-specification-phase2.md) §TRN） |
-| TRN-02 | パイプ超過は警告（同上） | 設備 1 ユニットへの入力流量がパイプ容量を超えるアイテム → 警告（同上） |
-| TRN-03 | TransportKind=None は対象外（従来どおり） | F-08、`i-none-item` 500/分 → 容量警告なし（同上） |
-| TRN-04 | 上限ちょうどは警告なし | ユニット入力流量が容量ちょうど → 警告なし（同上） |
 | FLW-01/02/04 | 推奨制限の期待値 | 個/分値（1240・1280.5・540。同 §FLW。FLW-02 は非整数値で丸めなしを検査） |
 | FLW-05 | ランごとの推奨制限 | 個/分値 5（同 §FLW） |
-| FG-13 | 輸送容量超過の判定（Phase 17 の仕様決定 AN で判定対象を設備ユニット入力へ改訂） | 設備 1 ユニットへの入力流量が新容量を超えるアイテムで、入力エッジと両端ノードにフラグ（[test-specification-phase15.md](test-specification-phase15.md) §FG、[test-specification-phase17.md](test-specification-phase17.md) §1） |
 
 ### 新規テスト
 
+本節で新設した TRN-05 は Phase 30 の仕様決定 BV で TRN 系列ごと廃止した（後述「廃止するケース」）。
+
+### 廃止するケース
+
+Phase 30（仕様決定 BV）で輸送容量の警告とグラフ容量超過フラグを撤去したため、成立しなくなった項目。
+
 | ID | 内容 | 期待 |
 |---|---|---|
+| TRN-01 | ベルト超過は警告（Phase 17 の仕様決定 AN で判定基準をユニット入力へ改訂。Phase 30 の仕様決定 BV で系列ごと廃止） | 設備 1 ユニットへの入力流量がベルト容量を超えるアイテム → `TransportCapacityExceeded`（[test-specification-phase2.md](test-specification-phase2.md) §TRN） |
+| TRN-02 | パイプ超過は警告（同上） | 設備 1 ユニットへの入力流量がパイプ容量を超えるアイテム → 警告（同上） |
+| TRN-03 | TransportKind=None は対象外（従来どおり） | F-08、`i-none-item` 500/分 → 容量警告なし（同上） |
+| TRN-04 | 上限ちょうどは警告なし | ユニット入力流量が容量ちょうど → 警告なし（同上） |
 | TRN-05 | 警告文は個/分表記 | F-08、`i-belt-item` 45/分 → 警告文に「個/分」を含み「個/s」を含まない |
+| FG-13 | 輸送容量超過の判定（Phase 17 の仕様決定 AN で判定対象を設備ユニット入力へ改訂。Phase 30 の仕様決定 BV で容量超過の判定自体を撤去） | 設備 1 ユニットへの入力流量が新容量を超えるアイテムで、入力エッジと両端ノードにフラグ（[test-specification-phase15.md](test-specification-phase15.md) §FG、[test-specification-phase17.md](test-specification-phase17.md) §1） |
 
 ### 改訂の波及（Assert.Empty 見直し）
 

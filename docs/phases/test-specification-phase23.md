@@ -10,18 +10,18 @@
 
 | ID | 対象 | 条件 | 期待 |
 |---|---|---|---|
-| FG-08（改訂） | 層割りは出口側起点の最長距離（BF） | i-u→i-mid→i-t の直列、目標 i-t | gather が最左列、fac:f-b が fac:f-a より右、item:i-t が最大ランク（右端列） |
+| FG-08（改訂） | 層割りは出口側起点の最長距離（BF） | i-u→i-mid→i-t の直列、目標 i-t | gather が最左列、fac:f-b が fac:f-a より右、item:i-t が最大ランク（右端列）（Phase 25 の仕様決定 BO で gather ノードを撤去し、最左列の断言は採取素材アイテムの rank 0 へ変更。[test-specification-phase25.md](test-specification-phase25.md) §1） |
 | FG-09（改訂） | 循環経路でも停止し、ループ内の目標は Layer0（BH） | i-a↔i-b の 2 設備循環、目標 i-a | 全ノードにランクが付き、item:i-a が最大ランク（右端列） |
 | FG-10（改訂） | 未充足のみのアイテムも Layer0（BF） | 生産経路のない i-need、目標 i-need | item:i-need が最大ランク（単独ノードのためランク 0）で UnmetPerMinute=5 |
 | FG-27 | 消費される目標は消費設備の直上流（BG） | 目標 i-t が別目標 i-z の素材でもある計画 | item:i-t は右端列に置かれず、fac:f-z の 1 つ左の列に置かれる |
 | FG-28 | 未消費の副産物は Layer0（BF） | FG-05 と同形（副産物 i-s、目標 i-p） | item:i-s が item:i-p と同じ最大ランク（右端列） |
 | FG-29 | 鎖の短い目標も右端に固定（BF） | 深さの異なる 2 目標（i-x は 1 段、i-t は 3 段） | item:i-x・item:i-t がともに最大ランク。item:i-x が生産設備より右 |
 | FG-30 | 台数分ユニットは設備と同じ層規則（BF・AO） | A-02、expandFacilities | facunit:f-t#* がすべて同一ランクで item:i-t の 1 つ左 |
-| FG-31 | 出力のない設備（散布機）は消費アイテムの直下流（BF） | FG-19 と同形（散布機が i-gas を消費） | fac:f-disp が item:i-gas の 1 列右。Layer0（目標と同列）に置かれない |
+| FG-31 | 出力のない設備（散布機）は消費アイテムの直下流（BF）（Phase 25 の仕様決定 BM で「利用設備の最小層に置く」規則へ改訂。現行は [test-specification-phase25.md](test-specification-phase25.md) §1 の FG-38） | FG-19 と同形（散布機が i-gas を消費） | fac:f-disp が item:i-gas の 1 列右。Layer0（目標と同列）に置かれない |
 | FG-32 | 複数の出口を持つ循環は深い出口側へ緩和する（BH） | i-a↔i-b 循環＋i-a の浅い出口（i-z）と i-b の深い出口（i-m→i-w） | item:i-a が fac:f-b の左（供給エッジは後退しない）。後退エッジは item:i-b→fac:f-a のみ |
 | FG-33 | 重なった循環でも最長単純経路で層を決める（BH） | i-v↔i-u と i-u→i-x→i-u の重なった循環＋各出口 | item:i-x が出口 i-z から 8 段、item:i-v が 6 段の深さ（先に確定した浅い経路に留まらない） |
 | FG-34 | 循環内の目標が別出口へ分岐するとき、経路はその目標で終わる（BH） | 目標かつ循環構成の i-a＋別目標 i-z への分岐 | item:i-a が最大ランク（右端列）、item:i-b が i-a の 2 段上流（起点を通り越さない） |
-| FG-35 | 計算機が生成した循環プランでの層割り（BH） | 種↔製品の相互生産＋外部投入（計算機出力の計画） | item:i-y が最大ランク、後退は i-y→f-s のみ、gather が左端列 |
+| FG-35 | 計算機が生成した循環プランでの層割り（BH） | 種↔製品の相互生産＋外部投入（計算機出力の計画） | item:i-y が最大ランク、後退は i-y→f-s のみ、gather が左端列（Phase 25 の仕様決定 BO で gather ノードを撤去し、左端列の断言は採取素材アイテムの rank 0 へ変更。[test-specification-phase25.md](test-specification-phase25.md) §1） |
 | FG-36 | 循環の外から循環へ供給する目標は消費設備の直上流（BG・BH） | i-t が i-a↔i-b 循環へ外部供給＋目標（計算機出力の計画） | item:i-t が fac:f-1 の 1 つ左。右端列は i-z 側の出口のみ |
 | FG-37 | 生産される目標が別の循環へ供給しても生産設備は直上流（BH） | f-t→i-t→f-1 で i-a↔i-b 循環へ供給＋深浅 2 出口 | item:i-t が fac:f-t の 1 つ右・i-z2 から 8 段の深さ。産出エッジは後退しない |
 
