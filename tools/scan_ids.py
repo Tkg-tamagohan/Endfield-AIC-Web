@@ -143,9 +143,12 @@ def measure_id_events(root: Path) -> dict[str, str]:
 
     解析は check_test_ids.extract_doc_ids をそのまま共有する: 「廃止」を含む見出しの
     節内の表行は廃止イベント、それ以外の登録行は登録イベントとし、文書順で最後の
-    イベントが現行状態になる。
+    イベントが現行状態になる。デコード不能な文書は案内用途のため飛ばす
+    （照合側の check_test_ids 本体は従来どおり例外を送出する）。
     """
-    registered, abandoned, active = check_test_ids.extract_doc_ids(root)
+    registered, abandoned, active = check_test_ids.extract_doc_ids(
+        root, skip_undecodable=True
+    )
     return {
         test_id: "register" if test_id in active else "retire"
         for test_id in sorted(set(registered) | abandoned)

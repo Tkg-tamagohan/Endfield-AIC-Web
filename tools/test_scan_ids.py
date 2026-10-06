@@ -465,6 +465,17 @@ class TestRetiredPrefixes(unittest.TestCase):
         self.assertEqual(events["ABC-1"], "register")
         self.assertEqual(scan_ids.retired_prefixes(events), {})
 
+    def test_undecodable_doc_is_skipped(self):
+        # UTF-8 で読めない帳簿は飛ばし、他文書の ID は拾い続ける（スキャン中断しない）
+        self.write_spec(
+            "test-specification-phase1.md",
+            "| ID | 内容 |\n|---|---|\n| ABC-01 | a |\n",
+        )
+        bad = self.root / "docs" / "phases" / "test-specification-phase9.md"
+        bad.write_bytes(b"\xff| FG-99 | x |")
+        events = scan_ids.measure_id_events(self.root)
+        self.assertEqual(events, {"ABC-1": "register"})
+
     def test_report_marks_retired_and_drops_next(self):
         self.write_spec(
             "test-specification-phase1.md",

@@ -167,16 +167,26 @@ def doc_sort_key(path: Path):
     return (1, path.name)
 
 
-def extract_doc_ids(root: Path):
+def extract_doc_ids(root: Path, skip_undecodable: bool = False):
     """登録行の ID（文書→集合）と、廃止指定のある ID の集合、
-    文書順で最後のイベントが登録である「現行登録」の集合を返す。"""
+    文書順で最後のイベントが登録である「現行登録」の集合を返す。
+
+    skip_undecodable=True のとき UTF-8 でデコードできない文書を飛ばす。
+    既定の False はデコード失敗で UnicodeDecodeError を送出する
+    （照合側は読めない帳簿を黙って無視しない）。"""
     registered: dict[str, set[str]] = {}
     abandoned: set[str] = set()
     last_event: dict[str, str] = {}
     for path in sorted(root.glob(DOCS_GLOB), key=doc_sort_key):
         rel = path.relative_to(root).as_posix()
         in_abandoned = False
-        for line in path.read_text(encoding="utf-8").splitlines():
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except UnicodeDecodeError:
+            if not skip_undecodable:
+                raise
+            continue
+        for line in lines:
             heading = re.match(r"^#{1,6}\s*(.*)", line)
             if heading:
                 in_abandoned = "廃止" in heading.group(1)
