@@ -19,3 +19,8 @@ Endfield-AIC-Web での作業に適用するリポジトリ固有の規約。
 ## 構成変更ではスキルの参照を照合する
 
 - プロジェクトの追加・RCL への移設・`wwwroot` 配信パスの変更など、プロジェクト構成や配信経路を変える作業では、`.devin/skills/` と個人プラグインの Endfield 関連スキル（`testing-blazor-apps-flow-graph`・`fixture-injection-blazor-testing`・`webgpu-blazor-ui-testing`）が参照するパス・手順を grep で照合し、陳腐化した記述を同じ変更で追従させる。
+
+## PR のレビュー観点は REVIEW.md に集約する
+
+- このリポジトリの PR をレビューするときは、リポジトリ固有の不変条件と既知の罠の確認観点を `REVIEW.md` に従って確認する。
+- `REVIEW.md` は AI レビューア向けの文書であり、作業者向けの規約は本ファイルに残す。
