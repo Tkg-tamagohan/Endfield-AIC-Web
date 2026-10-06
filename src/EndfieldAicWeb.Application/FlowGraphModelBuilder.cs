@@ -1108,9 +1108,11 @@ public static class FlowGraphModelBuilder
             return total;
         }
 
-        // 第 2 キー: 加重対象の目標出力エッジについて、両端ノードの大域位置差の
+        // 第 2 キー: 加重対象の目標出力エッジについて、両端ノードの順序番号差の
         // 絶対値の合計（仕様決定 CR）。加重で目標隣接側へ寄った候補が交差数最小に
-        // 並んだとき、順序番号差が最小の候補として採用される。
+        // 並んだとき、順序番号差が最小の候補として採用される。ランクは候補間で
+        // 変わらないため、ランク成分を含む大域位置差ではなく order の差で計る
+        // （大域位置差はカラムの遠い端点ペアを有利にしてしまう）。
         double TargetOutputGap()
         {
             double sum = 0;
@@ -1118,7 +1120,7 @@ public static class FlowGraphModelBuilder
             {
                 if (edge.Kind == FlowGraphEdgeKind.RecipeOutput && nodes[edge.ToId].IsTarget)
                 {
-                    sum += Math.Abs(Position(edge.FromId) - Position(edge.ToId));
+                    sum += Math.Abs(order[edge.FromId] - order[edge.ToId]);
                 }
             }
 

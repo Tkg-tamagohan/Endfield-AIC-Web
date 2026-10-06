@@ -1618,11 +1618,10 @@ public class FlowGraphModelBuilderTests
     }
 
     // 第 2 キーの再現: 目標アイテムへの出力エッジについて両端ノードの
-    // 順序番号差（大域位置差）の絶対値の合計。
+    // 順序番号差の絶対値の合計。
     private static double TargetOutputGap(
         FlowGraphModel model, IReadOnlyDictionary<string, int> order)
     {
-        var rank = model.Nodes.ToDictionary(n => n.Id, n => n.Rank, StringComparer.Ordinal);
         var isTarget = model.Nodes.ToDictionary(
             n => n.Id, n => n.IsTarget, StringComparer.Ordinal);
         double sum = 0;
@@ -1630,9 +1629,7 @@ public class FlowGraphModelBuilderTests
         {
             if (e.Kind == FlowGraphEdgeKind.RecipeOutput && isTarget[e.ToId])
             {
-                sum += Math.Abs(
-                    rank[e.FromId] * 1_000_000.0 + order[e.FromId]
-                    - (rank[e.ToId] * 1_000_000.0 + order[e.ToId]));
+                sum += Math.Abs(order[e.FromId] - order[e.ToId]);
             }
         }
 
