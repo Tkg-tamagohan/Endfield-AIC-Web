@@ -15,6 +15,7 @@ Endfield-AIC-Web での作業に適用するリポジトリ固有の規約。
 - `docs/implementation-plan.md` のフェーズに取りかかるときは、コードより先に `docs/phases/implementation-plan-phaseN.md` と `docs/phases/test-specification-phaseN.md` を作成する。
 - 計画書には適合方針・暫定解釈を、テスト仕様書には ID 採番のテストケースを記録し、それを根拠に実装する。
 - 仕様の正は `docs/requirements.md` と `docs/decision-records.md`。
+- Phase 番号・仕様決定 ID・テスト ID の採番前に `python3 tools/scan_ids.py` で現行最大と次候補を機械確認する（`--with-prs` でオープン PR の使用分も列挙）。文書内の「現行最大」記述は `--check <file>` で実測と照合できる。
 
 ## 構成変更ではスキルの参照を照合する
 
