@@ -167,14 +167,14 @@ def doc_sort_key(path: Path):
     return (1, path.name)
 
 
-def extract_doc_ids():
+def extract_doc_ids(root: Path):
     """登録行の ID（文書→集合）と、廃止指定のある ID の集合、
     文書順で最後のイベントが登録である「現行登録」の集合を返す。"""
     registered: dict[str, set[str]] = {}
     abandoned: set[str] = set()
     last_event: dict[str, str] = {}
-    for path in sorted(ROOT.glob(DOCS_GLOB), key=doc_sort_key):
-        rel = path.relative_to(ROOT).as_posix()
+    for path in sorted(root.glob(DOCS_GLOB), key=doc_sort_key):
+        rel = path.relative_to(root).as_posix()
         in_abandoned = False
         for line in path.read_text(encoding="utf-8").splitlines():
             heading = re.match(r"^#{1,6}\s*(.*)", line)
@@ -245,7 +245,7 @@ def main() -> int:
         associated |= assoc
         markerless.extend((rel, line, name) for line, name in missing)
 
-    registered, abandoned, active = extract_doc_ids()
+    registered, abandoned, active = extract_doc_ids(ROOT)
     prefixes_docs_only, prefixes_rereg, ids_docs_only, ids_collision = load_exceptions()
 
     def docs_only_allowed(test_id: str) -> bool:
