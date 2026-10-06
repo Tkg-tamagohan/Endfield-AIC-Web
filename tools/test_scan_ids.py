@@ -261,6 +261,11 @@ diff --git a/tools/scan_ids.py b/tools/scan_ids.py
 +++ b/tools/scan_ids.py
 @@ -1,0 +1,2 @@
 +# 例: FG-42 を採番する
+diff --git a/tools/test_phase99.py b/tools/test_phase99.py
+new file mode 100644
++++ b/tools/test_phase99.py
+@@ -0,0 +1 @@
++pass
 diff --git a/docs/phases/test-specification-phase41.md b/docs/phases/test-specification-phase41.md
 +++ b/docs/phases/test-specification-phase41.md
 @@ -0,0 +1,2 @@
@@ -269,12 +274,13 @@ diff --git a/docs/phases/test-specification-phase41.md b/docs/phases/test-specif
 
     def test_tool_test_fixtures_not_reservations(self):
         # tools/test_*.py の見本 ID（FG-99・MN-200 等）や見本の Phase・仕様決定は
-        # 実予約として数えない
+        # 実予約として数えない。ファイル名由来の Phase（test_phase99.py）も除外する
         usage = scan_ids.parse_pr_diff(self.FIXTURE_DIFF)
         self.assertEqual(usage["test_ids"].get("FG"), [42, 70])
         self.assertNotIn("MN", usage["test_ids"])
         self.assertNotIn(99, usage["test_ids"]["FG"])
         self.assertEqual(usage["phases"], [41])
+        self.assertNotIn(99, usage["phases"])
         self.assertNotIn("ZZZ", usage["decisions"])
 
     def test_tool_non_test_files_still_scanned(self):

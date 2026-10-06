@@ -141,34 +141,15 @@ def measure_id_events(root: Path) -> dict[str, str]:
     """帳簿（docs/phases/test-specification-*.md）の登録・廃止イベントを文書順にたどり、
     各 ID の現行状態（"register" / "retire"）を返す。
 
-    判定規則は check_test_ids.extract_doc_ids と同一: 「廃止」を含む見出しの節内の
-    表行は廃止イベント、それ以外の登録行は登録イベントとし、文書順で最後の
-    イベントが現行状態になる。文書順も check_test_ids.doc_sort_key を共用する。
+    解析は check_test_ids.extract_doc_ids をそのまま共有する: 「廃止」を含む見出しの
+    節内の表行は廃止イベント、それ以外の登録行は登録イベントとし、文書順で最後の
+    イベントが現行状態になる。
     """
-    last_event: dict[str, str] = {}
-    paths = sorted(
-        root.glob(check_test_ids.DOCS_GLOB),
-        key=check_test_ids.doc_sort_key,
-    )
-    for path in paths:
-        try:
-            text = path.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
-            continue
-        in_abandoned = False
-        for line in text.splitlines():
-            heading = re.match(r"^#{1,6}\s*(.*)", line)
-            if heading:
-                in_abandoned = "廃止" in heading.group(1)
-                continue
-            if not line.lstrip().startswith("|"):
-                continue
-            cells = [c.strip() for c in line.strip().strip("|").split("|")]
-            if not cells or not re.match(rf"^{check_test_ids.PREFIX}-\d", cells[0]):
-                continue
-            for test_id in check_test_ids.expand_id_field(cells[0]):
-                last_event[test_id] = "retire" if in_abandoned else "register"
-    return last_event
+    registered, abandoned, active = check_test_ids.extract_doc_ids(root)
+    return {
+        test_id: "register" if test_id in active else "retire"
+        for test_id in sorted(set(registered) | abandoned)
+    }
 
 
 def retired_prefixes(last_event: dict[str, str]) -> dict[str, list[str]]:
@@ -277,17 +258,19 @@ def parse_pr_diff(diff_text: str) -> dict:
     for line in diff_text.splitlines():
         if line.startswith("diff --git"):
             current_file = None
-            for m in PR_PHASE_NAME.finditer(line):
-                phase_nums.add(int(m.group(1)))
+            # 行末は b/ 側の新パス。走査除外ファイルはファイル名由来の Phase も拾わない
+            if not PR_DIFF_SKIP.search(line):
+                for m in PR_PHASE_NAME.finditer(line):
+                    phase_nums.add(int(m.group(1)))
             continue
         if line.startswith("+++"):
             current_file = line[4:].strip()
-            for m in PR_PHASE_NAME.finditer(line):
-                phase_nums.add(int(m.group(1)))
+            if not PR_DIFF_SKIP.search(current_file):
+                for m in PR_PHASE_NAME.finditer(line):
+                    phase_nums.add(int(m.group(1)))
             continue
         if line.startswith("+"):
-            path = current_file[2:] if current_file and current_file.startswith("b/") else current_file
-            if path and PR_DIFF_SKIP.search(path):
+            if current_file and PR_DIFF_SKIP.search(current_file):
                 continue
             added_lines.append(line)
             if current_file and current_file.endswith("decision-records.md"):
