@@ -18,8 +18,6 @@ docs-only-prefix: CIV  # validate_master.py と BundledMasterDataTests で常時
 docs-only-prefix: MUI  # 手動 UI 確認項目（phase10 §MUI）
 docs-only: FIL-01〜04  # phase4 末尾の廃止注記。ItemSearchTests は Phase 22-2 で削除済み
 docs-only: FIL-06〜07  # phase19 の廃止注記。同上（FIL-05 は ItemDeselectTests に現存する同番号の別対象）
-docs-only: TRN-01〜11  # phase30 で系列ごと廃止（輸送容量警告の撤去。仕様決定 BV）
-docs-only: FG-13・15・16・26  # phase30 で廃止（容量超過フラグの撤去）
 docs-only: FG-02・FG-31  # phase25 で FG-45・FG-38 へ統合書き換え
 docs-only: REN-03  # CIV-05 と validate_master.py へ担保移譲（phase9 注記）
 collision: ADM-09〜12  # アイコン系（AdminIconTests.cs）と文書ダーティ管理系（AdminDocumentServiceTests.cs）の同番号別対象（追補書 §2-1 注記）

@@ -11,12 +11,13 @@ CI（.github/workflows/ci.yml）から呼び出し、帳簿（テスト仕様書
 文書側は表行の最初のセルが ID トークンになる行を登録行とし、`NN〜MM` 範囲と
 `・`・`/` 区切りの連番を展開する。「廃止するケース」節の行は廃止指定であり登録に数えない
 （廃止済み ID をコード側で再利用する場合も新しい登録行が必要）。
+文書は phase 番号順（追補書は最後）に読み、最後のイベントが登録の ID を現行登録とみなす。
 `> ID 採番:` 行や「現行最大は X-NN」のような言及は登録行でないため自然に対象外になる。
 
 分類（E1 のみ失敗、ほかは報告のみ）:
 
-- E1 未登録: コードに実在するが登録行がない
-- W1 文書のみ: 登録行はあるがコード側に実在しない
+- E1 未登録: コードに実在するが現行の登録行がない
+- W1 文書のみ: 現行の登録行はあるがコード側に実在しない
 - W2 同名衝突: 同一 ID が複数ファイルに実在する
 - W3 マーカーなしテスト: `[Fact]`/`[Theory]` の直前ブロックに ID マーカーがない
 - I1 再登録: 同一 ID が複数の文書に登録行を持つ
@@ -158,11 +159,21 @@ def expand_id_field(text: str) -> set[str]:
     return ids
 
 
+def doc_sort_key(path: Path):
+    """phaseN は番号順、それ以外（追補書など）は最後に並べる。"""
+    m = re.search(r"phase(\d+)", path.name)
+    if m:
+        return (0, int(m.group(1)))
+    return (1, path.name)
+
+
 def extract_doc_ids():
-    """登録行の ID（文書→集合）と、廃止指定された ID の集合を返す。"""
+    """登録行の ID（文書→集合）と、廃止指定のある ID の集合、
+    文書順で最後のイベントが登録である「現行登録」の集合を返す。"""
     registered: dict[str, set[str]] = {}
     abandoned: set[str] = set()
-    for path in sorted(ROOT.glob(DOCS_GLOB)):
+    last_event: dict[str, str] = {}
+    for path in sorted(ROOT.glob(DOCS_GLOB), key=doc_sort_key):
         rel = path.relative_to(ROOT).as_posix()
         in_abandoned = False
         for line in path.read_text(encoding="utf-8").splitlines():
@@ -178,10 +189,14 @@ def extract_doc_ids():
             ids = expand_id_field(cells[0])
             if in_abandoned:
                 abandoned |= ids
+                for test_id in ids:
+                    last_event[test_id] = "retire"
             else:
                 for test_id in ids:
                     registered.setdefault(test_id, set()).add(rel)
-    return registered, abandoned
+                    last_event[test_id] = "register"
+    active = {test_id for test_id, kind in last_event.items() if kind == "register"}
+    return registered, abandoned, active
 
 
 def load_exceptions():
@@ -230,22 +245,23 @@ def main() -> int:
         associated |= assoc
         markerless.extend((rel, line, name) for line, name in missing)
 
-    registered, abandoned = extract_doc_ids()
+    registered, abandoned, active = extract_doc_ids()
     prefixes_docs_only, prefixes_rereg, ids_docs_only, ids_collision = load_exceptions()
 
     def docs_only_allowed(test_id: str) -> bool:
         return test_id in ids_docs_only or test_id.split("-", 1)[0] in prefixes_docs_only
 
-    # E1: コードに実在するが登録行がなく、例外でもない（廃止指定は登録に数えない）
+    # E1: コードに実在するが現行の登録行がなく、例外でもない
+    #     （廃止後に再登録がない ID は古い登録行が残っていても未登録扱い）
     e1 = [
         (test_id, sorted(code_ids[test_id]))
         for test_id in sorted(code_ids)
-        if test_id not in registered and not docs_only_allowed(test_id)
+        if test_id not in active and not docs_only_allowed(test_id)
     ]
-    # W1: 登録行はあるがコード側に実在しない（例外指定は除く）
+    # W1: 現行の登録行はあるがコード側に実在しない（例外指定は除く）
     w1 = [
         (test_id, sorted(registered[test_id]))
-        for test_id in sorted(registered)
+        for test_id in sorted(active)
         if test_id not in code_ids and not docs_only_allowed(test_id)
     ]
     # W2: 同一 ID が複数ファイルに実在する（許容指定は除く）
@@ -275,20 +291,17 @@ def main() -> int:
         print(f"警告 W3: {rel}:{line} {name} に近接する ID マーカーがありません")
     for test_id, files in i1:
         print(f"情報 I1: {disp(test_id)} は複数の文書に登録されています（{', '.join(files)}）")
-    if group_only:
-        by_prefix: dict[str, int] = {}
-        for test_id in group_only:
-            p = test_id.split("-", 1)[0]
-            by_prefix[p] = by_prefix.get(p, 0) + 1
-        parts = "・".join(f"{p} {n}" for p, n in sorted(by_prefix.items()))
+    for test_id in group_only:
+        files = ", ".join(sorted(code_ids[test_id]))
         print(
-            f"情報 I2: メソッドに紐付かないコメントのみが根拠の ID {len(group_only)} 件"
-            f"（{parts}）。個別テストの削除は検出できません"
+            f"情報 I2: {disp(test_id)} の実在根拠はテストメソッドに紐付かないコメントのみです"
+            f"（{files}）。個別テストの削除は検出できません"
         )
 
-    info_count = len(i1) + (1 if group_only else 0)
+    info_count = len(i1) + len(group_only)
     print(
-        f"照合結果: コード側 {len(code_ids)} 件・帳簿登録 {len(registered)} 件。"
+        f"照合結果: コード側 {len(code_ids)} 件・帳簿登録 {len(registered)} 件"
+        f"（現行 {len(active)} 件）。"
         f"E1 {len(e1)} 件、警告 {len(w1) + len(w2) + len(markerless)} 件、情報 {info_count} 件"
     )
     if e1:
