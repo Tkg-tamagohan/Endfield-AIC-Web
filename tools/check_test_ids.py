@@ -9,7 +9,8 @@ CI（.github/workflows/ci.yml）から呼び出し、帳簿（テスト仕様書
 - F3: `// PREFIX-NN` または `/// PREFIX-NN` で始まるコメント（`NN〜MM` 範囲は展開）
 
 文書側は表行の最初のセルが ID トークンになる行を登録行とし、`NN〜MM` 範囲と
-`・`・`/` 区切りの連番を展開する。「廃止するケース」節の行は廃止指定であり登録に数えない。
+`・`・`/` 区切りの連番を展開する。「廃止するケース」節の行は廃止指定であり登録に数えない
+（廃止済み ID をコード側で再利用する場合も新しい登録行が必要）。
 `> ID 採番:` 行や「現行最大は X-NN」のような言及は登録行でないため自然に対象外になる。
 
 分類（E1 のみ失敗、ほかは報告のみ）:
@@ -19,6 +20,8 @@ CI（.github/workflows/ci.yml）から呼び出し、帳簿（テスト仕様書
 - W2 同名衝突: 同一 ID が複数ファイルに実在する
 - W3 マーカーなしテスト: `[Fact]`/`[Theory]` の直前ブロックに ID マーカーがない
 - I1 再登録: 同一 ID が複数の文書に登録行を持つ
+- I2 コメント由来のみ: 個々のテストメソッドに紐付かないコメント（クラス要約・
+  範囲一覧など）だけが根拠の ID。実在扱いにはするが、個別テストの削除は検出できない
 
 正常ケース（手動確認項目、廃止・移管済み ID、既知の同番号別対象）は
 tools/test-id-exceptions.txt の除外・許容規約で抑止する。
@@ -64,14 +67,9 @@ def disp(test_id: str) -> str:
     return f"{prefix}-{int(m.group(1)):02d}{m.group(2)}"
 
 
-def extract_code_ids(path: Path) -> set[str]:
-    """1 ファイルから F1〜F3 の ID を抽出する。"""
-    text = path.read_text(encoding="utf-8")
+def expand_comment_ids(text: str) -> set[str]:
+    """F3 コメント形式の ID を抽出する（`NN〜MM` 範囲は展開）。"""
     ids = set()
-    for m in F1_RE.finditer(text):
-        ids.add(canon(m.group(1), m.group(2), m.group(3)))
-    for m in F2_RE.finditer(text):
-        ids.add(canon(m.group(1), m.group(2), m.group(3)))
     for m in F3_RE.finditer(text):
         prefix, start, suffix, end = m.group(1), int(m.group(2)), m.group(3), m.group(4)
         if end:
@@ -82,10 +80,23 @@ def extract_code_ids(path: Path) -> set[str]:
     return ids
 
 
-def markerless_tests(path: Path) -> list[tuple[int, str]]:
-    """[Fact]/[Theory] の直前ブロック（属性と // コメントの連続行）に
-    ID マーカー（F1/F2/F3）がないテストメソッドを返す。"""
+def extract_code_ids(path: Path) -> set[str]:
+    """1 ファイルから F1〜F3 の ID を抽出する。"""
+    text = path.read_text(encoding="utf-8")
+    ids = set()
+    for m in F1_RE.finditer(text):
+        ids.add(canon(m.group(1), m.group(2), m.group(3)))
+    for m in F2_RE.finditer(text):
+        ids.add(canon(m.group(1), m.group(2), m.group(3)))
+    ids |= expand_comment_ids(text)
+    return ids
+
+
+def scan_test_methods(path: Path) -> tuple[set[str], list[tuple[int, str]]]:
+    """テストメソッドの直前ブロック（属性と // コメントの連続行＋シグネチャ行）に
+    紐付く ID の集合と、ID マーカー（F1/F2/F3）のないテスト（行番号・メソッド名）を返す。"""
     lines = path.read_text(encoding="utf-8").splitlines()
+    associated: set[str] = set()
     missing = []
     for i, line in enumerate(lines):
         m = METHOD_RE.match(line)
@@ -98,13 +109,18 @@ def markerless_tests(path: Path) -> list[tuple[int, str]]:
             j -= 1
         if not any(FACT_RE.search(b) for b in block):
             continue
-        has_marker = (
-            any(F1_RE.search(b) or F3_RE.search(b) for b in block)
-            or re.match(rf"^{PREFIX}\d+b?_", m.group(1)) is not None
-        )
-        if not has_marker:
+        near_text = "\n".join(block) + "\n" + line
+        marks = {
+            canon(fm.group(1), fm.group(2), fm.group(3)) for fm in F1_RE.finditer(near_text)
+        }
+        marks |= expand_comment_ids(near_text)
+        name_m = re.match(rf"^({PREFIX})(\d+)(b?)_", m.group(1))
+        if name_m:
+            marks.add(canon(name_m.group(1), name_m.group(2), name_m.group(3)))
+        if not marks:
             missing.append((i + 1, m.group(1)))
-    return missing
+        associated |= marks
+    return associated, missing
 
 
 def expand_id_field(text: str) -> set[str]:
@@ -204,12 +220,15 @@ def load_exceptions():
 
 def main() -> int:
     code_ids: dict[str, set[str]] = {}
+    associated: set[str] = set()
     markerless: list[tuple[str, int, str]] = []
     for path in sorted(TESTS_DIR.glob("**/*.cs")):
         rel = path.relative_to(ROOT).as_posix()
         for test_id in extract_code_ids(path):
             code_ids.setdefault(test_id, set()).add(rel)
-        markerless.extend((rel, line, name) for line, name in markerless_tests(path))
+        assoc, missing = scan_test_methods(path)
+        associated |= assoc
+        markerless.extend((rel, line, name) for line, name in missing)
 
     registered, abandoned = extract_doc_ids()
     prefixes_docs_only, prefixes_rereg, ids_docs_only, ids_collision = load_exceptions()
@@ -217,11 +236,11 @@ def main() -> int:
     def docs_only_allowed(test_id: str) -> bool:
         return test_id in ids_docs_only or test_id.split("-", 1)[0] in prefixes_docs_only
 
-    # E1: コードに実在するが登録行も廃止行もなく、例外でもない
+    # E1: コードに実在するが登録行がなく、例外でもない（廃止指定は登録に数えない）
     e1 = [
         (test_id, sorted(code_ids[test_id]))
         for test_id in sorted(code_ids)
-        if test_id not in registered and test_id not in abandoned and not docs_only_allowed(test_id)
+        if test_id not in registered and not docs_only_allowed(test_id)
     ]
     # W1: 登録行はあるがコード側に実在しない（例外指定は除く）
     w1 = [
@@ -241,9 +260,13 @@ def main() -> int:
         for test_id, files in sorted(registered.items())
         if len(files) > 1 and test_id.split("-", 1)[0] not in prefixes_rereg
     ]
+    # I2: 実在の根拠がテストメソッドに紐付かないコメントのみの ID
+    #     （クラス要約・範囲一覧など。個別テストが消えても ID が残るため検出できない）
+    group_only = sorted(set(code_ids) - associated)
 
     for test_id, files in e1:
-        print(f"E1: {disp(test_id)} はコードに実在しますが帳簿の登録行がありません（{', '.join(files)}）")
+        note = "（廃止指定があるため復活には新しい登録行が必要です）" if test_id in abandoned else ""
+        print(f"E1: {disp(test_id)} はコードに実在しますが帳簿の登録行がありません{note}（{', '.join(files)}）")
     for test_id, files in w1:
         print(f"警告 W1: {disp(test_id)} は帳簿に登録されていますがコード側に実在しません（{', '.join(files)}）")
     for test_id, files in w2:
@@ -252,10 +275,21 @@ def main() -> int:
         print(f"警告 W3: {rel}:{line} {name} に近接する ID マーカーがありません")
     for test_id, files in i1:
         print(f"情報 I1: {disp(test_id)} は複数の文書に登録されています（{', '.join(files)}）")
+    if group_only:
+        by_prefix: dict[str, int] = {}
+        for test_id in group_only:
+            p = test_id.split("-", 1)[0]
+            by_prefix[p] = by_prefix.get(p, 0) + 1
+        parts = "・".join(f"{p} {n}" for p, n in sorted(by_prefix.items()))
+        print(
+            f"情報 I2: メソッドに紐付かないコメントのみが根拠の ID {len(group_only)} 件"
+            f"（{parts}）。個別テストの削除は検出できません"
+        )
 
+    info_count = len(i1) + (1 if group_only else 0)
     print(
         f"照合結果: コード側 {len(code_ids)} 件・帳簿登録 {len(registered)} 件。"
-        f"E1 {len(e1)} 件、警告 {len(w1) + len(w2) + len(markerless)} 件、情報 {len(i1)} 件"
+        f"E1 {len(e1)} 件、警告 {len(w1) + len(w2) + len(markerless)} 件、情報 {info_count} 件"
     )
     if e1:
         print("未登録のテスト ID があります。追補書 §2 への登録か test-id-exceptions.txt の例外指定が必要です")
