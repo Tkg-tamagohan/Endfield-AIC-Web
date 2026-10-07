@@ -435,9 +435,9 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 
 ### Phase 41: 旧リポジトリ依存の解消（PR: 「旧 X」参照の統合・AGENTS.md 改訂・Planner 凍結処置）
 
-- [ ] 「旧 X」形式の旧リポジトリ仕様決定参照を、新番号または自完結な表現へすべて置き換える（仕様決定 CT。対応表は `phases/implementation-plan-phase41.md` §4）
+- [ ] 「旧 X」形式の旧リポジトリ仕様決定参照を、新番号または自完結な表現へすべて置き換える（仕様決定 CT。対応表は `phases/implementation-plan-phase41.md` §4）。実装済みで仕様未記載だったアイコン解決規則 2 件は仕様決定 CX・CY として requirements §5.11 に追記済み
 - [ ] AGENTS.md の Planner 参照規定と文書フォーマット継承の記述を自リポジトリ完結へ改訂する（仕様決定 CV）
-- [ ] 旧リポジトリのアイコン資産は移植しない（自動生成物のため、仕様決定 CU）
+- [ ] 旧リポジトリのアイコン資産は移植しない（権利クリアだが自動生成の仮置き画像のため、仕様決定 CU）
 - [ ] Planner の README に凍結・後継案内を追記してマージし、GitHub Archive を実行する（仕様決定 CW）
 - [ ] 手動確認 MN-184〜 を実施する（rg による残存参照検査・AGENTS.md 目視・Planner 処置の確認）
 - **受け入れ条件**: 本リポジトリの文書が旧リポジトリを参照しなくても仕様の正を読み切れ、Planner がアーカイブ済みになる。詳細は `phases/implementation-plan-phase41.md` と `phases/test-specification-phase41.md`。Phase 番号は 41 とする（main の現行最大は Phase 40）。
