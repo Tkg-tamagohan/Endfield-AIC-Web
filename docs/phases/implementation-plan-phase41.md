@@ -66,6 +66,7 @@
 
 ## 4. 旧決定の新旧対応表
 
+「旧 X」の出典は旧リポジトリ `docs/decision-records.md`（`dev/webification` ブランチ、A〜BY。<https://github.com/Tkg-tamagohan/Endfield-AIC-Planner/blob/dev/webification/docs/decision-records.md>）とし、出典の記載は本節のみに集約する（仕様決定 CT）。
 「旧 X」参照の置き換え先を次の表で規定する。
 判定の基準は、現行の requirements.md・decision-records.md に内容が保持されているか（包含）、改定・廃止で失効したか（廃止）、Web 版のスコープに入らないか（対象外）の 3 区分である。
 「包含」の行は対応する Web 側仕様決定への参照へ置き換え、本文に規則が既に記述されている箇所は「（旧 X 踏襲）」の由来注記を外すだけでよい。
@@ -114,3 +115,17 @@
 機械検査と目視で確認する（テスト仕様書の MN-184〜）。
 `rg "旧 ?[A-Z]{1,2}\b"` で決定 ID 形式の参照が許容区分（§4 の「統合しない」行で意図的に残した表現を除く）に限られること、`Endfield-AIC-Planner` へのリンクが AGENTS.md と正の所在から除去されていること、`dotnet build`・`dotnet test`・`tools/validate_master.py` が通ることを確認する。
 文書のみの変更のため xUnit の追加はない。
+
+## 7. 改訂経緯と関連する既知差分
+
+計画 PR（#119）のレビュー指摘を反映した改訂を記録する。
+
+- 仕様未記載で実装済みだったアイコン解決規則 2 件を仕様決定 CX（レシピの主出力フォールバック）・CY（収録外キーのファイル名解決）として追加し、requirements §5.11 を同期、対応表の旧 AN・旧 AO 行を更新した
+- CU のアイコン資産の表現を「権利クリアだが自動生成の仮置き画像」へ修正（Phase 7 計画の「自作画像」記述との見かけの齟齬を解消）
+- requirements.md 冒頭・§11 を仕様決定 CV・CW・CT 確定後の記述へ同期し、§11 の旧決定リンクは出典を §4 対応表へ集約する表現へ変更
+- MN-184 を対応表部分の検査へ分割、MN-186 を置換前ベースラインを基準にする手順へ修正
+
+レビューで発覚した実装と仕様の差分（本 Phase の対象外、実装側の対応は別途判断）。
+
+- `IconKeyFallback.EffectiveIconKey` は IconKey が空文字のレシピに主出力フォールバックを適用しない（requirements §5.11 は null または空文字を未設定と定義。仕様決定 CX に差分として記録済み）
+- `AdminDocumentService.FetchIconsAsync` は URL 読み込みでマニフェスト収録分のみ取得するため、収録外キーは ZIP 読み込み・公開アプリと結果が異なる（CY は取得済みファイルへの解決規則であり、取得拡張の要否は別途判断）

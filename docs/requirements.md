@@ -353,7 +353,7 @@ EF Core・SQLite・Layout・WPF・旧 JSON 相互互換は移植しない。
 ## 11. 関連ドキュメント
 
 - [decision-records.md](decision-records.md): 仕様上の判断事項（新番号体系）
-- 旧リポジトリの決定記録: [`Endfield-AIC-Planner` docs/decision-records.md](https://github.com/Tkg-tamagohan/Endfield-AIC-Planner/blob/dev/webification/docs/decision-records.md)（「旧 X」の出典確認用で、仕様の正ではない。仕様決定 CT〜CW）
+- 旧リポジトリの決定記録（「旧 X」の出典）: `phases/implementation-plan-phase41.md` §4 に集約する（仕様決定 CT）
 
 ## 12. 未決事項
 
