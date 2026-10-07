@@ -5,7 +5,7 @@ using EndfieldAicWeb.Domain.Validation;
 namespace EndfieldAicWeb.Infrastructure.Icons;
 
 /// <summary>
-/// エクスポート用の Icons マニフェストを組み立てる（旧 AP 由来、仕様決定 R）。
+/// エクスポート用の Icons マニフェストを組み立てる（仕様決定 AA・R）。
 /// エンティティから参照されるキーのみを対象に、実ファイルから Sha256/Bytes を再計算した
 /// <see cref="IconEntry"/> を返す。未登録キー・ファイル欠落はエラーとして集約し、
 /// どのエンティティからも参照されない孤立エントリは出力に含めない。
@@ -79,7 +79,7 @@ public static class IconExportPlanner
 
     /// <summary>
     /// <c>icon-&lt;entityId&gt;</c> 形の既定キーを提案する。無効文字は <c>-</c> へ置き、
-    /// 64 文字に収まるよう切り詰める（IconKeyRules の文字種制約、旧版の補完規則と同じ）。
+    /// 64 文字に収まるよう切り詰める（IconKeyRules の文字種制約に従う補完規則）。
     /// </summary>
     public static string SuggestKey(string entityId)
     {

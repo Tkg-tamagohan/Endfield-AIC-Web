@@ -6,7 +6,7 @@ namespace EndfieldAicWeb.Infrastructure.Icons;
 /// <summary>
 /// IconKey からアイコンファイルのパスを解決する。
 /// マニフェスト収録キーは Bytes/Sha256 一致ファイルのみ採用し、
-/// 収録外キーは <c>icons/&lt;Key&gt;.png</c> のファイル名一致で解決する（旧 AO の差し込み運用を継承）。
+/// 収録外キーは <c>icons/&lt;Key&gt;.png</c> のファイル名一致で解決する（仕様決定 CY）。
 /// 未設定・欠落・不一致はすべてフォールバック（null）とする。
 /// </summary>
 public sealed class IconResolver

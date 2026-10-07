@@ -43,17 +43,17 @@
 
 | ファイル | 変更 |
 |---|---|
-| `docs/decision-records.md` | 冒頭の「旧 BA」のように参照する旨の記述を CT 確定後の表現へ改訂する。統合対象に欠落があれば CZ 以降の新規行を追加する（CX・CY はレビューで見つかった仕様欠落分として登録済み） |
-| `docs/requirements.md` | 冒頭の旧リポジトリ案内（凍結の記述と「旧 BA」参照ルール）と §11 関連ドキュメントの旧決定記録リンクを改訂し、本文中の「旧 X」参照を §4 の対応表に従って置き換える |
-| `docs/implementation-plan.md` | 参考実装の行と「旧リポジトリの `EndfieldAicPlanner.Core`」「旧リポジトリと同じ慣行」等の記述を、移植完了とアーカイブを踏まえた表現へ改訂する |
+| `docs/decision-records.md` | 冒頭の旧リポジトリ決定を「旧 X」形式で参照する旨の記述を CT 確定後の表現へ改訂する。統合対象に欠落があれば CZ 以降の新規行を追加する（CX・CY はレビューで見つかった仕様欠落分として登録済み） |
+| `docs/requirements.md` | 冒頭の旧リポジトリ案内（凍結の記述と旧番号の参照ルール）と §11 関連ドキュメントの旧決定記録リンクを改訂し、本文中の「旧 X」参照を §4 の対応表に従って置き換える |
+| `docs/implementation-plan.md` | 参考実装の行と「移植元の計算コア」「旧リポジトリと同じ慣行」等の記述を、移植完了とアーカイブを踏まえた表現へ改訂する |
 | `docs/phases/*.md` | 「旧 X」参照を §4 の対応表に従って置き換える。マージ済み履歴文書のため、文意を変えず参照のみ解決する |
 | `AGENTS.md` | 「移植元 Planner の先行資産を参照する」節を自リポジトリ完結の記述へ改訂する |
-| `src/EndfieldAicWeb.Infrastructure/Icons/IconResolver.cs` | コメントの「旧 AO」参照を自完結な説明へ置き換える |
-| `src/EndfieldAicWeb.Infrastructure/Icons/IconExportPlanner.cs` | コメントの「旧 AP」参照を仕様決定 AA・R 等へ置き換える |
-| `src/EndfieldAicWeb.App/Services/IconCatalog.cs` | コメントの「旧 AP」参照を同上で置き換える |
-| `src/EndfieldAicWeb.Admin/Services/AdminDocumentService.cs` | コメントの「旧 AP」参照を同上で置き換える |
-| `src/EndfieldAicWeb.Domain/Calculation/CalculationWarning.cs` | コメントの「旧 BN」参照を仕様決定 R へ置き換える |
-| `src/EndfieldAicWeb.Domain/Calculation/ProductionCalculator.cs` | コメントの「旧 P」参照を仕様決定 R 等へ置き換える |
+| `src/EndfieldAicWeb.Infrastructure/Icons/IconResolver.cs` | コメントの旧仕様決定参照を自完結な説明へ置き換える |
+| `src/EndfieldAicWeb.Infrastructure/Icons/IconExportPlanner.cs` | コメントの旧仕様決定参照を仕様決定 AA・R 等へ置き換える |
+| `src/EndfieldAicWeb.App/Services/IconCatalog.cs` | コメントの旧仕様決定参照を同上で置き換える |
+| `src/EndfieldAicWeb.Admin/Services/AdminDocumentService.cs` | コメントの旧仕様決定参照を同上で置き換える |
+| `src/EndfieldAicWeb.Domain/Calculation/CalculationWarning.cs` | コメントの旧仕様決定参照を仕様決定 R へ置き換える |
+| `src/EndfieldAicWeb.Domain/Calculation/ProductionCalculator.cs` | コメントの旧仕様決定参照を仕様決定 R 等へ置き換える |
 | `tests/EndfieldAicWeb.Domain.Tests/WarningTests.cs` | コメントの「旧 TRN-01/02」参照を自完結な説明（撤去済み輸送容量警告の発火構成を再利用した回帰、等）へ置き換える |
 
 ## 3. 他リポジトリとリポジトリ外の作業
@@ -125,7 +125,7 @@
 - requirements.md 冒頭・§11 を仕様決定 CV・CW・CT 確定後の記述へ同期し、§11 の旧決定リンクは出典を §4 対応表へ集約する表現へ変更
 - MN-184 を対応表部分の検査へ分割、MN-186 を置換前ベースラインを基準にする手順へ修正
 
-レビューで発覚した実装と仕様の差分（本 Phase の対象外、実装側の対応は別途判断）。
+レビューで発覚した実装と仕様の差分。
 
-- `IconKeyFallback.EffectiveIconKey` は IconKey が空文字のレシピに主出力フォールバックを適用しない（requirements §5.11 は null または空文字を未設定と定義。仕様決定 CX に差分として記録済み）
+- `IconKeyFallback.EffectiveIconKey` は IconKey が空文字のレシピに主出力フォールバックを適用しない（requirements §5.11 は null または空文字を未設定と定義。仕様決定 CX に差分として記録済み）。ユーザー判断で本 Phase の実装で修正する（`!string.IsNullOrEmpty` 判定へ追従＋回帰テスト ADM-18。Admin のアイコン編集ヒントも同一判定へ追従）
 - `AdminDocumentService.FetchIconsAsync` は URL 読み込みでマニフェスト収録分のみ取得するため、収録外キーは ZIP 読み込み・公開アプリと結果が異なる（CY は取得済みファイルへの解決規則であり、取得拡張の要否は別途判断）

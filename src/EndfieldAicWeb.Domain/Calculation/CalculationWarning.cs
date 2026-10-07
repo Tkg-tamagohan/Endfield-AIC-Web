@@ -19,7 +19,7 @@ public enum WarningCode
     /// <summary>PairOverride が不適格でデフォルト選択へフォールバックした。</summary>
     InvalidPairOverride,
 
-    /// <summary>同一レシピに別ペアが選ばれたため、先に確定したペアを採用した（旧 BN）。</summary>
+    /// <summary>同一レシピに別ペアが選ばれたため、先に確定したペアを採用した（仕様決定 R）。</summary>
     PairConflict,
 
     /// <summary>アイテムの所属イベントが非有効で生産・外部調達とも不能（仕様決定 X）。</summary>

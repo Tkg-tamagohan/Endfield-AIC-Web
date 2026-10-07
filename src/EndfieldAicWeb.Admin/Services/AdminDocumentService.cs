@@ -545,7 +545,7 @@ public sealed class AdminDocumentService
             return new ExportZipOutcome(null, blocked);
         }
 
-        // アイコン整合（参照→マニフェスト→実体）はエクスポート経路でのみ必須（旧 AP）。
+        // アイコン整合（参照→マニフェスト→実体）はエクスポート経路でのみ必須（仕様決定 AA）。
         // 文書側の違反と併記できるよう、文書検証とマニフェスト構築をまとめて行い、
         // いずれかの違反があれば書き出さない。
         var errors = new List<MasterValidationError>();
