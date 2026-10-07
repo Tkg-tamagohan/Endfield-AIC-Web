@@ -433,6 +433,15 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 - [x] xUnit FG-63〜 を追加し、`dotnet test` 全緑とブラウザ手動確認（MN-182〜）を実施する
 - **受け入れ条件**: 同梱マスタの重息壌系計画で残っていた供給エッジの交差が解消され、どんな計画でも採用順序の交差数が従来方式を上回らない。詳細は `phases/implementation-plan-phase40.md` と `phases/test-specification-phase40.md`。
 
+### Phase 41: 旧リポジトリ依存の解消（PR: 「旧 X」参照の統合・AGENTS.md 改訂・Planner 凍結処置）
+
+- [ ] 「旧 X」形式の旧リポジトリ仕様決定参照を、新番号または自完結な表現へすべて置き換える（仕様決定 CT。対応表は `phases/implementation-plan-phase41.md` §4）
+- [ ] AGENTS.md の Planner 参照規定と文書フォーマット継承の記述を自リポジトリ完結へ改訂する（仕様決定 CV）
+- [ ] 旧リポジトリのアイコン資産は移植しない（自動生成物のため、仕様決定 CU）
+- [ ] Planner の README に凍結・後継案内を追記してマージし、GitHub Archive を実行する（仕様決定 CW）
+- [ ] 手動確認 MN-184〜 を実施する（rg による残存参照検査・AGENTS.md 目視・Planner 処置の確認）
+- **受け入れ条件**: 本リポジトリの文書が旧リポジトリを参照しなくても仕様の正を読み切れ、Planner がアーカイブ済みになる。詳細は `phases/implementation-plan-phase41.md` と `phases/test-specification-phase41.md`。Phase 番号は 41 とする（main の現行最大は Phase 40）。
+
 
 ## 5. 実装メモ・規約
 
