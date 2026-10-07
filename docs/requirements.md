@@ -5,8 +5,8 @@
 対象アプリ: アークナイツ：エンドフィールド AIC 計算 Web アプリケーション（`Tkg-tamagohan/Endfield-AIC-Web`）
 
 > 本書は新規リポジトリでの作り直しを前提とした要件定義である。
-> 旧リポジトリ [`Tkg-tamagohan/Endfield-AIC-Planner`](https://github.com/Tkg-tamagohan/Endfield-AIC-Planner)（WPF 版）は参考実装として凍結する。
-> 確定した仕様上の判断は [decision-records.md](decision-records.md) を参照（新番号体系、旧決定は「旧 BA」のように参照）。
+> 旧リポジトリ [`Tkg-tamagohan/Endfield-AIC-Planner`](https://github.com/Tkg-tamagohan/Endfield-AIC-Planner)（WPF 版）は凍結済みで、参照実装としての地位を終了した（仕様決定 CV）。仕様の正は本書と decision-records.md のみとし、旧リポジトリは GitHub Archive の処置とする（仕様決定 CW）。
+> 確定した仕様上の判断は [decision-records.md](decision-records.md) を参照（新番号体系。本文中の「旧 X」形式の旧決定参照は、仕様決定 CT に基づき `phases/implementation-plan-phase41.md` §4 の対応表で新番号へ読み替えられる）。
 > 不確かなゲーム内仕様は「推測」と明記し、未決事項は「12. 未決事項」に集約する。
 
 ## 1. 背景と目的
@@ -264,6 +264,7 @@ Id と Id 参照フィールド（他エンティティを Id で参照する値
 - エンティティのアイコンはマニフェスト（Icons 節）と画像ファイルで管理する。File は `icons/<Key>.png` 固定、Sha256・Bytes は実ファイルとの一致を保持する。
 - Key は `^[A-Za-z0-9_-]{1,64}$` とする（ファイル名導出の前提）。エンティティの IconKey は未設定（null または空文字）を許容し、設定時は同じ文字種とする。
 - 画像は管理ツールで登録する際にブラウザ内で正規化する。静止画は中央正方形にクロップしたうえで、クロップ領域が 128 ピクセルを超える場合は 128×128 へ縮小、以下の場合は拡大もパディングもせず原寸の正方形のまま保存する（仕様決定 AA）。アニメーション画像（GIF・APNG 入力）は全フレームへ同一規則を適用して APNG で保存し、File・MIME の規約は PNG と同じ `icons/<Key>.png`・`image/png` とする（仕様決定 AA）。
+- IconKey 未設定のレシピは主出力（`RecipeOutput` の `SortOrder` 最小行）アイテムの IconKey を実効キーとする（仕様決定 CX）。マニフェスト未収録のキーも `icons/<Key>.png` の実ファイルがあれば解決する（仕様決定 CY）。
 - IconKey 未設定・解決不能の場合はプレースホルダ表示とする。
 
 ## 6. アーキテクチャ
@@ -352,7 +353,7 @@ EF Core・SQLite・Layout・WPF・旧 JSON 相互互換は移植しない。
 ## 11. 関連ドキュメント
 
 - [decision-records.md](decision-records.md): 仕様上の判断事項（新番号体系）
-- 旧リポジトリの決定記録: [`Endfield-AIC-Planner` docs/decision-records.md](https://github.com/Tkg-tamagohan/Endfield-AIC-Planner/blob/dev/webification/docs/decision-records.md)（「旧 BA」等で参照）
+- 旧リポジトリの決定記録（「旧 X」の出典）: `phases/implementation-plan-phase41.md` §4 に集約する（仕様決定 CT）
 
 ## 12. 未決事項
 
