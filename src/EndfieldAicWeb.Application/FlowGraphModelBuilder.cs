@@ -23,6 +23,8 @@ public enum FlowGraphEdgeKind
 /// グラフのノード。描画側がラベル・アイコン・強調をそのまま使えるよう表示用の値を保持する。
 /// RefId はリスト行へのスクロール対象（ItemId または FacilityId）。
 /// GatheredPerMinute は計画内の採取供給量（採取ノード廃止後の緑化判定、仕様決定 BO）。
+/// IsSpecifiedBase・ExternalProcuredPerMinute は基礎素材指定による外部調達（青色ノードと
+/// メタ行の併記、仕様決定 DB）。
 /// </summary>
 public sealed record FlowGraphNode(
     string Id,
@@ -37,6 +39,8 @@ public sealed record FlowGraphNode(
     double UnmetPerMinute,
     double SurplusPerMinute,
     double GatheredPerMinute,
+    bool IsSpecifiedBase,
+    double ExternalProcuredPerMinute,
     string? Note,
     IReadOnlyList<FlowGraphDisposal> Disposals);
 
@@ -101,12 +105,16 @@ public static partial class FlowGraphModelBuilder
         ContextFilter context,
         IReadOnlyList<ProductionTarget> targets,
         bool unadjusted,
-        bool expandFacilities = false)
+        bool expandFacilities = false,
+        IReadOnlyCollection<string>? specifiedBaseItemIds = null)
     {
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(targets);
+
+        // 基礎素材指定のアイテム集合。呼び出し側（計算パネル）が計算へ渡した指定をそのまま渡す（仕様決定 CZ）。
+        var specifiedBaseItems = new HashSet<string>(specifiedBaseItemIds ?? [], StringComparer.Ordinal);
 
         // 未調整ビューの倍率はラン単位（環境ランはカバー配分で個別に絞られるため、BR）。
         IReadOnlyList<double> runScales = unadjusted
@@ -415,6 +423,12 @@ public static partial class FlowGraphModelBuilder
                 : req.Supplies
                     .Where(s => s.Kind == SupplyKind.Gathered)
                     .Sum(s => s.AmountPerMinute);
+            // 基礎素材指定の外部調達も同じくノード属性（仕様決定 DB）。
+            double externalProcuredPerMinute = req is null
+                ? 0
+                : req.Supplies
+                    .Where(s => s.Kind == SupplyKind.ExternalProcurement)
+                    .Sum(s => s.AmountPerMinute);
             // 処理消費のあるアイテムは処理設備・台数・処理量を保持する（CD）。
             IReadOnlyList<FlowGraphDisposal> disposals = [];
             if (disposalByItem.TryGetValue(itemId, out List<(int RunIndex, double PerMinute)>? entries))
@@ -442,6 +456,8 @@ public static partial class FlowGraphModelBuilder
                 req?.UnmetPerMinute ?? 0,
                 surplusByItem.GetValueOrDefault(itemId),
                 gatheredPerMinute,
+                specifiedBaseItems.Contains(itemId),
+                externalProcuredPerMinute,
                 null,
                 disposals);
         }
@@ -470,7 +486,7 @@ public static partial class FlowGraphModelBuilder
                     nodes[unitNodeId] = new FlowGraphNode(
                         unitNodeId, FlowGraphNodeKind.Facility,
                         facility?.Name ?? facilityId, facility?.IconKey, facilityId,
-                        0, 0, false, 0, 0, 0, 0, unitNote, []);
+                        0, 0, false, 0, 0, 0, 0, false, 0, unitNote, []);
                 }
                 continue;
             }
@@ -486,7 +502,7 @@ public static partial class FlowGraphModelBuilder
             nodes[facilityNodeId] = new FlowGraphNode(
                 facilityNodeId, FlowGraphNodeKind.Facility,
                 facility?.Name ?? facilityId, facility?.IconKey, facilityId,
-                0, 0, false, 0, 0, 0, 0, note, []);
+                0, 0, false, 0, 0, 0, 0, false, 0, note, []);
         }
 
         (Dictionary<string, int> rank, Dictionary<string, int> order) = AssignRanks(

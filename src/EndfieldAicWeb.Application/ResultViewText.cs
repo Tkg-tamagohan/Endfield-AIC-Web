@@ -43,6 +43,7 @@ public static class ResultViewText
             SupplyKind.Recipe => $"レシピ {snapshot.RecipeLabel(portion.RecipeId!)} {amount}",
             SupplyKind.Byproduct => $"副産物 {snapshot.RecipeLabel(portion.RecipeId!)} {amount}",
             SupplyKind.Gathered => $"採取 {amount}",
+            SupplyKind.ExternalProcurement => $"外部調達 {amount}",
             _ => "",
         };
     }

@@ -401,10 +401,13 @@ public static class ResultViewBuilder
 
         // 採取（外部調達）の供給も需要の充当に含める。採取＋レシピの併存供給で
         // 生産分だけを見ると余剰が過小になるため（仕様決定 AD で併存が生じた）。
+        // 基礎素材指定の外部調達も同じ帳簿として充当する（仕様決定 DB、暫定解釈 3）。
         var gatheredByItem = plan.ItemRequirements
             .ToDictionary(
                 r => r.ItemId,
-                r => r.Supplies.Where(s => s.Kind == SupplyKind.Gathered).Sum(s => s.AmountPerMinute),
+                r => r.Supplies
+                    .Where(s => s.Kind is SupplyKind.Gathered or SupplyKind.ExternalProcurement)
+                    .Sum(s => s.AmountPerMinute),
                 StringComparer.Ordinal);
 
         // 計画の需要に含まれる処理消費（スケールなし=計画値）とスケール後の処理消費。
