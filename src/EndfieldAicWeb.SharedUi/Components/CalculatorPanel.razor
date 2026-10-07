@@ -183,6 +183,12 @@
                                 }
                             </select>
                         }
+                        @if (IsBaseMaterialRow(m.ItemId))
+                        {
+                            <label class="check">
+                                <input type="checkbox" checked="@_specifiedBaseItemIds.Contains(m.ItemId)" @onchange="e => OnBaseMaterialToggled(m.ItemId, e)" /> 基礎素材
+                            </label>
+                        }
                     </div>
                 </div>
             }
@@ -304,6 +310,12 @@
     /// <summary>ユーザーが選んだペア上書き（アイテム Id → 候補）。既定 = キーなし。</summary>
     private readonly Dictionary<string, PairOption> _pairOverrides = new(StringComparer.Ordinal);
 
+    /// <summary>基礎素材に指定したアイテム Id の集合（仕様決定 CZ・DA）。再計算をまたいで保持する。</summary>
+    private readonly HashSet<string> _specifiedBaseItemIds = new(StringComparer.Ordinal);
+
+    /// <summary>現在の計算目標のアイテム Id 集合。基礎素材指定の母集団判定に使う。</summary>
+    private readonly HashSet<string> _targetItemIds = new(StringComparer.Ordinal);
+
     private MasterDataSnapshot? _snapshot;
     private CalculationOutcome? _outcome;
     private ResultView? _view;
@@ -419,6 +431,26 @@
         Recalculate();
     }
 
+    // 基礎素材トグルの切替。ペア変更と同じく即時に再計算する（仕様決定 DA）。
+    private void OnBaseMaterialToggled(string itemId, ChangeEventArgs e)
+    {
+        if (e.Value is true)
+        {
+            _specifiedBaseItemIds.Add(itemId);
+        }
+        else
+        {
+            _specifiedBaseItemIds.Remove(itemId);
+        }
+
+        Recalculate();
+    }
+
+    // 基礎素材トグルは母集団（レシピ成果物かつ非採取・非仮想）かつ目標外の行にだけ出す（仕様決定 DA）。
+    private bool IsBaseMaterialRow(string itemId) =>
+        _snapshot is not null
+        && CalculationInputBuilder.IsBaseMaterialCandidate(itemId, _snapshot, _targetItemIds);
+
     // 有効イベント・マップ候補・散布機行の索引は RefreshEventViews・再計算で組み立てたキャッシュを使う（Phase 38）。
     private IReadOnlyCollection<string> _activeGameEventIds = [];
     private IReadOnlyList<GameMap> _mapCandidates = [];
@@ -508,6 +540,16 @@
             return;
         }
 
+        _targetItemIds.Clear();
+        foreach (ProductionTarget target in targets)
+        {
+            _targetItemIds.Add(target.ItemId);
+        }
+
+        // 基礎素材指定は再計算をまたいで保持するが、目標との重複は自動解除し、
+        // 母集団外へ出た指定は自動破棄する（仕様決定 DA）。
+        CalculationInputBuilder.ReconcileSpecifiedBaseItems(_specifiedBaseItemIds, _snapshot, _targetItemIds);
+
         _envError = null;
         if (!CalculationInputBuilder.TryParseEnvironmentCounts(
                 _envInputs.Select(r => new EnvCountInput(r.Env.Id, r.Env.Name, r.CountText, r.Min, r.Max)),
@@ -523,6 +565,7 @@
         {
             ActiveGameEventIds = _activeGameEventIds,
             MapId = _mapId,
+            SpecifiedBaseItemIds = _specifiedBaseItemIds.ToList(),
         };
         List<GatherRateOverride> gatherOverrides = [];
         if (_mapId is not null && MapSelection.IsAvailable(_snapshot, _mapId, _activeGameEventIds))
@@ -623,7 +666,8 @@
             _view = ResultViewBuilder.Build(_outcome.Plan, _snapshot, _context, _unadjusted);
             // グラフは常に構築する（仕様決定 BC）。表示は WebGPU 利用可否と開閉状態で制御する。
             _flowModel = FlowGraphModelBuilder.Build(
-                _outcome.Plan, _snapshot, _context, _targets, _unadjusted, _graphExpandFacilities);
+                _outcome.Plan, _snapshot, _context, _targets, _unadjusted, _graphExpandFacilities,
+                _specifiedBaseItemIds);
         }
     }
 

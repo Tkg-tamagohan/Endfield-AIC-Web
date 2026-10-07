@@ -197,6 +197,11 @@
         {
             cls += " fnode-disposal";
         }
+        // 基礎素材に指定されたアイテムは青系の fnode-base を併用する（仕様決定 DB）。
+        if (n.IsSpecifiedBase)
+        {
+            cls += " fnode-base";
+        }
         if (n.IsTarget)
         {
             cls += " fnode-target";
@@ -232,6 +237,11 @@
         if (n.GatheredPerMinute > 1e-9)
         {
             parts.Add($"採取 {FmtRate(n.GatheredPerMinute)}");
+        }
+        // 基礎素材指定の外部調達量を併記する（仕様決定 DB。0 のときは出さない、暫定解釈 2）。
+        if (n.ExternalProcuredPerMinute > 1e-9)
+        {
+            parts.Add($"外部調達 {FmtRate(n.ExternalProcuredPerMinute)}");
         }
         // 処理消費は「処理 〈設備名〉×〈台数〉・〈処理量〉」の形で併記する（仕様決定 CD・暫定解釈 4）。
         if (n.Disposals.Count > 0)

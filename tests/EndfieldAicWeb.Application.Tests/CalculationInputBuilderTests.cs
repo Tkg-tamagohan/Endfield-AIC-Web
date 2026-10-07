@@ -363,6 +363,52 @@ public class GatherRateParseTests
     }
 }
 
+/// <summary>BAS-16: 基礎素材指定の保持値整合（仕様決定 DA、CZ の母集団判定）。</summary>
+public class SpecifiedBaseItemReconcileTests
+{
+    // i-mid・i-absent は母集団（レシピ成果物かつ非採取・非仮想・非目標）。
+    // i-gath は採取素材、i-virt は仮想アイテム、i-noout は成果物なし、i-ghost は未登録、i-target は目標。
+    private static readonly MasterDataSnapshot Snapshot = ApplicationFixtures.Snapshot(
+        [
+            ApplicationFixtures.Item("i-ore", "鉱石", gatherable: true),
+            ApplicationFixtures.Item("i-mid", "中間素材"),
+            ApplicationFixtures.Item("i-absent", "計画外の素材"),
+            ApplicationFixtures.Item("i-gath", "採取化した素材", gatherable: true),
+            ApplicationFixtures.Item("i-virt", "仮想素材", TransportKind.None),
+            ApplicationFixtures.Item("i-noout", "成果物でない素材"),
+            ApplicationFixtures.Item("i-target", "目標素材"),
+        ],
+        [ApplicationFixtures.Facility("f-a", "機A", 10)],
+        [], [],
+        [
+            ApplicationFixtures.Recipe("r-mid", "中間素材", [("i-ore", 1)], [("i-mid", 1)],
+                [ApplicationFixtures.Pair("f-a", 4)]),
+            ApplicationFixtures.Recipe("r-absent", "計画外の素材", [("i-ore", 1)], [("i-absent", 1)],
+                [ApplicationFixtures.Pair("f-a", 4)]),
+            ApplicationFixtures.Recipe("r-gath", "採取化した素材", [("i-ore", 1)], [("i-gath", 1)],
+                [ApplicationFixtures.Pair("f-a", 4)]),
+            ApplicationFixtures.Recipe("r-virt", "仮想素材", [("i-ore", 1)], [("i-virt", 1)],
+                [ApplicationFixtures.Pair("f-a", 4)]),
+            ApplicationFixtures.Recipe("r-target", "目標素材", [("i-ore", 1)], [("i-target", 1)],
+                [ApplicationFixtures.Pair("f-a", 4)]),
+        ]);
+
+    // BAS-16: 母集団外（採取化・削除・成果物消失・仮想）と目標重複の保持値は整合で外れ、
+    // 計画に登場しない指定は保持される。
+    [Fact]
+    public void ReconcileDropsOutOfPopulationAndTargets()
+    {
+        var specified = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "i-gath", "i-ghost", "i-noout", "i-virt", "i-target", "i-mid", "i-absent",
+        };
+
+        CalculationInputBuilder.ReconcileSpecifiedBaseItems(specified, Snapshot, ["i-target"]);
+
+        Assert.Equal(["i-absent", "i-mid"], specified.Order(StringComparer.Ordinal));
+    }
+}
+
 /// <summary>FIL: アイテム検索の選択解除判定（docs/phases/test-specification-phase4.md MN-10）。</summary>
 public class ItemDeselectTests
 {

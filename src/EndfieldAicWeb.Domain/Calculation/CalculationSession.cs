@@ -36,6 +36,12 @@ internal sealed partial class CalculationSession
     /// <summary>需要が発生した順のアイテム列。</summary>
     internal readonly List<string> DemandOrder = [];
 
+    /// <summary>
+    /// 基礎素材として指定されたアイテムの集合（仕様決定 CZ）。
+    /// 展開の打ち切り判定と集計時の供給種別の振り分けに使う。構築時にコンテキストから複製する。
+    /// </summary>
+    internal readonly HashSet<string> SpecifiedBaseItemIds;
+
     /// <summary>環境消費・固定消費として需要へ追加済みの量（個/分）。収束判定に使う。</summary>
     internal readonly Dictionary<string, double> ExtraApplied = new(StringComparer.Ordinal);
 
@@ -55,6 +61,7 @@ internal sealed partial class CalculationSession
         _gatherOverrides = gatherOverrides;
         _display = new EntityDisplay(master);
         _gatherCaps = GatherCapResolver.Resolve(master, context, gatherOverrides, Warnings);
+        SpecifiedBaseItemIds = new HashSet<string>(context.SpecifiedBaseItemIds, StringComparer.Ordinal);
 
         // 散布機台数の上書きを機械数上限へ展開する（仕様決定 BR）。
         // 同一環境へ複数上書きされたときは先勝ち（ComputeCounts の FirstOrDefault と同じ評価）。

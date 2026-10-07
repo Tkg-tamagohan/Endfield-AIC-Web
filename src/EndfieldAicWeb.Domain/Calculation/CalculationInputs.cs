@@ -42,6 +42,12 @@ public sealed record ContextFilter
 
     /// <summary>選択されたマップの Id。null は未選択（全採取素材を上限なしとする。仕様決定 AC）。</summary>
     public string? MapId { get; init; }
+
+    /// <summary>
+    /// 基礎素材として指定されたアイテムの Id 集合（仕様決定 CZ）。
+    /// 指定アイテムはレシピ展開を打ち切り、正味需要の全量を外部調達として計上する。
+    /// </summary>
+    public IReadOnlyCollection<string> SpecifiedBaseItemIds { get; init; } = [];
 }
 
 /// <summary>

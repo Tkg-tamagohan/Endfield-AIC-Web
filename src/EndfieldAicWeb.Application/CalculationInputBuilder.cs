@@ -304,4 +304,52 @@ public static class CalculationInputBuilder
             }
         }
     }
+
+    /// <summary>
+    /// 基礎素材の指定対象（母集団）か（仕様決定 CZ・DA）。
+    /// レシピ成果物として登場し、採取素材でなく、仮想アイテム（TransportKind.None）でもない
+    /// アイテムが対象。計算目標のアイテムは指定できない。
+    /// 母集団の判定は生産リストの候補規則（仕様決定 AT）と同型にスナップショットのレシピ成果物で行う。
+    /// </summary>
+    public static bool IsBaseMaterialCandidate(
+        string itemId, MasterDataSnapshot snapshot, IReadOnlyCollection<string> targetItemIds)
+    {
+        ArgumentNullException.ThrowIfNull(itemId);
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(targetItemIds);
+
+        if (targetItemIds.Contains(itemId))
+        {
+            return false;
+        }
+
+        return snapshot.ItemsById.TryGetValue(itemId, out Item? item)
+            && !item.IsGatherable
+            && item.TransportKind != TransportKind.None
+            && snapshot.RecipesByOutputItemId.ContainsKey(itemId);
+    }
+
+    /// <summary>
+    /// 再計算をまたいで保持する基礎素材指定を、現在のスナップショットと目標に整合させる。
+    /// 目標と重複した指定は自動解除し、母集団外へ出た指定（アイテムの削除・採取素材化・
+    /// レシピ成果物でなくなった・仮想アイテム化）は自動破棄する（仕様決定 DA）。
+    /// 計画に登場しない指定は母集団内にある限り保持し、登場時に再適用する（AH と同型）。
+    /// </summary>
+    public static void ReconcileSpecifiedBaseItems(
+        ISet<string> specifiedItemIds,
+        MasterDataSnapshot snapshot,
+        IReadOnlyCollection<string> targetItemIds)
+    {
+        ArgumentNullException.ThrowIfNull(specifiedItemIds);
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(targetItemIds);
+
+        foreach (string itemId in specifiedItemIds.ToList())
+        {
+            if (!IsBaseMaterialCandidate(itemId, snapshot, targetItemIds))
+            {
+                specifiedItemIds.Remove(itemId);
+            }
+        }
+    }
 }

@@ -35,6 +35,12 @@ public sealed class CalculationService
         var options = new Dictionary<string, IReadOnlyList<PairOption>>(StringComparer.Ordinal);
         foreach (ItemRequirement requirement in plan.ItemRequirements)
         {
+            // 基礎素材に指定されたアイテムはレシピを選ばないため、ペア代替の候補を出さない（仕様決定 CZ）。
+            if (context.SpecifiedBaseItemIds.Contains(requirement.ItemId))
+            {
+                continue;
+            }
+
             List<PairOption> list = PairSelector
                 .ListCandidates(requirement.ItemId, snapshot, context)
                 .Select(c => new PairOption(
