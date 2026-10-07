@@ -18,7 +18,7 @@ public static class IconKeyFallback
         ArgumentNullException.ThrowIfNull(entity);
         ArgumentNullException.ThrowIfNull(findItem);
 
-        if (entity.IconKey is not null)
+        if (!string.IsNullOrEmpty(entity.IconKey))
         {
             return entity.IconKey;
         }

@@ -3,12 +3,15 @@
 Endfield-AIC-Web での作業に適用するリポジトリ固有の規約。
 組織共通ルールは shared-skills プラグインの AGENTS.md に従う。
 
-## 移植元 Planner の先行資産を参照する
+## 移植元リポジトリの扱い
 
 - 本リポジトリは旧デスクトップ版 `Tkg-tamagohan/Endfield-AIC-Planner`（WPF、凍結済み）の Web 移植である。
-- 要件・仕様決定・実データ（`data/default_master.json`）・アイコン（`data/icons/`、`icon-item-<slug>` / `icon-fac-<slug>` 規約）・運用文書が Planner 側に先行して存在する。
-- 移植・挙動確認・文書作成の前に Planner リポジトリの `docs/`・`data/` を参照する。参照実装は Planner の Domain/Calculation/Validation 層。
-- 文書フォーマット（実装計画・決定記録・テスト仕様書の構成）は Planner の同名文書に倣う。
+- 移植は完了しており、仕様の正は本リポジトリの `docs/requirements.md` と `docs/decision-records.md` のみとする（仕様決定 CV）。
+- 旧リポジトリ由来の決定は効力を持つもののみ `docs/decision-records.md` の番号へ統合済みで、新旧番号の対応は `docs/phases/implementation-plan-phase41.md` §4 の対応表に集約する（仕様決定 CT）。
+- 旧番号での検索はこの対応表を読み替えの鍵に使う。
+- 旧リポジトリは GitHub Archive 処置とする（仕様決定 CW）。
+- 挙動確認や文書作成で旧リポジトリの docs や data、スキルを参照しない。
+- 文書フォーマット（実装計画、決定記録、テスト仕様書の構成）は本リポジトリ `docs/` 配下の先例に従う。
 
 ## フェーズ実装は計画書とテスト仕様書から始める
 

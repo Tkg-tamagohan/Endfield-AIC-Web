@@ -9,7 +9,7 @@ namespace EndfieldAicWeb.App.Services;
 /// <summary>
 /// マスタ JSON に記載されたアイコンを取得・解決するカタログ。
 /// マニフェスト記載キーは Sha256/Bytes 一致でのみ採用し、記載外の参照キーは
-/// ファイル名規約 <c>data/icons/&lt;Key&gt;.png</c> で拾う（旧 AP の挙動、仕様決定 R）。
+/// ファイル名規約 <c>data/icons/&lt;Key&gt;.png</c> で拾う（仕様決定 R・CY）。
 /// 取得できないキーは解決結果 null＝プレースホルダ表示に落ちる。
 /// </summary>
 public sealed class IconCatalog : ICalculatorIcons

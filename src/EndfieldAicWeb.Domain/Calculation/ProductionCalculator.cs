@@ -5,7 +5,7 @@ namespace EndfieldAicWeb.Domain.Calculation;
 
 /// <summary>
 /// 生産計画の計算（需要展開・副産物充当・設備台数・環境計上・固定消費・流量調整）を行う。
-/// 骨格は旧 ProductionCalculator の Session（展開→引き戻しの固定点反復）を移植したもので、
+/// 骨格は移植元の計算セッション（展開→引き戻しの固定点反復）を継承したもので、
 /// ペア選択（F/U）・環境計上（I）・固定消費（J/V）・イベント不可扱い（T/X）・収束反復を含む。
 /// 公開 API と共有の定数・小ヘルパーのみを持ち、計算状態は <see cref="CalculationSession"/>、
 /// 結果の組み立ては <see cref="ProductionPlanAggregator"/>、採取上限の解決は <see cref="GatherCapResolver"/> が担う。

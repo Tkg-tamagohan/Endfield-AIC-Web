@@ -128,6 +128,16 @@ public class AdminIconTests
     }
 
     [Fact]
+    public void ADM13_キー空文字のレシピも主出力アイテムへフォールバックする()
+    {
+        AdminDocumentService service = I01Loaded();
+        Recipe recipe = service.Document!.Recipes.Single(r => r.Id == "r-part");
+        recipe.IconKey = "";
+
+        Assert.Equal("icon-part", service.EffectiveIconKey(recipe));
+    }
+
+    [Fact]
     public void ADM06_正常なzipエクスポートは参照分のアイコンを含み孤立エントリを落とす()
     {
         AdminDocumentService service = I01Loaded();
