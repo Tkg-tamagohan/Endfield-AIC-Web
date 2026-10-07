@@ -117,6 +117,14 @@
     border-color: #5A3F73;
 }
 
+/* 基礎素材に指定されたアイテムノードは青系（仕様決定 DB、BO の緑化と同型）。
+   記述順は disposal の後・target/alert の前: 背景・基本枠色は青が優先され、
+   目標の橙枠・未充足の赤枠はさらに上から効く（暫定解釈 5）。 */
+.fnode-base {
+    background: #16222F;
+    border-color: #3E6694;
+}
+
 .fnode-target {
     border-color: var(--accent);
     box-shadow: 0 0 0 1px rgba(242, 163, 60, .45), 0 2px 10px rgba(0, 0, 0, .35);
