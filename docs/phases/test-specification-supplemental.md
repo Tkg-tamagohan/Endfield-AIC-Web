@@ -51,8 +51,9 @@ Phase 仕様書の既存 prefix を継ぐ続番を §2-1、Phase 外で新設さ
 | ADM-13 | エクスポート開始後に失敗した読み込みを挟んでも完了記録はダーティを落とす | 同上 | PR #90 のレビュー対応。同上 |
 | DSP-27 | 処理ランと再利用消費は同じアイテムノードに同居する | tests/EndfieldAicWeb.Application.Tests/FlowGraphModelBuilderTests.Disposal.cs | phase32 帰属・W3 解消 |
 | DSP-28 | 兼用設備の台数分表示は占有スロットのユニットのみを出し、処理ランはユニット割当対象外 | 同上 | phase32 帰属・W3 解消 |
+| ADM-19 | レシピと主出力がともに IconKey 空文字なら実効キーは null を返す（プレースホルダ表示。仕様決定 CX） | tests/EndfieldAicWeb.Admin.Tests/AdminIconTests.cs | PR #120 の Devin Review 対応 |
 
-ADM-09〜12 はアイコン系（AdminIconTests.cs、本表の既存行）と文書ダーティ管理系（AdminDocumentServiceTests.cs、仕様決定 CH・CI）で同番号の別対象である。ADM-14〜17（[test-specification-phase38.md](test-specification-phase38.md) §ADM）はダーティ管理系の続番である。
+ADM-09〜12 はアイコン系（AdminIconTests.cs、本表の既存行）と文書ダーティ管理系（AdminDocumentServiceTests.cs、仕様決定 CH・CI）で同番号の別対象である。ADM-14〜17（[test-specification-phase38.md](test-specification-phase38.md) §ADM）はダーティ管理系の続番である。ADM-18・ADM-19 はアイコン系だが全体採番の続番として採番し、[test-specification-phase41.md](test-specification-phase41.md) §自動テストにも登録済みである。
 
 ### 2-2. Phase 外で新設された prefix
 
