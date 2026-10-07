@@ -225,6 +225,20 @@ public class ResultTextTests
         Assert.Equal(expected, ResultViewText.SupplyText(Snapshot, portion, AmountUnit.PerMinute, default));
     }
 
+    // BAS-14: 基礎素材指定の供給は「外部調達 N」として採取と区別して表示する（仕様決定 DB）。
+    [Fact]
+    public void SupplyTextExternalProcurement()
+    {
+        var portion = new SupplyPortion(SupplyKind.ExternalProcurement, null, 60);
+
+        Assert.Equal(
+            "外部調達 60/分",
+            ResultViewText.SupplyText(Snapshot, portion, AmountUnit.PerMinute, default));
+        Assert.Equal(
+            "外部調達 1/秒",
+            ResultViewText.SupplyText(Snapshot, portion, AmountUnit.PerSecond, default));
+    }
+
     // CPH-17: 供給内訳の流量は表示単位と接尾辞に従う。
     [Fact]
     public void SupplyTextFollowsUnit()

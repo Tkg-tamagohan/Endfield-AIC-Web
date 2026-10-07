@@ -76,6 +76,29 @@ public class CalculationServiceTests
         Assert.Empty(outcome.Plan.EnvironmentRequirements);
     }
 
+    // BAS-13: 基礎素材に指定したアイテムにはペア候補を出さない（仕様決定 CZ）。
+    [Fact]
+    public void SpecifiedItemHasNoPairOptions()
+    {
+        MasterDataSnapshot snapshot = ApplicationFixtures.A01();
+        var context = new ContextFilter { SpecifiedBaseItemIds = ["i-part"] };
+
+        CalculationOutcome outcome = _service.Calculate(
+            snapshot,
+            [new ProductionTarget("i-part", 60)],
+            context,
+            [],
+            [],
+            []);
+
+        Assert.False(outcome.PairOptionsByItemId.ContainsKey("i-part"));
+        Assert.Equal(
+            60,
+            Assert.Single(outcome.Plan.ItemRequirements, r => r.ItemId == "i-part")
+                .Supplies.Where(s => s.Kind == SupplyKind.ExternalProcurement)
+                .Sum(s => s.AmountPerMinute));
+    }
+
     // SVC-04: MapId と gatherOverrides が計算へ渡る。
     [Fact]
     public void AppliesGatherMapAndRateOverrides()

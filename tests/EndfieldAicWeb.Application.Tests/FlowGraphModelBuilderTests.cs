@@ -12,13 +12,14 @@ public partial class FlowGraphModelBuilderTests
         bool unadjusted = false,
         bool expandFacilities = false,
         ContextFilter? context = null,
+        IReadOnlyCollection<string>? specifiedBaseItemIds = null,
         params ProductionTarget[] targets)
     {
         ContextFilter ctx = context ?? new ContextFilter();
         ProductionPlan plan = ProductionCalculator.Calculate(
             snapshot, targets, ctx, [], [], []);
         return (plan, FlowGraphModelBuilder.Build(
-            plan, snapshot, ctx, targets, unadjusted, expandFacilities));
+            plan, snapshot, ctx, targets, unadjusted, expandFacilities, specifiedBaseItemIds));
     }
 
     private static FlowGraphNode Node(FlowGraphModel model, string id) =>

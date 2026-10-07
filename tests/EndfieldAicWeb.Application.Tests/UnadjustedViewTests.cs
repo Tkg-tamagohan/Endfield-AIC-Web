@@ -196,6 +196,51 @@ public class UnadjustedViewTests
         Assert.Equal(7.5 * (5.0 / 4.5), Supply(view, "i-nc"), 6);
     }
 
+    /// <summary>BAS-15 用。r-main が i-mid を副産し、r-use が i-mid を消費する（i-mid は基礎素材指定）。</summary>
+    private static MasterDataSnapshot SpecifiedByproductFixture() => ApplicationFixtures.Snapshot(
+        [
+            ApplicationFixtures.Item("i-ore", "鉄鉱石", gatherable: true),
+            ApplicationFixtures.Item("i-mid", "中間素材"),
+            ApplicationFixtures.Item("i-main", "主産物"),
+            ApplicationFixtures.Item("i-use", "加工品"),
+        ],
+        [
+            ApplicationFixtures.Facility("f-a", "製造機", 10),
+            ApplicationFixtures.Facility("f-use", "加工機", 10),
+        ],
+        [], [],
+        [
+            ApplicationFixtures.Recipe("r-main", "主産物", [("i-ore", 1)], [("i-main", 1), ("i-mid", 2)],
+                [ApplicationFixtures.Pair("f-a", 4)]),
+            ApplicationFixtures.Recipe("r-use", "加工品", [("i-mid", 4)], [("i-use", 1)],
+                [ApplicationFixtures.Pair("f-use", 6)]),
+        ]);
+
+    // BAS-15: 未調整ビューでも基礎素材指定の外部調達を充当に含めて余剰を再計算する
+    // （仕様決定 DB・暫定解釈 3）。
+    // 計画上の i-mid は副産物 20/分 + 外部調達 20/分（需要 40/分）。未調整では f-a が
+    // 2/3 台 → 1 台で倍率 1.5 となり副産物は 30/分に増える。外部調達 20/分を含めると
+    // 供給 50/分・需要 40/分で余剰 10/分になる（外部調達を除外すると余剰は出ない）。
+    [Fact]
+    public void UnadjustedSurplusIncludesExternalProcurement()
+    {
+        var context = new ContextFilter { SpecifiedBaseItemIds = ["i-mid"] };
+        ProductionPlan plan = ProductionCalculator.Calculate(
+            SpecifiedByproductFixture(),
+            [new ProductionTarget("i-use", 10), new ProductionTarget("i-main", 10)],
+            context, [], [], []);
+        ResultView view = ResultViewBuilder.Build(
+            plan, SpecifiedByproductFixture(), context, unadjusted: true);
+
+        MaterialViewRow row = Assert.Single(view.Materials, m => m.ItemId == "i-mid");
+        Assert.Equal(
+            20,
+            row.Supplies.Where(s => s.Kind == SupplyKind.ExternalProcurement).Sum(s => s.AmountPerMinute),
+            6);
+        SurplusProduction surplus = Assert.Single(view.Surpluses, s => s.ItemId == "i-mid");
+        Assert.Equal(10, surplus.ExcessPerMinute, 6);
+    }
+
     private static double Supply(ResultView view, string itemId) =>
         Assert.Single(view.Materials, m => m.ItemId == itemId).Supplies.Sum(s => s.AmountPerMinute);
 
