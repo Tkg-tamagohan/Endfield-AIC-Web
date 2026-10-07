@@ -138,6 +138,17 @@ public class AdminIconTests
     }
 
     [Fact]
+    public void ADM19_主出力側もキー空文字ならフォールバック先はnullになる()
+    {
+        AdminDocumentService service = I01Loaded();
+        Recipe recipe = service.Document!.Recipes.Single(r => r.Id == "r-part");
+        recipe.IconKey = "";
+        service.Document.Items.Single(i => i.Id == "i-part").IconKey = "";
+
+        Assert.Null(service.EffectiveIconKey(recipe));
+    }
+
+    [Fact]
     public void ADM06_正常なzipエクスポートは参照分のアイコンを含み孤立エントリを落とす()
     {
         AdminDocumentService service = I01Loaded();

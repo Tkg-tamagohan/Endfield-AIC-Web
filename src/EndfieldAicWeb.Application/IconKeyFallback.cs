@@ -29,6 +29,7 @@ public static class IconKeyFallback
         }
 
         RecipeOutput? main = recipe.Outputs.OrderBy(o => o.SortOrder).FirstOrDefault();
-        return main is null ? null : findItem(main.ItemId)?.IconKey;
+        string? key = main is null ? null : findItem(main.ItemId)?.IconKey;
+        return string.IsNullOrEmpty(key) ? null : key;
     }
 }
