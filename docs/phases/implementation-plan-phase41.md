@@ -127,5 +127,5 @@
 
 レビューで発覚した実装と仕様の差分。
 
-- `IconKeyFallback.EffectiveIconKey` は IconKey が空文字のレシピに主出力フォールバックを適用しない（requirements §5.11 は null または空文字を未設定と定義。仕様決定 CX に差分として記録済み）。ユーザー判断で本 Phase の実装で修正する（`!string.IsNullOrEmpty` 判定へ追従＋回帰テスト ADM-13）
+- `IconKeyFallback.EffectiveIconKey` は IconKey が空文字のレシピに主出力フォールバックを適用しない（requirements §5.11 は null または空文字を未設定と定義。仕様決定 CX に差分として記録済み）。ユーザー判断で本 Phase の実装で修正する（`!string.IsNullOrEmpty` 判定へ追従＋回帰テスト ADM-18。Admin のアイコン編集ヒントも同一判定へ追従）
 - `AdminDocumentService.FetchIconsAsync` は URL 読み込みでマニフェスト収録分のみ取得するため、収録外キーは ZIP 読み込み・公開アプリと結果が異なる（CY は取得済みファイルへの解決規則であり、取得拡張の要否は別途判断）

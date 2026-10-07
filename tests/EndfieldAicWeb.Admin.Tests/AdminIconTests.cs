@@ -128,7 +128,7 @@ public class AdminIconTests
     }
 
     [Fact]
-    public void ADM13_キー空文字のレシピも主出力アイテムへフォールバックする()
+    public void ADM18_キー空文字のレシピも主出力アイテムへフォールバックする()
     {
         AdminDocumentService service = I01Loaded();
         Recipe recipe = service.Document!.Recipes.Single(r => r.Id == "r-part");

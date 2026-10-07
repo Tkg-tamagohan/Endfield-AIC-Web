@@ -23,7 +23,7 @@
             </label>
             <button class="btn small" @onclick="Clear" disabled="@(Entity.IconKey is null)">クリア</button>
         </div>
-        @if (Entity.IconKey is null && Store.EffectiveIconKey(Entity) is not null)
+        @if (string.IsNullOrEmpty(Entity.IconKey) && Store.EffectiveIconKey(Entity) is not null)
         {
             <p class="hint">主出力アイテムのアイコンが使われます。</p>
         }
