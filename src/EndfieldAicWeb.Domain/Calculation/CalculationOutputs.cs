@@ -62,6 +62,12 @@ public enum SupplyKind
 
     /// <summary>採取素材。レシピを持たない終端で外部調達扱い。</summary>
     Gathered,
+
+    /// <summary>
+    /// 基礎素材に指定されたアイテムの外部調達（仕様決定 CZ・DB）。
+    /// 帳簿上は採取（Gathered）と同じ未加工の供給分だが、表示で区別するため種別を分ける。
+    /// </summary>
+    ExternalProcurement,
 }
 
 /// <summary>

@@ -52,7 +52,11 @@ internal static class ProductionPlanAggregator
             double raw = itemInactive ? 0 : ProductionCalculator.GetOrZero(session.Raw, itemId);
             if (raw > ProductionCalculator.Epsilon)
             {
-                supplies.Add(new SupplyPortion(SupplyKind.Gathered, null, raw));
+                // 基礎素材指定の Raw は外部調達として別種別にする（仕様決定 DB）。
+                SupplyKind kind = session.SpecifiedBaseItemIds.Contains(itemId)
+                    ? SupplyKind.ExternalProcurement
+                    : SupplyKind.Gathered;
+                supplies.Add(new SupplyPortion(kind, null, raw));
             }
 
             itemRequirements.Add(new ItemRequirement(

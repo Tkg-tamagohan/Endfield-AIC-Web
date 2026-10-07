@@ -167,6 +167,15 @@ internal sealed partial class CalculationSession
             return;
         }
 
+        // 基礎素材の指定アイテムは需要展開の終端とし、正味需要の全量を外部調達（Raw）へ計上する
+        // （仕様決定 CZ）。採取分岐より先に打ち切るため、採取素材が指定集合へ混入した場合も
+        // 全量を外部調達として扱う（暫定解釈 1）。循環検出・レシピ選択・ペア上書きは行わない。
+        if (SpecifiedBaseItemIds.Contains(itemId))
+        {
+            Raw[itemId] = ProductionCalculator.GetOrZero(Raw, itemId) + net;
+            return;
+        }
+
         double remainder = net;
         if (IsGatherable(itemId))
         {
