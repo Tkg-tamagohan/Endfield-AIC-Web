@@ -462,8 +462,8 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 
 - [ ] `MasterValidator` を対象エンティティ別の partial ファイルへ verbatim 分割する（仕様決定 DD。割り当ては `phases/implementation-plan-phase44.md` §3）
 - [ ] `FlowGraphModelBuilder.AssignRanks` を層割当（Layers）・層内順序（Order）の partial ファイルへ verbatim 分割する（仕様決定 DD）
-- [ ] `dotnet build`・`dotnet test` 全緑と、移動行が追加・削除で相殺される verbatim 検査・メンバー集合不変の検査（MN-205〜）を実施する
-- **受け入れ条件**: 移動行が追加・削除で相殺される verbatim 移動で、公開 API・修飾名・挙動が不変。詳細は `phases/implementation-plan-phase44.md` と `phases/test-specification-phase44.md`。Phase 番号は 44 とする（Phase 43 文書で 43 を採番済み）。
+- [ ] `dotnet build`・`dotnet test` 全緑と、メンバー単位の verbatim 比較（行順を含む）・メンバー集合不変の検査（MN-205〜）を実施する
+- **受け入れ条件**: メンバーブロックが verbatim で一致する移動で、公開 API・修飾名・挙動が不変。詳細は `phases/implementation-plan-phase44.md` と `phases/test-specification-phase44.md`。Phase 番号は 44 とする（Phase 43 文書で 43 を採番済み）。
 
 
 ## 5. 実装メモ・規約
