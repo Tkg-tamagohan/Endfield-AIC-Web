@@ -11,7 +11,7 @@
 
 | ID | 対象 | 内容 | 期待 |
 |---|---|---|---|
-| MN-205 | MasterValidator 分割の verbatim 性 | (a) メンバーブロック比較: 後述のスクリプトで、元ファイル `main:src/EndfieldAicWeb.Domain/Validation/MasterValidator.cs` と分割後ファイル群 `src/EndfieldAicWeb.Domain/Validation/MasterValidator*.cs` のメンバーブロック集合を比較する。(b) 行多重集合比較: `diff <(git diff main...HEAD -- 'src/EndfieldAicWeb.Domain/Validation/MasterValidator*.cs' | grep '^-' | grep -v '^---' | cut -c2- | sort) <(git diff main...HEAD -- 'src/EndfieldAicWeb.Domain/Validation/MasterValidator*.cs' | grep '^+' | grep -v '^+++' | cut -c2- | sort)` | (a) メンバーブロックの集合が一致（各メンバー内の行順・内容が verbatim で、集合として過不足なし）。(b) 移動行は削除と追加で相殺され、差分として残るのは partial 化に伴う行のみ（各ファイルの `using`・`namespace` 宣言・`partial class` 宣言・閉じ括弧） |
+| MN-205 | MasterValidator 分割の verbatim 性 | (a) メンバーブロック比較: 後述のスクリプトで、元ファイル `main:src/EndfieldAicWeb.Domain/Validation/MasterValidator.cs` と分割後ファイル群 `src/EndfieldAicWeb.Domain/Validation/MasterValidator*.cs` のメンバーブロック集合を比較する（不一致時は終了コード 1）。(b) 行多重集合比較: `diff <(git diff main...HEAD -- 'src/EndfieldAicWeb.Domain/Validation/MasterValidator*.cs' | grep '^-' | grep -v '^---' | cut -c2- | sort) <(git diff main...HEAD -- 'src/EndfieldAicWeb.Domain/Validation/MasterValidator*.cs' | grep '^+' | grep -v '^+++' | cut -c2- | sort)` で得た差分出力を確認する | (a) `identical=True`・終了コード 0。(b) 差分出力は空ではなく、`<` 側（追加側に対応行がない削除行）は `partial` 化で置き換わった元の `class` 宣言行のみ、`>` 側（削除側に対応行がない追加行）は partial 化に伴う行のみ（`using `・`namespace `・`class ` 宣言・`{`・`}`・空行）であること。機械判定は `diff ... | grep '^< ' | grep -vE '^< *.*class '` と `diff ... | grep '^> ' | grep -vE '^> *(using |namespace |.*class |\{|\}|\s*$)'` がともに出力なし |
 | MN-206 | AssignRanks 分割の verbatim 性 | MN-205 と同じ 2 段手順を `src/EndfieldAicWeb.Application/Graph/FlowGraphModelBuilder.AssignRanks*.cs`（Phase 43 未マージ時は `src/EndfieldAicWeb.Application/FlowGraphModelBuilder.AssignRanks*.cs`）に対して行う | MN-205 と同じ許容基準 |
 | MN-207 | 公開 API・修飾名の不変 | 実施前後で `rg '^\s*(public|internal)\s' src/EndfieldAicWeb.Domain/Validation/MasterValidator*.cs | sort` と `rg '^\s*(public|internal)\s' -g 'FlowGraphModelBuilder.AssignRanks*.cs' src/EndfieldAicWeb.Application | sort` をそれぞれ比較する | public・internal メンバーの宣言集合が分割前後で一致する。クラス・名前空間が不変（partial 化のみ） |
 | MN-208 | メンバーの配置割り当て | `rg -l 'ValidateItem' src/EndfieldAicWeb.Domain/Validation/`・`rg -l 'OrderNodesWithinRanks|CountCrossings' src/EndfieldAicWeb.Application/` 等で、各メソッドの所在ファイルを確認する | 計画書 §3 の割り当て表どおりのファイルにメンバーが置かれている |
@@ -21,7 +21,7 @@ MN-205・MN-206 (a) のメンバーブロック比較スクリプト（`OLD`・`
 
 ```sh
 python3 - <<'EOF'
-import glob, re, subprocess
+import glob, re, subprocess, sys
 OLD = 'main:src/EndfieldAicWeb.Domain/Validation/MasterValidator.cs'
 NEW = 'src/EndfieldAicWeb.Domain/Validation/MasterValidator*.cs'
 START = re.compile(r'    (?:public|private|internal|protected) ')
@@ -44,6 +44,10 @@ old = subprocess.run(['git', 'show', OLD], capture_output=True, text=True).stdou
 new = ''.join(open(f).read() for f in sorted(glob.glob(NEW)))
 a, b = members(old), members(new)
 print(f'members: {len(a)} -> {len(b)}; identical={a == b}')
+if a != b:
+    for x in set(a) ^ set(b):
+        print('DIFFERENT:', x.split('\n', 1)[0])
+    sys.exit(1)
 EOF
 ```
 
