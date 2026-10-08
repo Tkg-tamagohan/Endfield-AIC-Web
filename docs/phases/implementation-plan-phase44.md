@@ -36,7 +36,7 @@
 
 ## 2. 用語
 
-- **verbatim 分割**: 宣言・メソッド・コメントを一字も変えずに partial ファイルへ移す分割。分割ファイルを定められた順で連結すると元ファイルと一致する
+- **verbatim 分割**: 宣言・メソッド・コメントを一字も変えずに partial ファイルへ移す分割。検証は追加・削除行の多重集合比較で行い、移動行が相殺されて差分が partial 化に伴う行（using・名前空間・クラス宣言・閉じ括弧）のみになることを確認する（MN-205〜206）
 - **層割当（Layers）**: `AssignRanks` の前段。ノードのランク（層）を初期層伝播・循環層割当・環境固定で確定するフェーズ
 - **層内順序（Order）**: `AssignRanks` の後段。確定したランク内のノード順序を双方向バリセンター掃引・交差数計測・隣接ペア入替後処理で決めるフェーズ（仕様決定 CR・CS）
 
@@ -55,7 +55,7 @@
 | `src/EndfieldAicWeb.Domain/Validation/MasterValidator.GameMap.cs`（新規） | `ValidateGameMap` |
 | `src/EndfieldAicWeb.Domain/Validation/MasterValidator.Context.cs`（新規） | `ValidateGameMapInContext`・`ValidateRecipeInContext` |
 
-連結順（verbatim 検証用）: `MasterValidator.cs` → `MasterValidator.Item.cs` → `MasterValidator.Facility.cs` → `MasterValidator.Environment.cs` → `MasterValidator.GameEvent.cs` → `MasterValidator.Recipe.cs` → `MasterValidator.GameMap.cs` → `MasterValidator.Context.cs`。各分割ファイルは `partial class MasterValidator` の宣言とファイル先頭の using を共有し、元ファイルでの記述順を維持して配置する。
+各分割ファイルは `partial class MasterValidator` の宣言とファイル先頭の using を共有し、メンバーは元ファイルでの記述順を維持して配置する（差分の読みやすさのため）。
 
 ### Application（Phase 43 マージ後のパス。未マージの場合は移動前パスに読み替える）
 
@@ -65,7 +65,7 @@
 | `src/EndfieldAicWeb.Application/Graph/FlowGraphModelBuilder.AssignRanks.Layers.cs`（新規） | `PropagateInitialLayers`・`MaxAssignedSucc`・`AssignCycleLayers`・環境固定/`VirtualPreds` 構築 |
 | `src/EndfieldAicWeb.Application/Graph/FlowGraphModelBuilder.AssignRanks.Order.cs`（新規） | `OrderNodesWithinRanks`・`FindBestOrderByRank`・`ApplyAdjacentPairSwaps`・`RefreshOrder`・`InsertDispensers`・`Position`・`BarycenterKey`・`RunPass`・`OrderAtRank`・`CountCrossings`・`TargetOutputGap`・`SnapshotOrder` |
 
-連結順（verbatim 検証用）: `FlowGraphModelBuilder.AssignRanks.cs` → `FlowGraphModelBuilder.AssignRanks.Layers.cs` → `FlowGraphModelBuilder.AssignRanks.Order.cs`。
+メンバーは元ファイルでの記述順を維持して配置する（差分の読みやすさのため）。
 
 ### 文書（文書 PR で反映済み）
 
@@ -84,7 +84,7 @@
 ## 5. 検証方針
 
 [test-specification-phase44.md](test-specification-phase44.md) に従う。
-本 Phase は verbatim 分割のみのため新規 xUnit は追加しない。検証は (a) 分割ファイルの連結が元ファイルと一致すること、(b) 公開 API・修飾名が不変であること、(c) 既存テストの全緑で構成する。
+本 Phase は verbatim 分割のみのため新規 xUnit は追加しない。検証は (a) 移動行が追加・削除で相殺され差分が partial 化に伴う行のみであること、(b) 公開 API・修飾名が不変であること、(c) 既存テストの全緑で構成する。
 
 ## 6. 暫定解釈
 
@@ -100,6 +100,6 @@
 
 ## 8. 受け入れ条件
 
-- §3 の割り当てどおり分割され、分割ファイルの連結が元ファイルと一致する
+- §3 の割り当てどおり分割され、移動行が追加・削除で相殺され差分が partial 化に伴う行のみである（verbatim 移動）
 - 公開 API・型の完全修飾名・メンバー集合が分割前後で不変である
 - `dotnet build` と `dotnet test` が全緑で、`tools/validate_master.py` を通過する（データ未変更の回帰確認）

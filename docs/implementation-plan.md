@@ -456,14 +456,14 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 - [ ] `SemVersion.cs` を `Domain/Models/` へ移し、名前空間を `EndfieldAicWeb.Domain.Models` とする（仕様決定 DC）
 - [ ] 参照側（`src/`・`tests/`）の using を追従させ、生きている文書・スキルのパス参照を grep 照合して追従させる
 - [ ] `dotnet build`・`dotnet test` 全緑と、移動差分が名前空間・using に限定されること・テスト修飾名不変の検査、ブラウザ煙突確認（MN-198〜）を実施する
-- **受け入れ条件**: 公開 API・型の完全修飾名・挙動が不変で、Application の名前空間がフォルダ構成と一致する。詳細は `phases/implementation-plan-phase43.md` と `phases/test-specification-phase43.md`。Phase 番号は 43 とする（main の現行最大は Phase 42）。
+- **受け入れ条件**: 型名・公開 API・挙動が不変（型の完全修飾名は名前空間変更に伴い意図的に変わる）で、Application の名前空間がフォルダ構成と一致する。詳細は `phases/implementation-plan-phase43.md` と `phases/test-specification-phase43.md`。Phase 番号は 43 とする（main の現行最大は Phase 42）。
 
 ### Phase 44: Domain/Application の構造整理（分割系）（PR: MasterValidator・AssignRanks の partial 分割）
 
 - [ ] `MasterValidator` を対象エンティティ別の partial ファイルへ verbatim 分割する（仕様決定 DD。割り当ては `phases/implementation-plan-phase44.md` §3）
 - [ ] `FlowGraphModelBuilder.AssignRanks` を層割当（Layers）・層内順序（Order）の partial ファイルへ verbatim 分割する（仕様決定 DD）
-- [ ] `dotnet build`・`dotnet test` 全緑と、分割ファイルの連結が元ファイルと一致すること・メンバー集合不変の検査（MN-205〜）を実施する
-- **受け入れ条件**: 分割ファイルの連結が元ファイルと一致する verbatim 移動で、公開 API・修飾名・挙動が不変。詳細は `phases/implementation-plan-phase44.md` と `phases/test-specification-phase44.md`。Phase 番号は 44 とする（Phase 43 文書で 43 を採番済み）。
+- [ ] `dotnet build`・`dotnet test` 全緑と、移動行が追加・削除で相殺される verbatim 検査・メンバー集合不変の検査（MN-205〜）を実施する
+- **受け入れ条件**: 移動行が追加・削除で相殺される verbatim 移動で、公開 API・修飾名・挙動が不変。詳細は `phases/implementation-plan-phase44.md` と `phases/test-specification-phase44.md`。Phase 番号は 44 とする（Phase 43 文書で 43 を採番済み）。
 
 
 ## 5. 実装メモ・規約

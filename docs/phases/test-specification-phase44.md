@@ -11,10 +11,10 @@
 
 | ID | 対象 | 内容 | 期待 |
 |---|---|---|---|
-| MN-205 | MasterValidator 分割の verbatim 性 | `src/EndfieldAicWeb.Domain/Validation/` で `MasterValidator.cs`・`MasterValidator.Item.cs`・`MasterValidator.Facility.cs`・`MasterValidator.Environment.cs`・`MasterValidator.GameEvent.cs`・`MasterValidator.Recipe.cs`・`MasterValidator.GameMap.cs`・`MasterValidator.Context.cs` をこの順で `cat` し、`git show main:src/EndfieldAicWeb.Domain/Validation/MasterValidator.cs` と `diff` する | 差分なし。分割は using 複写と `partial` 宣言の共有のみを伴う verbatim 移動である（`partial` 化に伴う宣言行の差分は許容し、許容した差分を結果表へ記録する） |
-| MN-206 | AssignRanks 分割の verbatim 性 | `src/EndfieldAicWeb.Application/Graph/`（Phase 43 未マージ時は `src/EndfieldAicWeb.Application/`）で `FlowGraphModelBuilder.AssignRanks.cs`・`FlowGraphModelBuilder.AssignRanks.Layers.cs`・`FlowGraphModelBuilder.AssignRanks.Order.cs` をこの順で `cat` し、`git show` の元ファイルと `diff` する | 差分なし（MN-205 と同じ許容基準） |
-| MN-207 | 公開 API・修飾名の不変 | 実施前後で `rg '^\s*(public|internal)\s' src/EndfieldAicWeb.Domain/Validation/MasterValidator*.cs src/EndfieldAicWeb.Application*/FlowGraphModelBuilder.AssignRanks*.cs | sort` を比較する | public・internal メンバーの宣言集合が分割前後で一致する。クラス・名前空間が不変（partial 化のみ） |
-| MN-208 | メンバーの配置割り当て | `rg -l 'ValidateItem' src/EndfieldAicWeb.Domain/Validation/`・`rg -l 'OrderNodesWithinRanks|CountCrossings' src/EndfieldAicWeb.Application*/` 等で、各メソッドの所在ファイルを確認する | 計画書 §3 の割り当て表どおりのファイルにメンバーが置かれている |
+| MN-205 | MasterValidator 分割の verbatim 性 | `git diff main...HEAD -- 'src/EndfieldAicWeb.Domain/Validation/MasterValidator*.cs'` の差分行を、追加行と削除行に分けて `sort` して比較する（`git diff ... | grep '^-' | grep -v '^---' | sort` と `git diff ... | grep '^+' | grep -v '^+++' | sort` の `diff`） | 移動された各行は削除と追加で相殺され、追加側に残るのは partial 化に伴う行のみ: 各ファイルの `using`・`namespace` 宣言・`partial class` 宣言・クラス/名前空間の閉じ括弧・区切りの空行。それ以外の行差分がない（`ValidateRecipeItems<T>` 等の配置順差はこの比較では問題にならない） |
+| MN-206 | AssignRanks 分割の verbatim 性 | MN-205 と同じ手順を `src/EndfieldAicWeb.Application/Graph/FlowGraphModelBuilder.AssignRanks*.cs`（Phase 43 未マージ時は `src/EndfieldAicWeb.Application/FlowGraphModelBuilder.AssignRanks*.cs`）に対して行う | MN-205 と同じ許容基準 |
+| MN-207 | 公開 API・修飾名の不変 | 実施前後で `rg '^\s*(public|internal)\s' src/EndfieldAicWeb.Domain/Validation/MasterValidator*.cs | sort` と `rg '^\s*(public|internal)\s' -g 'FlowGraphModelBuilder.AssignRanks*.cs' src/EndfieldAicWeb.Application | sort` をそれぞれ比較する | public・internal メンバーの宣言集合が分割前後で一致する。クラス・名前空間が不変（partial 化のみ） |
+| MN-208 | メンバーの配置割り当て | `rg -l 'ValidateItem' src/EndfieldAicWeb.Domain/Validation/`・`rg -l 'OrderNodesWithinRanks|CountCrossings' src/EndfieldAicWeb.Application/` 等で、各メソッドの所在ファイルを確認する | 計画書 §3 の割り当て表どおりのファイルにメンバーが置かれている |
 | MN-209 | 既存検証の回帰 | `dotnet build`・`dotnet test`・`~/.venvs/validate/bin/python tools/validate_master.py` を実行する | 全緑。変更は verbatim 分割のみのため、それ以外の失敗は変更混入を疑う |
 
 ## 2. 目視確認

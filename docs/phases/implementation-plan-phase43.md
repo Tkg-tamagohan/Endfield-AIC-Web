@@ -30,7 +30,7 @@
 
 - 移動対象ファイルの内容変更。差分は名前空間宣言・using 追加/整理・ファイルパスを記した文書コメントの更新に限定する
 - テストプロジェクト（`tests/`）のフォルダ分割とテストクラスの名前空間変更。テスト ID が xUnit 完全修飾名に紐付く帳簿運用のため、テスト側は現行構成を維持する（仕様決定 DC）
-- 公開 API・型の完全修飾名以外の変更、クラス分割や責務の再配分。`MasterValidator`・`FlowGraphModelBuilder.AssignRanks` の partial 分割は Phase 44 で行う
+- 型名・公開 API（メンバー集合・シグネチャ）・挙動の変更。型の完全修飾名は名前空間変更に伴い §3 の新名前空間へ意図的に変わるものとし、これを除く変更をしない。クラス分割や責務の再配分も行わない（`MasterValidator`・`FlowGraphModelBuilder.AssignRanks` の partial 分割は Phase 44 で行う）
 - `EndfieldAicWeb.Admin`・`EndfieldAicWeb.App`・`EndfieldAicWeb.SharedUi`・`EndfieldAicWeb.Infrastructure`・`EndfieldAicWeb.Domain`（SemVersion 移動を除く）のフォルダ構成変更。これらは既に規約どおりか、本 Phase の範囲外とする
 - 過去の Phase 文書・テスト仕様書内のパス参照の遡及更新（当時の作業記録のため）
 
@@ -131,6 +131,7 @@
 - `EndfieldAicWeb.Application` の全ファイルが 4 フォルダに収まり、名前空間がフォルダと一致する
 - `SemVersion` が `EndfieldAicWeb.Domain.Models` にある
 - 移動ファイルの内容差分が名前空間宣言・using・文書コメントに限定されている
+- 移動した型の完全修飾名は新名前空間へ変わり、型名・メンバー・挙動は移動前後で不変である
 - テストクラスの完全修飾名が移動前後で不変である
 - `dotnet build` と `dotnet test` が全緑で、`tools/validate_master.py` を通過する（データ未変更の回帰確認）
 - 公開アプリで計算が実行でき、管理ツールでマスタ JSON の読み込み・計算プレビューが動作する
