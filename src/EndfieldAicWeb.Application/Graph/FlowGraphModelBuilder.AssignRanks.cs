@@ -1,4 +1,4 @@
-namespace EndfieldAicWeb.Application;
+namespace EndfieldAicWeb.Application.Graph;
 
 /// <summary>FlowGraphModelBuilder の順序ロジック部分（層割りとランク内順序）。</summary>
 public static partial class FlowGraphModelBuilder

@@ -2,7 +2,7 @@ using EndfieldAicWeb.Domain.Calculation;
 using EndfieldAicWeb.Domain.Models;
 using DomainEnv = EndfieldAicWeb.Domain.Models.Environment;
 
-namespace EndfieldAicWeb.Application;
+namespace EndfieldAicWeb.Application.PlanView;
 
 /// <summary>
 /// スナップショットから表示名・アイコンキーを引く検索群。

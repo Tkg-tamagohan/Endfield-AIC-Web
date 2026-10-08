@@ -2,7 +2,7 @@ using System.Globalization;
 using EndfieldAicWeb.Domain.Calculation;
 using EndfieldAicWeb.Domain.Models;
 
-namespace EndfieldAicWeb.Application;
+namespace EndfieldAicWeb.Application.PlanView;
 
 /// <summary>
 /// ペア代替選択の候補 1 件。Key はペア行の一意キー（全要素の組、仕様決定 P）の文字列表現で、

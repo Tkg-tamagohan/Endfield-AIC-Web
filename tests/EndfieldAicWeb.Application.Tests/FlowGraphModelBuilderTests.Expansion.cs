@@ -1,4 +1,5 @@
-using EndfieldAicWeb.Application;
+using EndfieldAicWeb.Application.Graph;
+using EndfieldAicWeb.Application.PlanView;
 using EndfieldAicWeb.Domain.Calculation;
 using EndfieldAicWeb.Domain.Models;
 

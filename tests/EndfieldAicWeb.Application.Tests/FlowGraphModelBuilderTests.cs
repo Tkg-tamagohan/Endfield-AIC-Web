@@ -1,4 +1,4 @@
-using EndfieldAicWeb.Application;
+using EndfieldAicWeb.Application.Graph;
 using EndfieldAicWeb.Domain.Calculation;
 using EndfieldAicWeb.Domain.Models;
 

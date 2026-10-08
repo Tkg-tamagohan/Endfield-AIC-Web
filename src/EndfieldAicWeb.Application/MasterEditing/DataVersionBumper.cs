@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace EndfieldAicWeb.Application;
+namespace EndfieldAicWeb.Application.MasterEditing;
 
 /// <summary>
 /// エクスポート時の DataVersion 次版提案。`major.minor.patch` 形なら patch+1 を提案し、

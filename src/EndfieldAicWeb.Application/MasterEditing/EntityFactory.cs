@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 using EndfieldAicWeb.Domain.Models;
 using Environment = EndfieldAicWeb.Domain.Models.Environment;
 
-namespace EndfieldAicWeb.Application;
+namespace EndfieldAicWeb.Application.MasterEditing;
 
 /// <summary>
 /// 管理ツールの「新規追加」で使う、検証を通る既定値入りのエンティティ生成。

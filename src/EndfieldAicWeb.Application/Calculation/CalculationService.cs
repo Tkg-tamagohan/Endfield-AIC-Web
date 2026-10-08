@@ -1,6 +1,7 @@
 using EndfieldAicWeb.Domain.Calculation;
+using EndfieldAicWeb.Application.PlanView;
 
-namespace EndfieldAicWeb.Application;
+namespace EndfieldAicWeb.Application.Calculation;
 
 /// <summary>
 /// 計算結果と、需要アイテムごとのペア候補の組。

@@ -1,4 +1,4 @@
-namespace EndfieldAicWeb.Application;
+namespace EndfieldAicWeb.Application.PlanView;
 
 /// <summary>
 /// 表示単位（仕様決定 M）。内部保持・計算はすべて 個/分。

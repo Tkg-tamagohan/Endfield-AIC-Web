@@ -1,5 +1,5 @@
 using EndfieldAicWeb.Admin.Services;
-using EndfieldAicWeb.Application;
+using EndfieldAicWeb.Application.MasterEditing;
 using EndfieldAicWeb.Domain.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
