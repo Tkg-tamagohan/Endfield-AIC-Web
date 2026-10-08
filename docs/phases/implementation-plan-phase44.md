@@ -93,6 +93,8 @@
 1. `ValidateRecipeItems<T>` は `ValidateRecipe`・`ValidateGameMap` の双方から使われる汎用検査のため、対象別ファイルではなく共通ヘルパーと同じ主ファイルに残す
 2. `InsertDispensers`（散布機の隣接挿入、仕様決定 BM）は順序リストへの挿入操作のため `AssignRanks.Order.cs` に置く
 3. 分割ファイルは `Class.Concern.cs` の既存命名規約に従う（`CalculationSession.Expand.cs`・`FlowGraphModelBuilder.AssignRanks.cs` と同型）
+4. `AssignLayers`（層割り段の駆動。§3 の表には個別記載がない）は層割当フェーズのエントリとして `AssignRanks.Layers.cs` に置く
+5. `BuildLayerGraph`（§3 の表には個別記載がない）は `Preds`/`Succs` の組立であるため、§3「隣接構築を残す」に従い主ファイルに残す
 
 ## 7. 残課題
 
