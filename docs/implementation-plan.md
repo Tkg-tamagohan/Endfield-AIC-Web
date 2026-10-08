@@ -450,6 +450,21 @@ Domain は UI・保存実装から完全に分離し、WASM 上でそのまま�
 - [ ] 手動確認 MN-191〜197 を実施する（実装 PR #122 マージ済み e63e7fd。MN-191〜197 は PR ヘッド e5db2c5・同梱マスタ 0.2.8 でブラウザ E2E・ユーザー確認を実施。MN-195 のマップ変更パートと MN-194 の未充足・処理枠との併用は同梱マスタでは再現不可のため未検証）
 - **受け入れ条件**: 中間素材を基礎素材に指定すると上流経路が計画とグラフから省略され、素材行が「外部調達」表示・グラフノードが青系になる。詳細は `phases/implementation-plan-phase42.md` と `phases/test-specification-phase42.md`。Phase 番号は 42 とする（main の現行最大は Phase 41）。
 
+### Phase 43: Domain/Application の構造整理（移動系）（PR: Application フォルダ分割・SemVersion 移動）
+
+- [ ] `EndfieldAicWeb.Application` を `Calculation/`・`PlanView/`・`Graph/`・`MasterEditing/` の 4 フォルダに分割し、各ファイルの名前空間をフォルダに一致させる（仕様決定 DC。割り当ては `phases/implementation-plan-phase43.md` §3）
+- [ ] `SemVersion.cs` を `Domain/Models/` へ移し、名前空間を `EndfieldAicWeb.Domain.Models` とする（仕様決定 DC）
+- [ ] 参照側（`src/`・`tests/`）の using を追従させ、生きている文書・スキルのパス参照を grep 照合して追従させる
+- [ ] `dotnet build`・`dotnet test` 全緑と、移動差分が名前空間・using に限定されること・テスト修飾名不変の検査、ブラウザ煙突確認（MN-198〜）を実施する
+- **受け入れ条件**: 型名・公開 API・挙動が不変（型の完全修飾名は名前空間変更に伴い意図的に変わる）で、Application の名前空間がフォルダ構成と一致する。詳細は `phases/implementation-plan-phase43.md` と `phases/test-specification-phase43.md`。Phase 番号は 43 とする（main の現行最大は Phase 42）。
+
+### Phase 44: Domain/Application の構造整理（分割系）（PR: MasterValidator・AssignRanks の partial 分割）
+
+- [ ] `MasterValidator` を対象エンティティ別の partial ファイルへ verbatim 分割する（仕様決定 DD。割り当ては `phases/implementation-plan-phase44.md` §3）
+- [ ] `FlowGraphModelBuilder.AssignRanks` を層割当（Layers）・層内順序（Order）の partial ファイルへ verbatim 分割する（仕様決定 DD）
+- [ ] `dotnet build`・`dotnet test` 全緑と、メンバー単位の verbatim 比較（行順を含む）・メンバー集合不変の検査（MN-205〜）を実施する
+- **受け入れ条件**: メンバーブロックが verbatim で一致する移動で、公開 API・修飾名・挙動が不変。詳細は `phases/implementation-plan-phase44.md` と `phases/test-specification-phase44.md`。Phase 番号は 44 とする（Phase 43 文書で 43 を採番済み）。
+
 
 ## 5. 実装メモ・規約
 

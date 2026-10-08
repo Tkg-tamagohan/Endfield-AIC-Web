@@ -317,6 +317,7 @@ flowchart LR
 EF Core・SQLite・Layout・WPF・旧 JSON 相互互換は移植しない。
 
 - ドメインエンティティ（`MasterDocument` 配下）の可変性は管理ツールの編集対象に限定する。計算経路は必ずスナップショット経由とし、編集画面の可変モデルを計算へ流用しない。スナップショットの「不変」はコレクションの複製と呼び出し側の変更禁止という運用上の境界であり、エンティティ自体は共有参照である。
+- `EndfieldAicWeb.Domain` は `Models/`・`Calculation/`・`Validation/`、`EndfieldAicWeb.Application` は `Calculation/`・`PlanView/`・`Graph/`・`MasterEditing/`、`EndfieldAicWeb.Infrastructure` は `Transfer/`・`Icons/` のフォルダ構成とし、各ファイルの名前空間はフォルダに一致させる（仕様決定 DC）。複数の関心を持つ大きいクラスは partial class で関心ごとのファイルに分割する（仕様決定 DD）。テストプロジェクトはフォルダ分割の対象外とする（仕様決定 DC）。
 
 ## 7. データ投入ワークフロー
 
