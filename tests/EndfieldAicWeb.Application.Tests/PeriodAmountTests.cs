@@ -1,4 +1,4 @@
-using EndfieldAicWeb.Application;
+using EndfieldAicWeb.Application.PlanView;
 
 namespace EndfieldAicWeb.Application.Tests;
 

@@ -1,4 +1,4 @@
-using EndfieldAicWeb.Application;
+using EndfieldAicWeb.Application.MasterEditing;
 using EndfieldAicWeb.Domain.Models;
 
 namespace EndfieldAicWeb.Application.Tests;

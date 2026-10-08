@@ -2,7 +2,7 @@ using EndfieldAicWeb.Domain.Calculation;
 using EndfieldAicWeb.Domain.Models;
 using Environment = EndfieldAicWeb.Domain.Models.Environment;
 
-namespace EndfieldAicWeb.Application;
+namespace EndfieldAicWeb.Application.PlanView;
 
 /// <summary>素材行の表示用モデル。DisposalPerMinute は処理ランによる消費量（仕様決定 CC）。</summary>
 public sealed record MaterialViewRow(

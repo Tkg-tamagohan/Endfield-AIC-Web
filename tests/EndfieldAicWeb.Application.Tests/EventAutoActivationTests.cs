@@ -1,4 +1,4 @@
-using EndfieldAicWeb.Application;
+using EndfieldAicWeb.Application.Calculation;
 
 namespace EndfieldAicWeb.Application.Tests;
 

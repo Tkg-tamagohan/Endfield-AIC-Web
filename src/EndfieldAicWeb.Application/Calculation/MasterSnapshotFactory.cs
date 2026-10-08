@@ -1,7 +1,7 @@
 using EndfieldAicWeb.Domain.Calculation;
 using EndfieldAicWeb.Domain.Models;
 
-namespace EndfieldAicWeb.Application;
+namespace EndfieldAicWeb.Application.Calculation;
 
 /// <summary>
 /// マスタ文書から計算用スナップショットを作る。

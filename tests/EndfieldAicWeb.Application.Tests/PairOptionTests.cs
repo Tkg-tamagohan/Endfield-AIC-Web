@@ -1,6 +1,7 @@
 using EndfieldAicWeb.Domain.Calculation;
 using EndfieldAicWeb.Domain.Models;
-using EndfieldAicWeb.Application;
+using EndfieldAicWeb.Application.Calculation;
+using EndfieldAicWeb.Application.PlanView;
 
 namespace EndfieldAicWeb.Application.Tests;
 

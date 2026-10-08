@@ -1,6 +1,6 @@
 using EndfieldAicWeb.Domain.Models;
 
-namespace EndfieldAicWeb.Application;
+namespace EndfieldAicWeb.Application.MasterEditing;
 
 /// <summary>
 /// レシピの Id・名前の自動提案（仕様決定 BU）。直近に適用した提案値を保持し、

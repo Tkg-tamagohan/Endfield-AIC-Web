@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using EndfieldAicWeb.App;
 using EndfieldAicWeb.App.Services;
-using EndfieldAicWeb.Application;
+using EndfieldAicWeb.Application.Calculation;
 using EndfieldAicWeb.SharedUi;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);

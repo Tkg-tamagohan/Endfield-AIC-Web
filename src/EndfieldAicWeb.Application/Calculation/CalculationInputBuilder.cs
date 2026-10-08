@@ -2,9 +2,10 @@ using System.Globalization;
 using EndfieldAicWeb.Domain.Calculation;
 using EndfieldAicWeb.Domain.Models;
 using EndfieldAicWeb.Domain.Validation;
+using EndfieldAicWeb.Application.PlanView;
 using DomainEnv = EndfieldAicWeb.Domain.Models.Environment;
 
-namespace EndfieldAicWeb.Application;
+namespace EndfieldAicWeb.Application.Calculation;
 
 /// <summary>生産リスト 1 行の入力値（選択アイテム Id と個/分の文字列）。</summary>
 public sealed record TargetRowInput(string? ItemId, string? RateText);

@@ -1,7 +1,8 @@
 using EndfieldAicWeb.Domain.Calculation;
 using EndfieldAicWeb.Domain.Models;
+using EndfieldAicWeb.Application.PlanView;
 
-namespace EndfieldAicWeb.Application;
+namespace EndfieldAicWeb.Application.Graph;
 
 /// <summary>生産フローグラフのノード種別（仕様決定 AI）。</summary>
 public enum FlowGraphNodeKind

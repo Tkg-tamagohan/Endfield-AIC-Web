@@ -1,6 +1,6 @@
 using EndfieldAicWeb.Domain.Models;
 
-namespace EndfieldAicWeb.Application;
+namespace EndfieldAicWeb.Application.Calculation;
 
 /// <summary>
 /// イベントの自動有効化判定。開催期間の前後に猶予日数を設け、

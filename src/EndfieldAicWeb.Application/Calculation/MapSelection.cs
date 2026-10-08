@@ -2,7 +2,7 @@ using System.Globalization;
 using EndfieldAicWeb.Domain.Calculation;
 using EndfieldAicWeb.Domain.Models;
 
-namespace EndfieldAicWeb.Application;
+namespace EndfieldAicWeb.Application.Calculation;
 
 /// <summary>
 /// 計算に使うマップ候補と採取レートを導出する。

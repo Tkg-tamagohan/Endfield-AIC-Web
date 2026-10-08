@@ -1,6 +1,6 @@
 using EndfieldAicWeb.Domain.Models;
 
-namespace EndfieldAicWeb.Application;
+namespace EndfieldAicWeb.Application.MasterEditing;
 
 /// <summary>
 /// アイテム選択補助。カテゴリ列挙・カテゴリ絞り込み・候補の母集団制限を純粋関数で提供する。

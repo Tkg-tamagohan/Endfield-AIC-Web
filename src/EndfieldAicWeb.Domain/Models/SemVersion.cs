@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 
-namespace EndfieldAicWeb.Domain;
+namespace EndfieldAicWeb.Domain.Models;
 
 /// <summary>
 /// semver.org 準拠のバージョン（major.minor.patch[-prerelease][+build]）。

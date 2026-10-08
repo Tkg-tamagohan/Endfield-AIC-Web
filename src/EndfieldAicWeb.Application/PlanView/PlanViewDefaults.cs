@@ -1,6 +1,6 @@
 using EndfieldAicWeb.Domain.Calculation;
 
-namespace EndfieldAicWeb.Application;
+namespace EndfieldAicWeb.Application.PlanView;
 
 /// <summary>
 /// 計算結果の既定ビュー規則（仕様決定 O・I・BS の UI 既定）。

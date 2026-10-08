@@ -1,7 +1,7 @@
 using EndfieldAicWeb.Domain.Models;
 using Environment = EndfieldAicWeb.Domain.Models.Environment;
 
-namespace EndfieldAicWeb.Application;
+namespace EndfieldAicWeb.Application.MasterEditing;
 
 /// <summary>他エンティティからの参照箇所 1 件。</summary>
 public sealed record MasterReference(string EntityKind, string EntityId, string Field);

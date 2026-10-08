@@ -1,6 +1,6 @@
 using EndfieldAicWeb.Domain.Models;
 
-namespace EndfieldAicWeb.Application;
+namespace EndfieldAicWeb.Application.MasterEditing;
 
 /// <summary>
 /// IconKey 未設定時のフォールバック規則。

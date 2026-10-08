@@ -1,8 +1,9 @@
 using System.Globalization;
 using EndfieldAicWeb.Domain.Calculation;
 using EndfieldAicWeb.Domain.Models;
+using EndfieldAicWeb.Application.Calculation;
 
-namespace EndfieldAicWeb.Application;
+namespace EndfieldAicWeb.Application.PlanView;
 
 /// <summary>
 /// 計算結果パネルの表示文字列を組み立てる純粋関数群。
