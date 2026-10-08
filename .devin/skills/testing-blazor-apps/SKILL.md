@@ -34,6 +34,8 @@ dotnet run --project src/EndfieldAicWeb.Admin --no-launch-profile --urls http://
 - `127.0.0.1` が Chrome で NXDOMAIN になることがある: `http://127.0.0.1:5180/` を開くと `DNS_PROBE_FINISHED_NXDOMAIN` で「This site can't be reached」になり、Reload しても解消しないことがある（curl では 200 が返るのでサーバ側は正常）。その場合は `http://localhost:5180/` / `http://localhost:5181/` で開くと通る（Phase 26 で実測）。
 - アドレスバー（ctrl+l）で別ページ URL を打つとアプリがフルリロードされ、読み込み済みの in-memory 文書が消える。ページ間の移動はアプリ内のナビゲーションリンクをクリックしてクライアントサイド遷移する。App は初回ロードで `data/master.json` を自動読込するため復元するが、Admin はホームで「同梱マスタを読み込む」を押し直す必要がある（Phase 20 で実測）。
 - `google-chrome <URL>` で起動すると「New Tab」と目的ページの 2 ウィンドウが開くことがある。`read_dom` や `browser_console`、ページ HTML 取得は New Tab 側にバインドされ対象ページの DOM が取れない。テスト対象は同一ウィンドウのタブに集約し（ctrl+t で開く）、余分なウィンドウは閉じるか無視してスクリーンショット中心で検証する。
+- `google-chrome` shim は「引数が URL 1 個」のときだけ管理 Chrome（CDP :29229、`/opt/.devin/browser.sh` 経由）へタブ追加する。WebGPU 等のフラグ付きで呼ぶと CDP なしの別 Chrome が直接起動する。また、管理 Chrome 側の余分なウィンドウを閉じると管理 Chrome ごと終了し「Could not connect to Chrome via CDP」で DOM 系が全滅する（再起動しない）。解消しない場合の代替: `/opt/.devin/chrome/chrome/linux-*/chrome-linux64/chrome --remote-debugging-port=<任意ポート> --remote-allow-origins='*' --user-data-dir=<profile> <URL>` で CDP 付き Chrome を起動し、`/json` の page ターゲット `webSocketDebuggerUrl` へ websocket-client で `Runtime.evaluate` すれば DOM 計測は代替できる（Phase 44 で実測）。
+- フローグラフの `.fnode` ノードカードは `webgpuSupported()` が真のときだけマウントされる（CalculatorPanel）。DOM 上のノード数計測には `--enable-unsafe-webgpu --use-webgpu-adapter=swiftshader` 付き Chrome が必須。SwiftShader では canvas のエッジ描画は画面に出ないが `.fnode` ボタン（DOM）は表示・計測とも可能。モデル自体は WebGPU 非対応でも `FlowGraphModelBuilder.Build` が計算のたびに走るため、「計算失敗」エラーが出なければビルド成功と読み取れる（Phase 44 で実測）。
 
 ## レスポンシブ確認
 
